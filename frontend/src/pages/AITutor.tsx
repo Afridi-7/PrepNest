@@ -120,7 +120,7 @@ const AITutor = () => {
                 className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={loading}
               />
-              <Button type="submit" disabled={!input.trim() || loading} className="gradient-primary text-primary-foreground border-0 rounded-xl px-4">
+              <Button type="submit" disabled={!input.trim() || loading} variant="gradient" className="rounded-xl px-4">
                 <Send className="h-4 w-4" />
               </Button>
             </form>

@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 
 const progressData = [
-  { subject: "English", progress: 72, color: "bg-info" },
-  { subject: "Mathematics", progress: 58, color: "bg-warning" },
-  { subject: "Physics", progress: 45, color: "bg-primary" },
-  { subject: "Chemistry", progress: 63, color: "bg-success" },
-  { subject: "Biology", progress: 34, color: "bg-accent" },
-  { subject: "Islamiat", progress: 80, color: "bg-destructive" },
+  { subject: "English", progress: 72, color: "bg-blue-500" },
+  { subject: "Mathematics", progress: 58, color: "bg-orange-500" },
+  { subject: "Physics", progress: 45, color: "bg-purple-500" },
+  { subject: "Chemistry", progress: 63, color: "bg-green-500" },
+  { subject: "Biology", progress: 34, color: "bg-teal-500" },
+  { subject: "Islamiat", progress: 80, color: "bg-red-500" },
 ];
 
 const recentActivity = [
@@ -50,19 +50,27 @@ const Dashboard = () => (
         {/* Top Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Study Streak", value: "7 Days", icon: Flame, accent: "text-warning" },
-            { label: "Quizzes Taken", value: "42", icon: Target, accent: "text-primary" },
-            { label: "Avg Accuracy", value: "74%", icon: TrendingUp, accent: "text-success" },
-            { label: "Hours Studied", value: "126h", icon: Clock, accent: "text-info" },
+            { label: "Study Streak", value: "7 Days", icon: Flame, accent: "text-orange-600", bg: "bg-gradient-to-br from-orange-100 to-orange-200", border: "border-orange-300" },
+            { label: "Quizzes Taken", value: "42", icon: Target, accent: "text-purple-600", bg: "bg-gradient-to-br from-purple-100 to-purple-200", border: "border-purple-300" },
+            { label: "Avg Accuracy", value: "74%", icon: TrendingUp, accent: "text-green-600", bg: "bg-gradient-to-br from-green-100 to-green-200", border: "border-green-300" },
+            { label: "Hours Studied", value: "126h", icon: Clock, accent: "text-blue-600", bg: "bg-gradient-to-br from-blue-100 to-blue-200", border: "border-blue-300" },
           ].map((stat, i) => (
-            <div key={i} className="bg-card rounded-xl p-5 shadow-card">
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 + i * 0.05 }}
+              className={`bg-white rounded-2xl p-5 shadow-lg border-2 ${stat.border} hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer group`}
+            >
               <div className="flex items-center justify-between mb-3">
-                <stat.icon className={`h-5 w-5 ${stat.accent}`} />
-                <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                <div className={`${stat.bg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-md`}>
+                  <stat.icon className={`h-6 w-6 ${stat.accent}`} />
+                </div>
+                <ArrowUpRight className={`h-4 w-4 ${stat.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
               </div>
               <div className="font-heading text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="text-xs text-muted-foreground">{stat.label}</div>
-            </div>
+              <div className="text-xs text-muted-foreground font-medium">{stat.label}</div>
+            </motion.div>
           ))}
         </motion.div>
 

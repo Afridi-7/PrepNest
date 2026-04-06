@@ -107,31 +107,35 @@ const SubjectDetail = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen pt-24 pb-12">
+      <div className="min-h-screen pt-24 pb-12 bg-gradient-to-br from-purple-50/50 via-blue-50/50 to-white">
         <div className="container mx-auto px-4 max-w-4xl">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Link to="/subjects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
+            <Link to="/subjects" className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-purple-600 mb-6 font-medium transition-colors">
               <ArrowLeft className="h-4 w-4" /> Back to Subjects
             </Link>
-            <h1 className="font-heading text-3xl font-bold text-foreground mb-2">{data.name}</h1>
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-8">
-              <span>{data.topics.length} topics</span>
-              <span>·</span>
-              <span>{data.materials.length} resources</span>
-              <span>·</span>
-              <span>{data.tips.length} tips</span>
+            <h1 className="font-heading text-4xl font-bold text-gray-900 mb-3">{data.name}</h1>
+            <div className="flex flex-wrap gap-3 text-sm mb-8">
+              <span className="px-3 py-1.5 bg-purple-100 text-purple-700 font-semibold rounded-full border border-purple-200">
+                {data.topics.length} topics
+              </span>
+              <span className="px-3 py-1.5 bg-blue-100 text-blue-700 font-semibold rounded-full border border-blue-200">
+                {data.materials.length} resources
+              </span>
+              <span className="px-3 py-1.5 bg-orange-100 text-orange-700 font-semibold rounded-full border border-orange-200">
+                {data.tips.length} tips
+              </span>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-secondary rounded-xl mb-8 overflow-x-auto">
+            <div className="flex gap-2 p-1.5 bg-gray-100 rounded-xl mb-8 overflow-x-auto border border-gray-200">
               {tabs.map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                  className={`flex-1 px-5 py-3 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                     activeTab === tab
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                   }`}
                 >
                   {tab}
@@ -148,20 +152,33 @@ const SubjectDetail = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-card rounded-xl p-5 shadow-card"
+                    className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-purple-300"
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${topic.completed ? "bg-success/10" : "bg-secondary"}`}>
-                        {topic.completed ? <CheckCircle2 className="h-4 w-4 text-success" /> : <BookOpen className="h-4 w-4 text-muted-foreground" />}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${
+                        topic.completed 
+                          ? "bg-gradient-to-br from-green-400 to-green-500" 
+                          : "bg-gradient-to-br from-gray-200 to-gray-300"
+                      }`}>
+                        {topic.completed ? (
+                          <CheckCircle2 className="h-5 w-5 text-white" />
+                        ) : (
+                          <BookOpen className="h-5 w-5 text-gray-600" />
+                        )}
                       </div>
-                      <h3 className="font-heading font-semibold text-foreground flex-1">{topic.title}</h3>
-                      <Button size="sm" variant={topic.completed ? "outline" : "default"} className={!topic.completed ? "gradient-primary text-primary-foreground border-0" : ""}>
+                      <h3 className="font-heading font-bold text-gray-800 flex-1">{topic.title}</h3>
+                      <Button size="sm" variant={topic.completed ? "outline" : "gradient"}>
                         {topic.completed ? "Review" : "Start"} <Play className="h-3 w-3 ml-1" />
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-2 ml-11">
+                    <div className="flex flex-wrap gap-2 ml-13">
                       {topic.subtopics.map((st, j) => (
-                        <span key={j} className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">{st}</span>
+                        <span 
+                          key={j} 
+                          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 border border-purple-200 hover:from-purple-200 hover:to-blue-200 transition-colors cursor-pointer"
+                        >
+                          {st}
+                        </span>
                       ))}
                     </div>
                   </motion.div>
@@ -178,28 +195,44 @@ const SubjectDetail = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-card rounded-xl p-5 shadow-card flex items-center gap-4"
+                    className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-4 border border-gray-200 hover:border-blue-300"
                   >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      mat.type === "Past Paper" ? "bg-warning/10" : "bg-primary/10"
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
+                      mat.type === "Past Paper" 
+                        ? "bg-gradient-to-br from-orange-400 to-orange-500" 
+                        : mat.type === "Video"
+                        ? "bg-gradient-to-br from-red-400 to-red-500"
+                        : mat.type === "PDF"
+                        ? "bg-gradient-to-br from-blue-400 to-blue-500"
+                        : mat.type === "Interactive"
+                        ? "bg-gradient-to-br from-purple-400 to-purple-500"
+                        : "bg-gradient-to-br from-teal-400 to-teal-500"
                     }`}>
-                      {mat.type === "Video" ? <Play className="h-5 w-5 text-primary" /> :
-                       mat.type === "Past Paper" ? <FileText className="h-5 w-5 text-warning" /> :
-                       mat.type === "PDF" ? <FileText className="h-5 w-5 text-primary" /> :
-                       mat.type === "Interactive" ? <Layers className="h-5 w-5 text-primary" /> :
-                       <BookOpen className="h-5 w-5 text-primary" />}
+                      {mat.type === "Video" ? <Play className="h-6 w-6 text-white" /> :
+                       mat.type === "Past Paper" ? <FileText className="h-6 w-6 text-white" /> :
+                       mat.type === "PDF" ? <FileText className="h-6 w-6 text-white" /> :
+                       mat.type === "Interactive" ? <Layers className="h-6 w-6 text-white" /> :
+                       <BookOpen className="h-6 w-6 text-white" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground text-sm">{mat.title}</h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          mat.type === "Past Paper" ? "bg-warning/10 text-warning" : "bg-secondary text-muted-foreground"
+                      <h4 className="font-semibold text-gray-800 text-sm mb-1.5">{mat.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                          mat.type === "Past Paper" 
+                            ? "bg-orange-100 text-orange-700 border border-orange-300" 
+                            : mat.type === "Video"
+                            ? "bg-red-100 text-red-700 border border-red-300"
+                            : mat.type === "PDF"
+                            ? "bg-blue-100 text-blue-700 border border-blue-300"
+                            : mat.type === "Interactive"
+                            ? "bg-purple-100 text-purple-700 border border-purple-300"
+                            : "bg-teal-100 text-teal-700 border border-teal-300"
                         }`}>{mat.type}</span>
-                        <span className="text-xs text-muted-foreground">from {mat.source}</span>
+                        <span className="text-xs text-gray-600 font-medium">from {mat.source}</span>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="gap-1 flex-shrink-0">
-                      <ExternalLink className="h-3.5 w-3.5" /> Open
+                    <Button size="sm" variant="outline" className="gap-1.5 flex-shrink-0 border-2 hover:border-blue-500 hover:text-blue-600">
+                      <ExternalLink className="h-4 w-4" /> Open
                     </Button>
                   </motion.div>
                 ))}
@@ -215,18 +248,24 @@ const SubjectDetail = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-card rounded-xl p-5 shadow-card"
+                    className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-yellow-300"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Lightbulb className="h-5 w-5 text-accent" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center flex-shrink-0 shadow-md">
+                        <Lightbulb className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-heading font-semibold text-foreground text-sm">{tip.title}</h4>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{tip.category}</span>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-heading font-bold text-gray-800 text-sm">{tip.title}</h4>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                            tip.category === "Strategy" 
+                              ? "bg-blue-100 text-blue-700 border border-blue-300"
+                              : tip.category === "Exam Tip"
+                              ? "bg-purple-100 text-purple-700 border border-purple-300"
+                              : "bg-green-100 text-green-700 border border-green-300"
+                          }`}>{tip.category}</span>
                         </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{tip.description}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{tip.description}</p>
                       </div>
                     </div>
                   </motion.div>

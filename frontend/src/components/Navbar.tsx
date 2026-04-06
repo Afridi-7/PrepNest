@@ -17,13 +17,13 @@ const Navbar = () => {
   const location = useLocation();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-strong">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-strong border-b border-border/40 shadow-lg">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="gradient-primary rounded-lg p-1.5">
-            <GraduationCap className="h-5 w-5 text-primary-foreground" />
+        <Link to="/" className="flex items-center gap-2 group">
+          <div className="gradient-primary rounded-xl p-2 group-hover:scale-110 transition-transform duration-300 shadow-md">
+            <GraduationCap className="h-5 w-5 text-white" />
           </div>
-          <span className="font-heading font-bold text-lg text-foreground">PrepNest</span>
+          <span className="font-heading font-bold text-xl text-foreground">PrepNest</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
@@ -31,10 +31,10 @@ const Navbar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
                 location.pathname === link.path
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  ? "text-primary bg-gradient-to-r from-primary/15 to-secondary/15 shadow-md"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
               }`}
             >
               {link.label}
@@ -42,12 +42,12 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-3">
           <Link to="/login">
-            <Button variant="ghost" size="sm">Log In</Button>
+            <Button variant="ghost" size="sm" className="font-semibold">Log In</Button>
           </Link>
           <Link to="/signup">
-            <Button size="sm" className="gradient-primary text-primary-foreground border-0">Sign Up</Button>
+            <Button size="sm" variant="gradient">Sign Up</Button>
           </Link>
         </div>
 
@@ -82,7 +82,7 @@ const Navbar = () => {
                   <Button variant="outline" size="sm" className="w-full">Log In</Button>
                 </Link>
                 <Link to="/signup" className="flex-1">
-                  <Button size="sm" className="w-full gradient-primary text-primary-foreground border-0">Sign Up</Button>
+                  <Button size="sm" variant="gradient" className="w-full">Sign Up</Button>
                 </Link>
               </div>
             </div>

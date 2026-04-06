@@ -148,10 +148,10 @@ const Practice = () => {
                       <button
                         key={s}
                         onClick={() => setSubject(s)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                           subject === s
-                            ? "gradient-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground hover:text-foreground"
+                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
                         }`}
                       >
                         {s}
@@ -168,10 +168,10 @@ const Practice = () => {
                       <button
                         key={n}
                         onClick={() => setMcqCount(n)}
-                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold transition-all ${
                           mcqCount === n
-                            ? "gradient-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground hover:text-foreground"
+                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
                         }`}
                       >
                         {n}
@@ -188,10 +188,10 @@ const Practice = () => {
                       <button
                         key={t.value}
                         onClick={() => setTimeLimit(t.value)}
-                        className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                           timeLimit === t.value
-                            ? "gradient-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground hover:text-foreground"
+                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
                         }`}
                       >
                         {t.label}
@@ -207,7 +207,7 @@ const Practice = () => {
                   <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-4 w-4" /> {timeLimit === 0 ? "Untimed" : `${timeLimit} min`}</div>
                 </div>
 
-                <Button onClick={startQuiz} size="lg" className="w-full gradient-primary text-primary-foreground border-0 gap-2">
+                <Button onClick={startQuiz} size="lg" variant="gradient" className="w-full gap-2">
                   <Play className="h-5 w-5" /> Start Test
                 </Button>
               </div>
@@ -238,24 +238,32 @@ const Practice = () => {
                 <h2 className="font-heading text-xl font-semibold text-foreground mb-6">{q.question}</h2>
                 <div className="space-y-3">
                   {q.options.map((opt, i) => {
-                    let classes = "border-border bg-secondary/30 hover:bg-secondary";
-                    if (answered && i === q.correct) classes = "border-success bg-success/10";
-                    else if (answered && i === selected && i !== q.correct) classes = "border-destructive bg-destructive/10";
-                    else if (selected === i) classes = "border-primary bg-primary/5";
+                    let classes = "border-gray-300 bg-white hover:bg-purple-50 hover:border-purple-400 text-gray-800";
+                    if (answered && i === q.correct) classes = "border-green-500 bg-green-50 text-green-900";
+                    else if (answered && i === selected && i !== q.correct) classes = "border-red-500 bg-red-50 text-red-900";
+                    else if (selected === i) classes = "border-purple-500 bg-purple-50 text-purple-900";
 
                     return (
                       <button
                         key={i}
                         onClick={() => handleSelect(i)}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${classes} ${!answered ? "cursor-pointer" : "cursor-default"}`}
+                        className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes} ${!answered ? "cursor-pointer" : "cursor-default"}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="w-7 h-7 rounded-full border-2 border-inherit flex items-center justify-center text-xs font-medium">
+                          <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
+                            answered && i === q.correct 
+                              ? "border-green-600 bg-green-100 text-green-700"
+                              : answered && i === selected && i !== q.correct
+                              ? "border-red-600 bg-red-100 text-red-700"
+                              : selected === i
+                              ? "border-purple-600 bg-purple-100 text-purple-700"
+                              : "border-gray-400 bg-gray-50 text-gray-700"
+                          }`}>
                             {String.fromCharCode(65 + i)}
                           </span>
-                          <span className="text-sm font-medium text-foreground">{opt}</span>
-                          {answered && i === q.correct && <CheckCircle2 className="h-5 w-5 text-success ml-auto" />}
-                          {answered && i === selected && i !== q.correct && <XCircle className="h-5 w-5 text-destructive ml-auto" />}
+                          <span className="text-sm font-semibold flex-1">{opt}</span>
+                          {answered && i === q.correct && <CheckCircle2 className="h-5 w-5 text-green-600 ml-auto" />}
+                          {answered && i === selected && i !== q.correct && <XCircle className="h-5 w-5 text-red-600 ml-auto" />}
                         </div>
                       </button>
                     );
@@ -265,7 +273,7 @@ const Practice = () => {
 
               {answered && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Button onClick={nextQ} className="w-full gradient-primary text-primary-foreground border-0 gap-2">
+                  <Button onClick={nextQ} variant="gradient" className="w-full gap-2">
                     {currentQ < questions.length - 1 ? "Next Question" : "See Results"} <ArrowRight className="h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -310,7 +318,7 @@ const Practice = () => {
                   <Button onClick={restart} variant="outline" className="gap-2">
                     <Settings className="h-4 w-4" /> New Test
                   </Button>
-                  <Button onClick={() => { setPhase("config"); startQuiz(); }} className="gradient-primary text-primary-foreground border-0 gap-2">
+                  <Button onClick={() => { setPhase("config"); startQuiz(); }} variant="gradient" className="gap-2">
                     <RotateCcw className="h-4 w-4" /> Retry Same
                   </Button>
                 </div>

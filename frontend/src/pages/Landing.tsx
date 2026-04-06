@@ -30,13 +30,13 @@ const testimonials = [
 ];
 
 const subjects = [
-  { name: "English", color: "bg-info/10 text-info" },
-  { name: "Mathematics", color: "bg-warning/10 text-warning" },
-  { name: "Physics", color: "bg-primary/10 text-primary" },
-  { name: "Chemistry", color: "bg-success/10 text-success" },
-  { name: "Biology", color: "bg-accent/10 text-accent" },
-  { name: "Islamiat", color: "bg-destructive/10 text-destructive" },
-  { name: "Logical Reasoning", color: "bg-primary/10 text-primary" },
+  { name: "English", color: "bg-gradient-to-r from-blue-500 to-blue-600 text-white" },
+  { name: "Mathematics", color: "bg-gradient-to-r from-orange-500 to-orange-600 text-white" },
+  { name: "Physics", color: "bg-gradient-to-r from-purple-500 to-purple-600 text-white" },
+  { name: "Chemistry", color: "bg-gradient-to-r from-green-500 to-green-600 text-white" },
+  { name: "Biology", color: "bg-gradient-to-r from-teal-500 to-teal-600 text-white" },
+  { name: "Islamiat", color: "bg-gradient-to-r from-red-500 to-red-600 text-white" },
+  { name: "Logical Reasoning", color: "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white" },
 ];
 
 const fadeUp = {
@@ -47,9 +47,9 @@ const fadeUp = {
 const Landing = () => (
   <div className="min-h-screen">
     {/* Hero */}
-    <section className="relative pt-32 pb-24 overflow-hidden">
-      <div className="absolute inset-0 gradient-primary opacity-[0.04]" />
-      <div className="absolute inset-0 pattern-dots" />
+    <section className="relative pt-32 pb-24 overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10" />
+      <div className="absolute inset-0 pattern-dots opacity-30" />
       <div className="container mx-auto px-4 relative">
         <motion.div
           className="max-w-3xl mx-auto text-center"
@@ -57,24 +57,24 @@ const Landing = () => (
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Sparkles className="h-4 w-4" />
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 text-sm font-bold mb-6 border-2 border-purple-300 shadow-xl animate-pulse-glow">
+            <Sparkles className="h-4 w-4 animate-bounce-subtle text-purple-600" />
             AI-Powered Test Preparation
           </div>
           <h1 className="font-heading text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
-            Ace Your <span className="gradient-text">USAT & HAT</span> with AI
+            Ace Your <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">USAT & HAT</span> with PrepNest
           </h1>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto font-medium">
             The next-generation platform combining smart learning, past papers, mock tests, AI tutoring, and adaptive practice — everything you need in one place.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/subjects">
-              <Button size="lg" className="gradient-primary text-primary-foreground border-0 px-8 gap-2">
-                Start Learning <ArrowRight className="h-4 w-4" />
+              <Button size="lg" variant="gradient" className="px-10 gap-2 group">
+                Start Learning <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Link to="/practice">
-              <Button size="lg" variant="outline" className="px-8">Take a Practice Test</Button>
+              <Button size="lg" variant="outline" className="px-10 hover:border-primary hover:text-primary">Take a Practice Test</Button>
             </Link>
           </div>
         </motion.div>
@@ -86,11 +86,19 @@ const Landing = () => (
           transition={{ delay: 0.4, duration: 0.6 }}
         >
           {stats.map((s, i) => (
-            <div key={i} className="glass rounded-xl p-4 text-center shadow-card">
-              <s.icon className="h-5 w-5 text-primary mx-auto mb-2" />
-              <div className="font-heading font-bold text-xl text-foreground">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-            </div>
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5 + i * 0.1 }}
+              className="glass-strong rounded-2xl p-5 text-center shadow-card hover:shadow-glow transition-all duration-300 hover:-translate-y-2 cursor-pointer border border-primary/10 group"
+            >
+              <div className="bg-gradient-to-br from-primary/20 to-secondary/20 p-2.5 rounded-lg inline-flex mb-3 group-hover:scale-110 transition-transform">
+                <s.icon className="h-5 w-5 text-primary" />
+              </div>
+              <div className="font-heading font-bold text-2xl text-foreground mb-1">{s.value}</div>
+              <div className="text-xs text-muted-foreground font-medium">{s.label}</div>
+            </motion.div>
           ))}
         </motion.div>
       </div>
@@ -113,10 +121,10 @@ const Landing = () => (
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className="bg-card rounded-xl p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300 group"
+              className="bg-card rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-all duration-300 group border border-transparent hover:border-primary/20 hover:-translate-y-2"
             >
-              <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <f.icon className="h-6 w-6 text-primary-foreground" />
+              <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <f.icon className="h-7 w-7 text-primary-foreground" />
               </div>
               <h3 className="font-heading font-semibold text-foreground mb-2">{f.title}</h3>
               <p className="text-sm text-muted-foreground">{f.desc}</p>
@@ -133,7 +141,7 @@ const Landing = () => (
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-3">Subjects We Cover</h2>
           <p className="text-muted-foreground">Covering all USAT and HAT exam subjects comprehensively.</p>
         </div>
-        <div className="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto mb-8">
+        <div className="flex flex-wrap justify-center gap-3 max-w-3xl mx-auto mb-10">
           {subjects.map((s, i) => (
             <motion.div
               key={i}
@@ -142,7 +150,7 @@ const Landing = () => (
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className={`px-5 py-3 rounded-full font-medium text-sm ${s.color} shadow-card`}
+              className={`px-6 py-3 rounded-full font-semibold text-sm ${s.color} shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer`}
             >
               {s.name}
             </motion.div>
@@ -150,7 +158,7 @@ const Landing = () => (
         </div>
         <div className="text-center">
           <Link to="/subjects">
-            <Button variant="outline" className="gap-2">Browse All Subjects <ArrowRight className="h-4 w-4" /></Button>
+            <Button variant="gradient" size="lg" className="gap-2">Browse All Subjects <ArrowRight className="h-5 w-5" /></Button>
           </Link>
         </div>
       </div>
@@ -172,21 +180,21 @@ const Landing = () => (
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className="bg-card rounded-xl p-6 shadow-card"
+              className="bg-gradient-to-br from-white to-primary/5 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/30 hover:-translate-y-1"
             >
-              <div className="flex gap-0.5 mb-4">
+              <div className="flex gap-1 mb-4">
                 {Array.from({ length: t.rating }).map((_, j) => (
-                  <Star key={j} className="h-4 w-4 fill-warning text-warning" />
+                  <Star key={j} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <p className="text-sm text-foreground mb-4 italic">"{t.quote}"</p>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+              <p className="text-sm text-foreground mb-5 italic leading-relaxed">"{t.quote}"</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-white shadow-md">
                   {t.name.charAt(0)}
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-foreground">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">{t.exam} Student</div>
+                  <div className="text-sm font-semibold text-foreground">{t.name}</div>
+                  <div className="text-xs text-primary font-medium">{t.exam} Student</div>
                 </div>
               </div>
             </motion.div>
@@ -196,52 +204,25 @@ const Landing = () => (
     </section>
 
     {/* Trust Bar */}
-    <section className="py-12 bg-card border-y border-border">
+    <section className="py-12 bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border-y border-border">
       <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-center items-center gap-8 text-muted-foreground">
-          <div className="flex items-center gap-2 text-sm"><Shield className="h-4 w-4 text-success" /> Verified Content</div>
-          <div className="flex items-center gap-2 text-sm"><Clock className="h-4 w-4 text-info" /> Updated Regularly</div>
-          <div className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-primary" /> Exam-Aligned Syllabus</div>
-          <div className="flex items-center gap-2 text-sm"><Award className="h-4 w-4 text-warning" /> Top Results</div>
-        </div>
-      </div>
-    </section>
-
-    {/* CTA */}
-    <section className="py-20">
-      <div className="container mx-auto px-4">
-        <div className="gradient-primary rounded-2xl p-10 md:p-16 text-center relative overflow-hidden">
-          <div className="absolute inset-0 pattern-dots opacity-10" />
-          <div className="relative">
-            <h2 className="font-heading text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-              Start Your Preparation Today
-            </h2>
-            <p className="text-primary-foreground/80 mb-8 max-w-lg mx-auto">
-              Join thousands of students already using PrepNest to achieve their dream scores.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link to="/subjects">
-                <Button size="lg" className="bg-card text-foreground hover:bg-card/90 px-8 gap-2">
-                  Explore Subjects <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/practice">
-                <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 px-8">
-                  Practice Now
-                </Button>
-              </Link>
-            </div>
+        <div className="flex flex-wrap justify-center items-center gap-8">
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-foreground bg-white px-4 py-2 rounded-full shadow-md">
+            <Shield className="h-5 w-5 text-green-500" /> Verified Content
+          </div>
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-foreground bg-white px-4 py-2 rounded-full shadow-md">
+            <Clock className="h-5 w-5 text-blue-500" /> Updated Regularly
+          </div>
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-foreground bg-white px-4 py-2 rounded-full shadow-md">
+            <CheckCircle2 className="h-5 w-5 text-purple-500" /> Exam-Aligned Syllabus
+          </div>
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-foreground bg-white px-4 py-2 rounded-full shadow-md">
+            <Award className="h-5 w-5 text-orange-500" /> Top Results
           </div>
         </div>
       </div>
     </section>
 
-    {/* Footer */}
-    <footer className="border-t border-border py-8">
-      <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-        © 2026 PrepNest. Built for USAT & HAT aspirants.
-      </div>
-    </footer>
   </div>
 );
 

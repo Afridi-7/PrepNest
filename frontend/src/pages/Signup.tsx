@@ -18,13 +18,24 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative items-center justify-center p-12">
-        <div className="absolute inset-0 pattern-dots opacity-10" />
-        <div className="relative text-center">
-          <GraduationCap className="h-16 w-16 text-primary-foreground mx-auto mb-6" />
-          <h2 className="font-heading text-3xl font-bold text-primary-foreground mb-3">Join PrepNest</h2>
-          <p className="text-primary-foreground/80 max-w-sm mx-auto">Start your journey to ace the USAT & HAT exams with personalized AI assistance.</p>
-        </div>
+      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative items-center justify-center p-12 overflow-hidden">
+        <div className="absolute inset-0 pattern-dots opacity-20" />
+        <div className="absolute inset-0 pattern-grid opacity-10" />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
+          className="relative text-center z-10"
+        >
+          <motion.div
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <GraduationCap className="h-20 w-20 text-white mx-auto mb-6 drop-shadow-2xl" />
+          </motion.div>
+          <h2 className="font-heading text-4xl font-bold text-white mb-4 drop-shadow-lg">Join PrepNest</h2>
+          <p className="text-white/90 max-w-sm mx-auto text-lg">Start your journey to ace the USAT & HAT exams with personalized AI assistance.</p>
+        </motion.div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">
@@ -71,7 +82,7 @@ const Signup = () => {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full gradient-primary text-primary-foreground border-0">Create Account</Button>
+            <Button type="submit" variant="gradient" className="w-full">Create Account</Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
