@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_exp_minutes: int = 60 * 24
+
+    frontend_url: str = Field(
+        default="http://localhost:8080",
+        validation_alias=AliasChoices("FRONTEND_URL", "FRONTEND_BASE_URL"),
+    )
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_address: str | None = None
+    smtp_from_name: str = "PrepNest"
+    smtp_use_tls: bool = True
 
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"

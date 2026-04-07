@@ -46,22 +46,37 @@ async def on_startup() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    await init_pg_pool()
-    pool = get_pg_pool()
-    async with pool.acquire() as conn:
-        await conn.execute("SELECT 1")
-    logging.info("Application startup - SQLAlchemy and PostgreSQL connections verified")
+    try:
+        await init_pg_pool()
+        pool = get_pg_pool()
+        async with pool.acquire() as conn:
+          await conn.execute("SELECT 1")
+        logging.info("Application startup - SQLAlchemy and PostgreSQL connections verified")
+    except Exception as exc:
+        logging.warning("PostgreSQL pool unavailable during startup; continuing without it: %s", exc)
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
-    await close_pg_pool()
+    try:
+        await close_pg_pool()
+    except Exception:
+        pass
     await cache_service.close()
 
 
 @app.get("/health")
 async def healthcheck() -> dict:
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/")
+async def root() -> dict:
+    return {
+        "service": settings.app_name,
+        "status": "ok",
+        "docs": "/docs",
+    }
 
 
 app.include_router(auth.router, prefix=settings.api_prefix)

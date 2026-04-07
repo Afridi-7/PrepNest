@@ -1,4 +1,39 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/v1";
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+
+const normalizeApiBaseUrl = (rawValue?: string): string => {
+  const configuredValue = (rawValue || "").trim() || DEFAULT_API_BASE_URL;
+  const valueWithProtocol = /^https?:\/\//i.test(configuredValue)
+    ? configuredValue
+    : `http://${configuredValue}`;
+
+  try {
+    const url = new URL(valueWithProtocol);
+
+    if (typeof window !== "undefined") {
+      const browserHost = window.location.hostname || "127.0.0.1";
+      const browserIsLocal = browserHost === "localhost" || browserHost === "127.0.0.1" || browserHost === "::1";
+      const isDockerInternalHost =
+        url.hostname === "prepnest-backend" ||
+        url.hostname === "backend" ||
+        url.hostname.endsWith("-backend") ||
+        url.hostname.endsWith("-backend-dev");
+
+      if (browserIsLocal) {
+        if (url.hostname !== "localhost" && url.hostname !== "127.0.0.1" && url.hostname !== "::1") {
+          url.hostname = browserHost;
+        }
+      } else if (isDockerInternalHost) {
+        url.hostname = browserHost;
+      }
+    }
+
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return DEFAULT_API_BASE_URL;
+  }
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -21,6 +56,11 @@ export interface SignupRequest {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+}
+
+export interface VerificationResponse {
+  message: string;
+  verification_url?: string | null;
 }
 
 class ApiClient {
@@ -126,8 +166,8 @@ class ApiClient {
     email: string,
     password: string,
     fullName?: string
-  ): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>("/auth/signup", "POST", {
+  ): Promise<VerificationResponse> {
+    const response = await this.request<VerificationResponse>("/auth/signup", "POST", {
       email,
       password,
       full_name: fullName,
@@ -187,6 +227,18 @@ class ApiClient {
       conversation_id: conversationId || null,
       learning_level: learningLevel || "intermediate",
       attachments: attachments || [],
+    });
+  }
+
+  async verifyEmail(token: string): Promise<VerificationResponse> {
+    return this.request<VerificationResponse>("/auth/verify-email", "POST", {
+      token,
+    });
+  }
+
+  async resendVerification(email: string): Promise<VerificationResponse> {
+    return this.request<VerificationResponse>("/auth/resend-verification", "POST", {
+      email,
     });
   }
 

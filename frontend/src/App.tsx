@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
+import VerifyEmail from "./pages/VerifyEmail.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Subjects from "./pages/Subjects.tsx";
 import SubjectDetail from "./pages/SubjectDetail.tsx";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
