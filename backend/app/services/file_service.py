@@ -2,8 +2,8 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.repositories.file_repo import FileAssetRepository
-from app.agents.ai_tutor.rag.ingestion import ingest_file_to_vector_store
+from app.db.repositories.file_repo import FileAssetRepository
+from app.features.ai_tutor.rag.ingestion import ingest_file_to_vector_store
 from app.services.storage_service import storage_service
 
 
@@ -33,7 +33,7 @@ class FileService:
         await self.file_repo.mark_status(file_asset, "processing")
         if self.settings.enable_celery_ingestion:
             try:
-                from app.workers.tasks import ingest_file_task
+                from app.features.ai_tutor.workers.tasks import ingest_file_task
 
                 ingest_file_task.delay(file_asset.id)
                 return {

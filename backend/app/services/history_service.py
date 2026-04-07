@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.conversation_repo import ConversationRepository
-from app.repositories.message_repo import MessageRepository
+from app.db.repositories.conversation_repo import ConversationRepository
+from app.db.repositories.message_repo import MessageRepository
 
 
 class HistoryService:

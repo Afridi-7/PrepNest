@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
 from app.core.security import create_access_token, hash_password, verify_password
-from app.repositories.user_repo import UserRepository
+from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
 from app.schemas.user import TokenResponse, UserLoginRequest, UserRegisterRequest, UserResponse
 

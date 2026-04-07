@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.core.security import decode_access_token
 from app.models import User
-from app.repositories.user_repo import UserRepository
+from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")

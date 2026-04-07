@@ -3,11 +3,11 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.base import AgentContext
-from app.agents.ai_tutor.orchestration.orchestrator import orchestrator
-from app.repositories.conversation_repo import ConversationRepository
-from app.repositories.message_repo import MessageRepository
-from app.repositories.user_repo import UserRepository
+from app.features.ai_tutor.agents.base import AgentContext
+from app.features.ai_tutor.orchestration.orchestrator import orchestrator
+from app.db.repositories.conversation_repo import ConversationRepository
+from app.db.repositories.message_repo import MessageRepository
+from app.db.repositories.user_repo import UserRepository
 
 
 class ChatService:
