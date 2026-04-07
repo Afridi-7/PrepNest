@@ -2,9 +2,9 @@ import asyncio
 
 from sqlalchemy import select
 
-from app.db.models import FileAsset
+from app.models import FileAsset
 from app.db.session import SessionLocal
-from app.rag.ingestion import ingest_file_to_vector_store
+from app.agents.ai_tutor.rag.ingestion import ingest_file_to_vector_store
 from app.workers.celery_app import celery_app
 
 

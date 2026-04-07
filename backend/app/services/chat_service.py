@@ -4,10 +4,10 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.base import AgentContext
-from app.agents.orchestrator import orchestrator
-from app.db.repositories.conversation_repo import ConversationRepository
-from app.db.repositories.message_repo import MessageRepository
-from app.db.repositories.user_repo import UserRepository
+from app.agents.ai_tutor.orchestration.orchestrator import orchestrator
+from app.repositories.conversation_repo import ConversationRepository
+from app.repositories.message_repo import MessageRepository
+from app.repositories.user_repo import UserRepository
 
 
 class ChatService:
@@ -32,6 +32,7 @@ class ChatService:
         message: str,
         conversation_id: str | None,
         learning_level: str | None,
+        attachments: list[dict] | None = None,
     ) -> dict:
         conversation_id = await self._ensure_conversation(
             user_id=user_id,
@@ -50,6 +51,7 @@ class ChatService:
             learning_level=learning_level or (user.preferences.get("learning_level") if user and user.preferences else "intermediate"),
             recent_messages=[{"role": m.role, "content": m.content} for m in recent_messages],
             user_preferences=user.preferences if user else {},
+            attachments=attachments or [],
         )
 
         result = await orchestrator.run(ctx)
@@ -76,6 +78,7 @@ class ChatService:
         message: str,
         conversation_id: str | None,
         learning_level: str | None,
+        attachments: list[dict] | None = None,
     ) -> AsyncGenerator[str, None]:
         conversation_id = await self._ensure_conversation(
             user_id=user_id,
@@ -94,6 +97,7 @@ class ChatService:
             learning_level=learning_level or (user.preferences.get("learning_level") if user and user.preferences else "intermediate"),
             recent_messages=[{"role": m.role, "content": m.content} for m in recent_messages],
             user_preferences=user.preferences if user else {},
+            attachments=attachments or [],
         )
 
         token_stream, metadata = await orchestrator.stream(ctx)

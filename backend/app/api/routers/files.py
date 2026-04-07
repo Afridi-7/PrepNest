@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.db.models import User
-from app.db.repositories.conversation_repo import ConversationRepository
+from app.models import User
+from app.repositories.conversation_repo import ConversationRepository
 from app.db.session import get_db_session
 from app.schemas.file import FileUploadResponse
 from app.services.file_service import FileService

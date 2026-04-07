@@ -17,7 +17,7 @@ app = FastAPI(title=settings.app_name, version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,9 +26,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await cache_service.connect()
+    logging.info("Application startup - DEV MODE (database access skipped, mock auth enabled)")
 
 
 @app.on_event("shutdown")

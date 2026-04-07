@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.db.models import User
+from app.models import User
 from app.db.session import get_db_session
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
@@ -23,6 +23,7 @@ async def chat_completion(
         message=payload.message,
         conversation_id=payload.conversation_id,
         learning_level=payload.learning_level,
+        attachments=[a.model_dump() for a in payload.attachments] if payload.attachments else None,
     )
     return ChatResponse(**result)
 
@@ -39,5 +40,6 @@ async def chat_stream(
         message=payload.message,
         conversation_id=payload.conversation_id,
         learning_level=payload.learning_level,
+        attachments=[a.model_dump() for a in payload.attachments] if payload.attachments else None,
     )
     return StreamingResponse(generator, media_type="text/event-stream")

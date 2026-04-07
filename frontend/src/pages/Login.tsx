@@ -1,21 +1,44 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { GraduationCap, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/services/api";
 
 const Login = () => {
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Login", description: "Backend authentication is not connected yet." });
+    
+    if (!email || !password) {
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.login(email, password);
+      apiClient.setToken(response.access_token);
+      toast({ title: "Success", description: "Logged in successfully!" });
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({ 
+        title: "Login Failed", 
+        description: error.message || "Invalid credentials", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,7 +92,10 @@ const Login = () => {
                 </button>
               </div>
             </div>
-            <Button type="submit" variant="gradient" className="w-full">Log In</Button>
+            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading ? "Logging in..." : "Log In"}
+            </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">

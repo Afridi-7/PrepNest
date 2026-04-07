@@ -2,8 +2,8 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.repositories.file_repo import FileAssetRepository
-from app.rag.ingestion import ingest_file_to_vector_store
+from app.repositories.file_repo import FileAssetRepository
+from app.agents.ai_tutor.rag.ingestion import ingest_file_to_vector_store
 from app.services.storage_service import storage_service
 
 

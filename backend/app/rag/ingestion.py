@@ -2,12 +2,12 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import FileAsset
-from app.db.repositories.file_repo import FileAssetRepository
-from app.rag.chunking import build_chunk_documents
-from app.rag.vector_store import vector_store
-from app.tools.ocr_tool import extract_image_text
-from app.tools.pdf_tool import extract_pdf_text
+from app.models import FileAsset
+from app.repositories.file_repo import FileAssetRepository
+from app.agents.ai_tutor.rag.chunking import build_chunk_documents
+from app.agents.ai_tutor.rag.vector_store import vector_store
+from app.agents.ai_tutor.tools.ocr import extract_image_text
+from app.agents.ai_tutor.tools.pdf import extract_pdf_text
 
 
 async def ingest_file_to_vector_store(db: AsyncSession, file_asset: FileAsset) -> dict:
