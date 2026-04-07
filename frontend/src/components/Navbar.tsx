@@ -91,7 +91,7 @@ const Navbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNav(link.path)}
-                  className={`block px-3 py-2 rounded-lg text-sm font-medium ${
+                  className={`block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${
                     location.pathname === link.path ? "text-primary bg-primary/10" : "text-muted-foreground"
                   }`}
                 >

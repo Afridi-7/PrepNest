@@ -67,8 +67,8 @@ const Login = () => {
         </motion.div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md bg-card/70 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none rounded-2xl sm:rounded-none p-5 sm:p-0 border border-border/60 sm:border-0 shadow-card sm:shadow-none">
           <div className="mb-8">
             <Link to="/" className="flex items-center gap-2 mb-8">
               <div className="gradient-primary rounded-lg p-1.5"><GraduationCap className="h-5 w-5 text-primary-foreground" /></div>
@@ -79,7 +79,7 @@ const Login = () => {
                 Please log in first to access that section.
               </div>
             )}
-            <h1 className="font-heading text-2xl font-bold text-foreground mb-1">Log in to your account</h1>
+            <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground mb-1">Log in to your account</h1>
             <p className="text-muted-foreground text-sm">Enter your credentials to continue</p>
           </div>
 

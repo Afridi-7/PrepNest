@@ -164,7 +164,7 @@ const Practice = () => {
                 <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4">
                   <Settings className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Configure Your Test</h1>
+                <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2">Configure Your Test</h1>
                 <p className="text-muted-foreground">Customize your practice session below.</p>
               </div>
 
@@ -177,7 +177,7 @@ const Practice = () => {
                       <button
                         key={s}
                         onClick={() => setSubject(s)}
-                        className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        className={`px-4 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                           subject === s
                             ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                             : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
@@ -192,12 +192,12 @@ const Practice = () => {
                 {/* MCQ Count */}
                 <div>
                   <label className="text-sm font-medium text-foreground mb-3 block">Number of Questions</label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {mcqCountOptions.map(n => (
                       <button
                         key={n}
                         onClick={() => setMcqCount(n)}
-                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
                           mcqCount === n
                             ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                             : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
@@ -212,12 +212,12 @@ const Practice = () => {
                 {/* Time */}
                 <div>
                   <label className="text-sm font-medium text-foreground mb-3 block">Time Limit</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {timeOptions.map(t => (
                       <button
                         key={t.value}
                         onClick={() => setTimeLimit(t.value)}
-                        className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        className={`px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                           timeLimit === t.value
                             ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                             : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
@@ -230,7 +230,7 @@ const Practice = () => {
                 </div>
 
                 {/* Summary */}
-                <div className="bg-secondary/50 rounded-lg p-4 flex items-center gap-4 text-sm">
+                <div className="bg-secondary/50 rounded-lg p-4 flex flex-wrap items-center gap-3 text-sm">
                   <div className="flex items-center gap-1.5 text-muted-foreground"><BookOpen className="h-4 w-4" /> {subject}</div>
                   <div className="flex items-center gap-1.5 text-muted-foreground"><Target className="h-4 w-4" /> {mcqCount} MCQs</div>
                   <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-4 w-4" /> {timeLimit === 0 ? "Untimed" : `${timeLimit} min`}</div>
@@ -249,9 +249,9 @@ const Practice = () => {
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
                 <div>
                   {/* Header */}
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                     <span className="text-sm text-muted-foreground">Question {currentQ + 1} of {questions.length}</span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">{q.subject}</span>
                       {timeLimit > 0 && (
                         <span className={`text-sm font-mono font-semibold flex items-center gap-1 ${timeLeft < 60 ? "text-destructive" : "text-foreground"}`}>
@@ -275,8 +275,8 @@ const Practice = () => {
                   </div>
 
                   {/* Question */}
-                  <div className="bg-card rounded-xl p-6 shadow-card mb-6">
-                    <h2 className="font-heading text-xl font-semibold text-foreground mb-6">{q.question}</h2>
+                  <div className="bg-card rounded-xl p-4 sm:p-6 shadow-card mb-6">
+                    <h2 className="font-heading text-lg sm:text-xl font-semibold text-foreground mb-5 sm:mb-6">{q.question}</h2>
                     <div className="space-y-3">
                       {q.options.map((opt, i) => {
                         let classes = "border-gray-300 bg-white hover:bg-purple-50 hover:border-purple-400 text-gray-800";
@@ -286,7 +286,7 @@ const Practice = () => {
                           <button
                             key={i}
                             onClick={() => handleSelect(i)}
-                            className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes}`}
+                            className={`w-full text-left p-3.5 sm:p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes}`}
                           >
                             <div className="flex items-center gap-3">
                               <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
@@ -296,7 +296,7 @@ const Practice = () => {
                               }`}>
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span className="text-sm font-semibold flex-1">{opt}</span>
+                              <span className="text-sm sm:text-base font-semibold flex-1">{opt}</span>
                               {selected === i && <CheckCircle2 className="h-5 w-5 text-purple-600 ml-auto" />}
                             </div>
                           </button>
@@ -313,7 +313,7 @@ const Practice = () => {
                         <p className="text-sm font-semibold text-foreground">Question Navigator</p>
                         <p className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</p>
                       </div>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-5 sm:grid-cols-5 gap-2">
                         {questions.map((_, index) => {
                           const isCurrent = index === currentQ;
                           const isAnswered = answers[index] !== null;
@@ -374,15 +374,15 @@ const Practice = () => {
                 </div>
               )}
 
-              <div className="bg-card rounded-2xl p-10 shadow-card text-center mb-6">
+              <div className="bg-card rounded-2xl p-6 sm:p-10 shadow-card text-center mb-6">
                 <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="h-10 w-10 text-primary-foreground" />
                 </div>
-                <h2 className="font-heading text-3xl font-bold text-foreground mb-2">Test Complete!</h2>
+                <h2 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2">Test Complete!</h2>
                 <p className="text-muted-foreground mb-2">You scored {score} out of {questions.length}</p>
-                <div className="text-5xl font-heading font-bold gradient-text mb-4">{pct}%</div>
+                <div className="text-4xl sm:text-5xl font-heading font-bold gradient-text mb-4">{pct}%</div>
 
-                <div className="grid grid-cols-3 gap-4 max-w-sm mx-auto mb-8">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm mx-auto mb-8">
                   <div className="bg-success/10 rounded-lg p-3">
                     <div className="font-bold text-success text-lg">{score}</div>
                     <div className="text-xs text-muted-foreground">Correct</div>
@@ -397,11 +397,11 @@ const Practice = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 justify-center">
-                  <Button onClick={restart} variant="outline" className="gap-2">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={restart} variant="outline" className="gap-2 w-full sm:w-auto">
                     <Settings className="h-4 w-4" /> New Test
                   </Button>
-                  <Button onClick={() => { setPhase("config"); startQuiz(); }} variant="gradient" className="gap-2">
+                  <Button onClick={() => { setPhase("config"); startQuiz(); }} variant="gradient" className="gap-2 w-full sm:w-auto">
                     <RotateCcw className="h-4 w-4" /> Retry Same
                   </Button>
                 </div>

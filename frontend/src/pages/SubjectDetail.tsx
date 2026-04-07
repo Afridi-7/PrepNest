@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, CheckCircle2, Play, FileText, ExternalLink, Download, Lightbulb, Layers } from "lucide-react";
@@ -104,6 +104,10 @@ const SubjectDetail = () => {
   const data = topicsMap[subjectId || ""] || defaultData;
   const [activeTab, setActiveTab] = useState<Tab>("Topics");
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
   return (
     <>
       <Navbar />
@@ -113,7 +117,7 @@ const SubjectDetail = () => {
             <Link to="/subjects" className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-purple-600 mb-6 font-medium transition-colors">
               <ArrowLeft className="h-4 w-4" /> Back to Subjects
             </Link>
-            <h1 className="font-heading text-4xl font-bold text-gray-900 mb-3">{data.name}</h1>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold text-gray-900 mb-3">{data.name}</h1>
             <div className="flex flex-wrap gap-3 text-sm mb-8">
               <span className="px-3 py-1.5 bg-purple-100 text-purple-700 font-semibold rounded-full border border-purple-200">
                 {data.topics.length} topics
@@ -132,7 +136,7 @@ const SubjectDetail = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 px-5 py-3 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`min-w-max sm:flex-1 px-4 sm:px-5 py-3 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                     activeTab === tab
                       ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                       : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
@@ -154,7 +158,7 @@ const SubjectDetail = () => {
                     transition={{ delay: i * 0.06 }}
                     className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-purple-300"
                   >
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${
                         topic.completed 
                           ? "bg-gradient-to-br from-green-400 to-green-500" 
@@ -167,11 +171,11 @@ const SubjectDetail = () => {
                         )}
                       </div>
                       <h3 className="font-heading font-bold text-gray-800 flex-1">{topic.title}</h3>
-                      <Button size="sm" variant={topic.completed ? "outline" : "gradient"}>
+                      <Button size="sm" variant={topic.completed ? "outline" : "gradient"} className="w-full sm:w-auto">
                         {topic.completed ? "Review" : "Start"} <Play className="h-3 w-3 ml-1" />
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-2 ml-13">
+                    <div className="flex flex-wrap gap-2">
                       {topic.subtopics.map((st, j) => (
                         <span 
                           key={j} 
@@ -195,7 +199,7 @@ const SubjectDetail = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-4 border border-gray-200 hover:border-blue-300"
+                    className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col sm:flex-row sm:items-center gap-4 border border-gray-200 hover:border-blue-300"
                   >
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
                       mat.type === "Past Paper" 
@@ -231,7 +235,7 @@ const SubjectDetail = () => {
                         <span className="text-xs text-gray-600 font-medium">from {mat.source}</span>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="gap-1.5 flex-shrink-0 border-2 hover:border-blue-500 hover:text-blue-600">
+                    <Button size="sm" variant="outline" className="gap-1.5 flex-shrink-0 border-2 hover:border-blue-500 hover:text-blue-600 w-full sm:w-auto">
                       <ExternalLink className="h-4 w-4" /> Open
                     </Button>
                   </motion.div>

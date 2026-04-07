@@ -49,7 +49,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="font-heading text-3xl font-bold text-foreground">Welcome back, Student! 👋</h1>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">Welcome back, Student! 👋</h1>
           <p className="text-muted-foreground mt-1">Here's your preparation overview.</p>
         </motion.div>
 
@@ -129,7 +129,7 @@ const Dashboard = () => {
               </h2>
               <div className="space-y-3">
                 {weakAreas.map((w, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 p-3 rounded-lg bg-secondary/50">
                     <div>
                       <div className="font-medium text-sm text-foreground">{w.topic}</div>
                       <div className="text-xs text-muted-foreground">{w.subject}</div>

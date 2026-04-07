@@ -47,7 +47,7 @@ const fadeUp = {
 const Landing = () => (
   <div className="min-h-screen">
     {/* Hero */}
-    <section className="relative pt-32 pb-24 overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50">
+    <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-24 overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10" />
       <div className="absolute inset-0 pattern-dots opacity-30" />
       <div className="container mx-auto px-4 relative">
@@ -61,20 +61,20 @@ const Landing = () => (
             <Sparkles className="h-4 w-4 animate-bounce-subtle text-purple-600" />
             AI-Powered Test Preparation
           </div>
-          <h1 className="font-heading text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
+          <h1 className="font-heading text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
             Ace Your <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">USAT & HAT</span> with PrepNest
           </h1>
-          <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto font-medium">
+          <p className="text-base sm:text-lg text-gray-700 mb-8 max-w-2xl mx-auto font-medium">
             The next-generation platform combining smart learning, past papers, mock tests, AI tutoring, and adaptive practice — everything you need in one place.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/subjects">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none mx-auto">
+            <Link to="/subjects" className="w-full sm:w-auto">
               <Button size="lg" variant="gradient" className="px-10 gap-2 group">
                 Start Learning <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Link to="/practice">
-              <Button size="lg" variant="outline" className="px-10 hover:border-primary hover:text-primary">Take a Practice Test</Button>
+            <Link to="/practice" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="px-10 w-full hover:border-primary hover:text-primary">Take a Practice Test</Button>
             </Link>
           </div>
         </motion.div>
@@ -91,7 +91,7 @@ const Landing = () => (
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 + i * 0.1 }}
-              className="glass-strong rounded-2xl p-5 text-center shadow-card hover:shadow-glow transition-all duration-300 hover:-translate-y-2 cursor-pointer border border-primary/10 group"
+              className="glass-strong rounded-2xl p-4 sm:p-5 text-center shadow-card hover:shadow-glow transition-all duration-300 hover:-translate-y-2 cursor-pointer border border-primary/10 group"
             >
               <div className="bg-gradient-to-br from-primary/20 to-secondary/20 p-2.5 rounded-lg inline-flex mb-3 group-hover:scale-110 transition-transform">
                 <s.icon className="h-5 w-5 text-primary" />

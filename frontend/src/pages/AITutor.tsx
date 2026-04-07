@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, BookOpen, Calculator, FileText, Loader2, Copy, Check, AlertCircle, Menu, X, Upload, Paperclip, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/services/api";
 import Navbar from "@/components/Navbar";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // localStorage key for persisting conversations
 const STORAGE_KEY = "prepnest_conversations";
@@ -71,6 +72,7 @@ const AITutor = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [attachments, setAttachments] = useState<Array<{ type: string; name: string; data: string }>>([]);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +147,28 @@ const AITutor = () => {
       console.error("Failed to save conversations:", e);
     }
   }, [conversations]);
+
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
+
+  const visibleConversations = useMemo(() => {
+    const userMessages = messages.filter((m) => m.role === "user");
+    const hasLiveConversation = userMessages.length > 0;
+
+    if (!hasLiveConversation) {
+      return conversations;
+    }
+
+    const liveConversation: Conversation = {
+      id: conversationId || "current-chat",
+      title: userMessages[0].content.substring(0, 50) || "Current Chat",
+      timestamp: Date.now(),
+      messages,
+    };
+
+    return [liveConversation, ...conversations.filter((c) => c.id !== liveConversation.id)];
+  }, [messages, conversations, conversationId]);
 
   const parseStreamEvents = (
     chunk: Uint8Array,
@@ -230,6 +254,9 @@ const AITutor = () => {
     ]);
     setConversationId(null);
     setAttachments([]);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   };
 
   const loadConversation = (conv: Conversation) => {
@@ -253,6 +280,9 @@ const AITutor = () => {
     setMessages(conv.messages || []);
     setConversationId(conv.id);
     setAttachments([]);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
     toast({ description: `Loaded: ${conv.title}` });
   };
 
@@ -460,11 +490,19 @@ const AITutor = () => {
         message="Please log in first to use AI Tutor actions."
       />
       <div className="min-h-screen pt-16 flex bg-gradient-to-b from-background to-background/95">
+        {isMobile && sidebarOpen && (
+          <button
+            aria-label="Close conversation panel"
+            className="fixed inset-0 top-16 z-30 bg-black/40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar - Fixed Position */}
         <motion.aside
           initial={false}
-          animate={{ width: sidebarOpen ? 280 : 0 }}
-          className="hidden md:flex flex-col bg-card border-r border-border overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40 shadow-lg"
+          animate={{ x: sidebarOpen ? 0 : -300 }}
+          className="w-[280px] flex flex-col bg-card border-r border-border overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40 shadow-lg"
         >
           <div className="p-4 border-b border-border bg-card">
             <Button onClick={newConversation} className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
@@ -474,10 +512,10 @@ const AITutor = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {conversations.length === 0 ? (
+            {visibleConversations.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">No previous chats yet</p>
             ) : (
-              conversations.map((conv) => (
+              visibleConversations.map((conv) => (
                 <motion.div
                   key={conv.id}
                   whileHover={{ x: 4 }}
@@ -488,11 +526,12 @@ const AITutor = () => {
                     className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-all truncate text-foreground bg-secondary/20 border border-border/50 group-hover:border-border"
                     title={conv.title}
                   >
-                    {conv.title}
+                    {conv.id === (conversationId || "current-chat") && conv.messages === messages ? `Current: ${conv.title}` : conv.title}
                   </button>
                   <button
                     onClick={(e) => deleteConversation(conv, e)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/20 rounded text-destructive hover:text-destructive/80"
+                    disabled={conv.id === (conversationId || "current-chat") && conv.messages === messages}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -503,12 +542,19 @@ const AITutor = () => {
         </motion.aside>
 
         {/* Main Chat Area - Offset for fixed sidebar */}
-        <div className="flex-1 flex flex-col md:ml-0 pb-32" style={{ marginLeft: sidebarOpen ? '280px' : '0px', transition: 'margin-left 0.3s ease' }}>
+        <div
+          className="flex-1 flex flex-col pb-32"
+          style={{
+            marginLeft: !isMobile && sidebarOpen ? "280px" : "0px",
+            transition: "margin-left 0.3s ease",
+          }}
+        >
           {/* Header with sidebar toggle */}
           <div className="border-b border-border bg-card/50 backdrop-blur px-4 py-3 flex items-center justify-between shadow-sm">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-secondary rounded-lg transition-colors"
+              className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              aria-label={sidebarOpen ? "Hide history" : "Show history"}
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -521,7 +567,7 @@ const AITutor = () => {
 
           {/* Messages */}
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
-            <div className="container mx-auto max-w-4xl px-4 py-6 space-y-4">
+            <div className="container mx-auto max-w-4xl px-3 sm:px-4 py-4 sm:py-6 space-y-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((msg, i) => (
                   <motion.div
@@ -542,9 +588,9 @@ const AITutor = () => {
                       </motion.div>
                     )}
 
-                    <div className="flex flex-col gap-2 max-w-[85%]">
+                    <div className="flex flex-col gap-2 max-w-[92%] sm:max-w-[85%]">
                       <div
-                        className={`rounded-2xl px-4 py-3 text-sm leading-relaxed transition-all ${
+                        className={`rounded-2xl px-3.5 sm:px-4 py-3 text-sm leading-relaxed transition-all ${
                           msg.role === "user"
                             ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
                             : "bg-card text-foreground rounded-bl-sm border border-border shadow-sm hover:shadow-md"
@@ -674,7 +720,7 @@ const AITutor = () => {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="container mx-auto max-w-4xl px-4 pb-4"
+              className="container mx-auto max-w-4xl px-3 sm:px-4 pb-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {quickPrompts.map((qp, i) => (
@@ -694,7 +740,14 @@ const AITutor = () => {
           )}
 
           {/* Input Area - Fixed at bottom */}
-          <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/50 backdrop-blur p-4 shadow-lg" style={{ left: sidebarOpen ? '280px' : '0px', right: '0px', transition: 'left 0.3s ease' }}>
+          <div
+            className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/80 backdrop-blur p-3 sm:p-4 shadow-lg"
+            style={{
+              left: !isMobile && sidebarOpen ? "280px" : "0px",
+              right: "0px",
+              transition: "left 0.3s ease",
+            }}
+          >
             <div className="container mx-auto max-w-4xl">
               {attachments.length > 0 && (
                 <motion.div 
@@ -744,7 +797,7 @@ const AITutor = () => {
                     size="icon"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={loading}
-                    className="rounded-lg"
+                    className="rounded-lg h-10 w-10"
                   >
                     <Upload className="h-4 w-4" />
                   </Button>
@@ -754,13 +807,13 @@ const AITutor = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask me anything about USAT or HAT preparation..."
-                  className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 transition-all"
+                  className="flex-1 rounded-xl border border-input bg-background px-3 sm:px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 transition-all"
                   disabled={loading}
                 />
                 <Button 
                   type="submit" 
                   disabled={!input.trim() || loading} 
-                  className="rounded-xl px-4 h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm disabled:opacity-50"
+                  className="rounded-xl px-3 sm:px-4 h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
