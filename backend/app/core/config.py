@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
 
     database_url: str = "sqlite+aiosqlite:///./prepnest_ai_tutor.db"
+    pg_host: str = "localhost"
+    pg_port: int = 5432
+    pg_database: str = "myapp"
+    pg_user: str = "admin"
+    pg_password: str = "secret"
     redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret_key: str = "change-me-in-production"
