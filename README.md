@@ -193,12 +193,86 @@ Reusable components from Radix UI + custom components:
 - Input validation with Pydantic
 - Secure session management
 
-## 📦 Deployment
+## 📦 Docker (Full Stack)
 
-Use Docker for containerized deployment:
+Run frontend, backend, and PostgreSQL together from the project root.
+
+### Modes
+
+- **Default mode** (auto reload): `docker-compose.yml`
+
+### 1. Build and start everything (auto reload)
 
 ```bash
-docker-compose -f backend/docker-compose.yml up
+docker compose up --build -d
+```
+In default mode:
+- Backend reloads automatically on Python changes (`uvicorn --reload`)
+- Frontend runs Vite dev server with live reload
+
+### 2. Open the app
+
+- Frontend: `http://127.0.0.1:5173`
+- Backend API: `http://127.0.0.1:8000`
+- Health check: `http://127.0.0.1:8000/health`
+- PostgreSQL is internal to Docker network (not published to host)
+
+### 3. Check running services
+
+```bash
+docker compose ps
+```
+
+### 4. View logs
+
+```bash
+docker compose logs -f
+```
+
+Or per service:
+
+```bash
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
+```
+
+### 5. Stop everything
+
+```bash
+docker compose stop
+```
+
+### 6. Start again (without rebuild)
+
+```bash
+docker compose start
+```
+
+### 7. Stop and remove containers/network
+
+```bash
+docker compose down
+```
+
+### 8. Full reset (also removes PostgreSQL volume/data)
+
+```bash
+docker compose down -v
+```
+
+### 9. Rebuild after code changes
+
+```bash
+docker compose up --build -d
+```
+
+### 10. Open a shell inside containers
+
+```bash
+docker compose exec backend sh
+docker compose exec frontend sh
+docker compose exec db psql -U admin -d myapp
 ```
 
 ## 🤝 Contributing
