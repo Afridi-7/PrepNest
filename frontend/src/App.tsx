@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import type { ReactElement } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,8 +13,17 @@ import SubjectDetail from "./pages/SubjectDetail.tsx";
 import Practice from "./pages/Practice.tsx";
 import AITutor from "./pages/AITutor.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { apiClient } from "./services/api";
 
 const queryClient = new QueryClient();
+
+const RequireAuth = ({ children }: { children: ReactElement }) => {
+  const location = useLocation();
+  if (!apiClient.isAuthenticated()) {
+    return <Navigate to="/login" replace state={{ from: location.pathname, reason: "auth-required" }} />;
+  }
+  return children;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,7 +35,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/subjects" element={<Subjects />} />
           <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
           <Route path="/practice" element={<Practice />} />

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/v1";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -38,6 +38,41 @@ class ApiClient {
   clearToken() {
     this.token = null;
     localStorage.removeItem("access_token");
+  }
+
+  private isTokenExpired(token: string): boolean {
+    try {
+      const payloadBase64 = token.split(".")[1];
+      if (!payloadBase64) {
+        return true;
+      }
+
+      const payloadJson = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+      const payload = JSON.parse(payloadJson) as { exp?: number };
+
+      if (!payload.exp) {
+        return false;
+      }
+
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      return payload.exp <= nowSeconds;
+    } catch {
+      return true;
+    }
+  }
+
+  isAuthenticated(): boolean {
+    const token = this.getToken();
+    if (!token) {
+      return false;
+    }
+
+    if (this.isTokenExpired(token)) {
+      this.clearToken();
+      return false;
+    }
+
+    return true;
   }
 
   private getHeaders(): HeadersInit {

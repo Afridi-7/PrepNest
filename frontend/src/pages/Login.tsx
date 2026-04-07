@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GraduationCap, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const loginState = location.state as { from?: string; reason?: string } | null;
+  const redirectTo = loginState?.from || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +33,7 @@ const Login = () => {
       const response = await apiClient.login(email, password);
       apiClient.setToken(response.access_token);
       toast({ title: "Success", description: "Logged in successfully!" });
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch (error: any) {
       toast({ 
         title: "Login Failed", 
@@ -70,6 +74,11 @@ const Login = () => {
               <div className="gradient-primary rounded-lg p-1.5"><GraduationCap className="h-5 w-5 text-primary-foreground" /></div>
               <span className="font-heading font-bold text-lg">PrepNest</span>
             </Link>
+            {loginState?.reason === "auth-required" && (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
+                Please log in first to access that section.
+              </div>
+            )}
             <h1 className="font-heading text-2xl font-bold text-foreground mb-1">Log in to your account</h1>
             <p className="text-muted-foreground text-sm">Enter your credentials to continue</p>
           </div>

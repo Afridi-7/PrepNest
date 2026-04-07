@@ -9,7 +9,7 @@ from app.api.routers import auth, chat, conversations, files, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
-from app.db.pg_pool import close_pg_pool, init_pg_pool
+from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
 from app.db.session import engine
 from app.services.cache_service import cache_service
 
@@ -20,7 +20,14 @@ app = FastAPI(title=settings.app_name, version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000", "*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,8 +43,14 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     await init_pg_pool()
-    logging.info("Application startup - DEV MODE (database access skipped, mock auth enabled)")
+    pool = get_pg_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("SELECT 1")
+    logging.info("Application startup - SQLAlchemy and PostgreSQL connections verified")
 
 
 @app.on_event("shutdown")

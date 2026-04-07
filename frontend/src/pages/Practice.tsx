@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings, Play, Target, BookOpen, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings, Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import { apiClient } from "@/services/api";
+import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 
 const allQuestions = [
   { question: "Which of the following is the correct meaning of 'Ubiquitous'?", options: ["Rare", "Present everywhere", "Ancient", "Mysterious"], correct: 1, subject: "English" },
@@ -27,6 +29,18 @@ const allQuestions = [
   { question: "The basic unit of life is:", options: ["Atom", "Molecule", "Cell", "Organ"], correct: 2, subject: "Biology" },
 ];
 
+const buildExplanation = (correctOption: string, subject: string) => {
+  const templates: Record<string, string> = {
+    English: `In English, meaning and context are key. The correct choice is \"${correctOption}\" because it best matches the grammar or vocabulary usage in the question.`,
+    Mathematics: `Use the core math rule in the question and simplify step by step. This leads to \"${correctOption}\" as the correct result.`,
+    Physics: `Apply the relevant physics concept or law directly. With the standard definition, \"${correctOption}\" is correct.`,
+    Chemistry: `Using standard chemical facts and notation, the correct answer is \"${correctOption}\".`,
+    Biology: `From basic biology definitions and functions, \"${correctOption}\" is the correct option.`,
+  };
+
+  return templates[subject] || `For this question, the correct answer is \"${correctOption}\" based on the core concept being tested.`;
+};
+
 const subjectOptions = ["All Subjects", "English", "Mathematics", "Physics", "Chemistry", "Biology"];
 const mcqCountOptions = [5, 10, 15, 20];
 const timeOptions = [
@@ -45,26 +59,28 @@ const Practice = () => {
   const [timeLimit, setTimeLimit] = useState(10);
   const [questions, setQuestions] = useState<typeof allQuestions>([]);
   const [currentQ, setCurrentQ] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answered, setAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [timeUp, setTimeUp] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const startQuiz = () => {
+    if (!apiClient.isAuthenticated()) {
+      setAuthDialogOpen(true);
+      return;
+    }
+
     let pool = subject === "All Subjects" ? [...allQuestions] : allQuestions.filter(q => q.subject === subject);
     // Shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    const selected = pool.slice(0, Math.min(mcqCount, pool.length));
-    setQuestions(selected);
-    setAnswers(new Array(selected.length).fill(null));
+    const quizSelection = pool.slice(0, Math.min(mcqCount, pool.length));
+    setQuestions(quizSelection);
+    setAnswers(new Array(quizSelection.length).fill(null));
     setCurrentQ(0);
-    setSelected(null);
-    setAnswered(false);
     setScore(0);
     setTimeUp(false);
     setTimeLeft(timeLimit * 60);
@@ -90,26 +106,32 @@ const Practice = () => {
     return () => clearTimeout(t);
   }, [phase, timeLeft, timeLimit, finishQuiz]);
 
+  // Keep quiz navigation anchored at the top when a test starts.
+  useEffect(() => {
+    if (phase === "quiz") {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [phase]);
+
   const handleSelect = (i: number) => {
-    if (answered) return;
-    setSelected(i);
-    setAnswered(true);
     const newAnswers = [...answers];
     newAnswers[currentQ] = i;
     setAnswers(newAnswers);
   };
 
+  const jumpToQuestion = (index: number) => {
+    setCurrentQ(index);
+  };
+
   const nextQ = () => {
     if (currentQ < questions.length - 1) {
       setCurrentQ(c => c + 1);
-      setSelected(null);
-      setAnswered(false);
-    } else {
-      let s = 0;
-      const finalAnswers = [...answers];
-      finalAnswers.forEach((a, i) => { if (a === questions[i]?.correct) s++; });
-      setScore(s);
-      setPhase("result");
+    }
+  };
+
+  const prevQ = () => {
+    if (currentQ > 0) {
+      setCurrentQ(c => c - 1);
     }
   };
 
@@ -120,13 +142,20 @@ const Practice = () => {
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
   const q = questions[currentQ];
+  const selected = answers[currentQ] ?? null;
+  const answeredCount = answers.filter(a => a !== null).length;
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
 
   return (
     <>
       <Navbar />
+      <AuthRequiredDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        message="Please log in first to start a practice test."
+      />
       <div className="min-h-screen pt-24 pb-12">
-        <div className="container mx-auto px-4 max-w-2xl">
+        <div className="container mx-auto px-4 max-w-6xl">
 
           {/* CONFIG PHASE */}
           {phase === "config" && (
@@ -216,68 +245,122 @@ const Practice = () => {
 
           {/* QUIZ PHASE */}
           {phase === "quiz" && q && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={currentQ}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <span className="text-sm text-muted-foreground">Question {currentQ + 1} of {questions.length}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">{q.subject}</span>
-                  {timeLimit > 0 && (
-                    <span className={`text-sm font-mono font-semibold flex items-center gap-1 ${timeLeft < 60 ? "text-destructive" : "text-foreground"}`}>
-                      <Clock className="h-4 w-4" /> {formatTime(timeLeft)}
-                    </span>
-                  )}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+                <div>
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="text-sm text-muted-foreground">Question {currentQ + 1} of {questions.length}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">{q.subject}</span>
+                      {timeLimit > 0 && (
+                        <span className={`text-sm font-mono font-semibold flex items-center gap-1 ${timeLeft < 60 ? "text-destructive" : "text-foreground"}`}>
+                          <Clock className="h-4 w-4" /> {formatTime(timeLeft)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <Button onClick={restart} variant="outline" size="sm" className="gap-1.5">
+                      <ArrowLeft className="h-4 w-4" /> Back to Setup
+                    </Button>
+                    <Button onClick={restart} variant="outline" size="sm" className="gap-1.5">
+                      <LogOut className="h-4 w-4" /> Quit Test
+                    </Button>
+                  </div>
+
+                  <div className="h-1.5 bg-secondary rounded-full mb-6 overflow-hidden">
+                    <div className="h-full gradient-primary rounded-full transition-all" style={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
+                  </div>
+
+                  {/* Question */}
+                  <div className="bg-card rounded-xl p-6 shadow-card mb-6">
+                    <h2 className="font-heading text-xl font-semibold text-foreground mb-6">{q.question}</h2>
+                    <div className="space-y-3">
+                      {q.options.map((opt, i) => {
+                        let classes = "border-gray-300 bg-white hover:bg-purple-50 hover:border-purple-400 text-gray-800";
+                        if (selected === i) classes = "border-purple-500 bg-purple-50 text-purple-900";
+
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => handleSelect(i)}
+                            className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
+                                selected === i
+                                  ? "border-purple-600 bg-purple-100 text-purple-700"
+                                  : "border-gray-400 bg-gray-50 text-gray-700"
+                              }`}>
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                              <span className="text-sm font-semibold flex-1">{opt}</span>
+                              {selected === i && <CheckCircle2 className="h-5 w-5 text-purple-600 ml-auto" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="h-1.5 bg-secondary rounded-full mb-8 overflow-hidden">
-                <div className="h-full gradient-primary rounded-full transition-all" style={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
-              </div>
 
-              {/* Question */}
-              <div className="bg-card rounded-xl p-6 shadow-card mb-6">
-                <h2 className="font-heading text-xl font-semibold text-foreground mb-6">{q.question}</h2>
-                <div className="space-y-3">
-                  {q.options.map((opt, i) => {
-                    let classes = "border-gray-300 bg-white hover:bg-purple-50 hover:border-purple-400 text-gray-800";
-                    if (answered && i === q.correct) classes = "border-green-500 bg-green-50 text-green-900";
-                    else if (answered && i === selected && i !== q.correct) classes = "border-red-500 bg-red-50 text-red-900";
-                    else if (selected === i) classes = "border-purple-500 bg-purple-50 text-purple-900";
+                <aside className="lg:sticky lg:top-28 space-y-4">
+                  <div className="rounded-2xl p-[1px] bg-gradient-to-br from-cyan-500 via-indigo-600 to-fuchsia-600 shadow-xl">
+                    <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-4 border border-white/70">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-foreground">Question Navigator</p>
+                        <p className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</p>
+                      </div>
+                      <div className="grid grid-cols-5 gap-2">
+                        {questions.map((_, index) => {
+                          const isCurrent = index === currentQ;
+                          const isAnswered = answers[index] !== null;
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => jumpToQuestion(index)}
+                              className={`h-9 rounded-lg text-xs font-semibold border transition-all ${
+                                isCurrent
+                                  ? "bg-primary text-primary-foreground border-primary shadow"
+                                  : isAnswered
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                  : "bg-white text-gray-700 border-gray-200 hover:bg-slate-50"
+                              }`}
+                            >
+                              {index + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
 
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => handleSelect(i)}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes} ${!answered ? "cursor-pointer" : "cursor-default"}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
-                            answered && i === q.correct 
-                              ? "border-green-600 bg-green-100 text-green-700"
-                              : answered && i === selected && i !== q.correct
-                              ? "border-red-600 bg-red-100 text-red-700"
-                              : selected === i
-                              ? "border-purple-600 bg-purple-100 text-purple-700"
-                              : "border-gray-400 bg-gray-50 text-gray-700"
-                          }`}>
-                            {String.fromCharCode(65 + i)}
-                          </span>
-                          <span className="text-sm font-semibold flex-1">{opt}</span>
-                          {answered && i === q.correct && <CheckCircle2 className="h-5 w-5 text-green-600 ml-auto" />}
-                          {answered && i === selected && i !== q.correct && <XCircle className="h-5 w-5 text-red-600 ml-auto" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                  <div className="rounded-2xl p-[1px] bg-gradient-to-br from-violet-500 via-blue-600 to-cyan-500 shadow-lg">
+                    <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-4 border border-white/70">
+                      <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-3">Actions</p>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        <Button onClick={prevQ} variant="outline" className="gap-2 w-full" disabled={currentQ === 0}>
+                          <ArrowLeft className="h-4 w-4" /> Previous
+                        </Button>
+                        {currentQ < questions.length - 1 ? (
+                          <Button onClick={nextQ} variant="gradient" className="gap-2 w-full">
+                            Next <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button onClick={finishQuiz} variant="gradient" className="gap-2 w-full">
+                            Submit Test <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button onClick={finishQuiz} variant="outline" className="gap-2 w-full border-primary/40 text-primary hover:bg-primary/5">
+                          Finish Now
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
               </div>
-
-              {answered && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Button onClick={nextQ} variant="gradient" className="w-full gap-2">
-                    {currentQ < questions.length - 1 ? "Next Question" : "See Results"} <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-              )}
             </motion.div>
           )}
 
@@ -331,15 +414,34 @@ const Practice = () => {
                   {questions.map((q, i) => {
                     const userAns = answers[i];
                     const isCorrect = userAns === q.correct;
+                    const isSkipped = userAns === null;
+                    const explanation = buildExplanation(q.options[q.correct], q.subject);
                     return (
-                      <div key={i} className={`p-4 rounded-lg border ${isCorrect ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                      <div
+                        key={i}
+                        className={`p-4 rounded-lg border ${
+                          isCorrect
+                            ? "border-success/30 bg-success/5"
+                            : isSkipped
+                            ? "border-slate-300 bg-slate-50"
+                            : "border-destructive/30 bg-destructive/5"
+                        }`}
+                      >
                         <div className="flex items-start gap-2">
-                          {isCorrect ? <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" /> : <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />}
+                          {isCorrect ? (
+                            <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <XCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isSkipped ? "text-slate-500" : "text-destructive"}`} />
+                          )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground mb-1">{q.question}</p>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Q{i + 1} · {q.subject}</p>
+                            <p className="text-sm font-medium text-foreground mb-2">{q.question}</p>
                             <p className="text-xs text-muted-foreground">
-                              Your answer: <span className={isCorrect ? "text-success" : "text-destructive"}>{userAns !== null ? q.options[userAns] : "Skipped"}</span>
+                              Your answer: <span className={isCorrect ? "text-success" : isSkipped ? "text-slate-600" : "text-destructive"}>{userAns !== null ? q.options[userAns] : "Skipped"}</span>
                               {!isCorrect && <> · Correct: <span className="text-success">{q.options[q.correct]}</span></>}
+                            </p>
+                            <p className="mt-2 text-xs text-foreground/80 leading-relaxed bg-white/70 border border-border/60 rounded-md px-3 py-2">
+                              <span className="font-semibold">Explanation:</span> {explanation}
                             </p>
                           </div>
                         </div>

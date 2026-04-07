@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Brain, Target, TrendingUp, Clock, Award, AlertTriangle, Flame, ChevronRight, BarChart3, ArrowUpRight, CheckCircle2, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -36,11 +37,16 @@ const suggestions = [
 const weeklyScores = [65, 70, 68, 75, 72, 78, 82];
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const Dashboard = () => (
-  <>
-    <Navbar />
-    <div className="min-h-screen pt-20 pb-12">
-      <div className="container mx-auto px-4">
+const Dashboard = () => {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  return (
+    <>
+      <Navbar />
+      <div className="min-h-screen pt-20 pb-12">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="font-heading text-3xl font-bold text-foreground">Welcome back, Student! 👋</h1>
@@ -193,9 +199,10 @@ const Dashboard = () => (
             </motion.div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 export default Dashboard;

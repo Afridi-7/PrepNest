@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { BookOpen, Calculator, Atom, FlaskConical, Leaf, BookMarked, BrainCircuit, ArrowRight, ClipboardList, Layers, Lightbulb } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { apiClient } from "@/services/api";
+import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 
 const usatSubjects = [
   { id: "english", name: "English", icon: BookOpen, topics: 12, mcqs: 250, tips: 15, materials: 18, color: "from-blue-400 to-blue-200", accent: "text-blue-600" },
@@ -20,13 +23,21 @@ const hatSubjects = [
 
 type SubjectType = typeof usatSubjects[0];
 
-const SubjectCard = ({ subject, i }: { subject: SubjectType; i: number }) => (
+const SubjectCard = ({
+  subject,
+  i,
+  onOpen,
+}: {
+  subject: SubjectType;
+  i: number;
+  onOpen: (subjectId: string) => void;
+}) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: i * 0.08 }}
   >
-    <Link to={`/subjects/${subject.id}`} className="block group">
+    <button onClick={() => onOpen(subject.id)} className="block group w-full text-left">
       <div className={`bg-gradient-to-br ${subject.color} rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-all duration-300 border-2 border-transparent hover:border-white/50 hover:-translate-y-2 group-hover:shadow-glow`}>
         <div className="flex items-start justify-between mb-4">
           <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
@@ -55,15 +66,36 @@ const SubjectCard = ({ subject, i }: { subject: SubjectType; i: number }) => (
           </div>
         </div>
       </div>
-    </Link>
+    </button>
   </motion.div>
 );
 
-const Subjects = () => (
-  <>
-    <Navbar />
-    <div className="min-h-screen pt-24 pb-12">
-      <div className="container mx-auto px-4">
+const Subjects = () => {
+  const navigate = useNavigate();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const handleOpenSubject = (subjectId: string) => {
+    if (!apiClient.isAuthenticated()) {
+      setAuthDialogOpen(true);
+      return;
+    }
+    navigate(`/subjects/${subjectId}`);
+  };
+
+  return (
+    <>
+      <Navbar />
+      <AuthRequiredDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        message="Please log in first to open subject details."
+      />
+      <div className="min-h-screen pt-24 pb-12">
+        <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
           <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Subjects</h1>
           <p className="text-muted-foreground">Choose a subject to access topics, materials, mock tests, and past papers.</p>
@@ -75,7 +107,7 @@ const Subjects = () => (
             <span className="text-gray-700">Undergraduate Studies Admission Test</span>
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {usatSubjects.map((s, i) => <SubjectCard key={s.id} subject={s} i={i} />)}
+            {usatSubjects.map((s, i) => <SubjectCard key={s.id} subject={s} i={i} onOpen={handleOpenSubject} />)}
           </div>
         </div>
 
@@ -85,12 +117,13 @@ const Subjects = () => (
             <span className="text-gray-700">Higher Education Aptitude Test</span>
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {hatSubjects.map((s, i) => <SubjectCard key={s.id} subject={s} i={i} />)}
+            {hatSubjects.map((s, i) => <SubjectCard key={s.id} subject={s} i={i} onOpen={handleOpenSubject} />)}
           </div>
         </div>
       </div>
-    </div>
-  </>
-);
+      </div>
+    </>
+  );
+};
 
 export default Subjects;

@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, BookOpen, Calculator, FileText, Loader2, Copy, Check, AlertCircle, Menu, X, Upload, Paperclip, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/services/api";
 import Navbar from "@/components/Navbar";
+import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 
 // localStorage key for persisting conversations
 const STORAGE_KEY = "prepnest_conversations";
@@ -53,7 +53,6 @@ const quickPrompts: QuickPrompt[] = [
 ];
 
 const AITutor = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   
   // Initialize state from localStorage
@@ -71,6 +70,7 @@ const AITutor = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [attachments, setAttachments] = useState<Array<{ type: string; name: string; data: string }>>([]);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -267,12 +267,7 @@ const AITutor = () => {
 
     const token = apiClient.getToken?.();
     if (!token) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to use the AI Tutor",
-        variant: "destructive",
-      });
-      navigate("/login");
+      setAuthDialogOpen(true);
       return;
     }
 
@@ -459,6 +454,11 @@ const AITutor = () => {
   return (
     <>
       <Navbar />
+      <AuthRequiredDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        message="Please log in first to use AI Tutor actions."
+      />
       <div className="min-h-screen pt-16 flex bg-gradient-to-b from-background to-background/95">
         {/* Sidebar - Fixed Position */}
         <motion.aside
