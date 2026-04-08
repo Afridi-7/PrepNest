@@ -58,26 +58,67 @@ class EmailService:
 
     def _send_message(self, message: EmailMessage) -> None:
         context = ssl.create_default_context()
+        timeout_seconds = max(5, self.settings.smtp_timeout_seconds)
 
-        if self.settings.smtp_use_tls:
-            with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=20) as client:
-                client.ehlo()
-                client.starttls(context=context)
-                client.ehlo()
+        def _send_via_smtps(port: int) -> None:
+            with smtplib.SMTP_SSL(self.settings.smtp_host, port, context=context, timeout=timeout_seconds) as client:
                 if self.settings.smtp_username and self.settings.smtp_password:
                     client.login(self.settings.smtp_username, self.settings.smtp_password)
-                client.send_message(message)
+                refused = client.send_message(message)
+                if refused:
+                    raise RuntimeError("SMTP server rejected recipient address")
+
+        if self.settings.smtp_use_tls:
+            try:
+                with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=timeout_seconds) as client:
+                    client.ehlo()
+                    client.starttls(context=context)
+                    client.ehlo()
+                    if self.settings.smtp_username and self.settings.smtp_password:
+                        client.login(self.settings.smtp_username, self.settings.smtp_password)
+                    refused = client.send_message(message)
+                    if refused:
+                        raise RuntimeError("SMTP server rejected recipient address")
+                    return
+            except Exception as starttls_error:
+                if not self.settings.smtp_allow_ssl_fallback:
+                    raise
+
+                fallback_port = self.settings.smtp_ssl_fallback_port
+                logger.warning(
+                    "STARTTLS delivery failed; retrying with SMTPS on port %s: %s",
+                    fallback_port,
+                    starttls_error,
+                )
+                _send_via_smtps(fallback_port)
                 return
 
-        with smtplib.SMTP_SSL(self.settings.smtp_host, self.settings.smtp_port, context=context, timeout=20) as client:
-            if self.settings.smtp_username and self.settings.smtp_password:
-                client.login(self.settings.smtp_username, self.settings.smtp_password)
-            client.send_message(message)
+        _send_via_smtps(self.settings.smtp_port)
 
     async def send_verification_email(self, recipient_email: str, verification_url: str, full_name: str | None = None) -> None:
-        message = self._build_verification_message(recipient_email, verification_url, full_name)
-        await asyncio.to_thread(self._send_message, message)
-        logger.info("Verification email sent to %s", recipient_email)
+        max_retries = max(1, self.settings.smtp_max_retries)
+        backoff_seconds = max(0.2, self.settings.smtp_retry_backoff_seconds)
+        last_error: Exception | None = None
+
+        for attempt in range(1, max_retries + 1):
+            message = self._build_verification_message(recipient_email, verification_url, full_name)
+            try:
+                await asyncio.to_thread(self._send_message, message)
+                logger.info("Verification email sent to %s", recipient_email)
+                return
+            except Exception as error:
+                last_error = error
+                logger.warning(
+                    "Verification email attempt %s/%s failed for %s: %s",
+                    attempt,
+                    max_retries,
+                    recipient_email,
+                    error,
+                )
+                if attempt < max_retries:
+                    await asyncio.sleep(backoff_seconds * (2 ** (attempt - 1)))
+
+        raise RuntimeError("Verification email delivery failed") from last_error
 
 
 email_service = EmailService()

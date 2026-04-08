@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     )
     smtp_from_name: str = "PrepNest"
     smtp_use_tls: bool = True
+    smtp_timeout_seconds: int = 8
+    smtp_max_retries: int = 2
+    smtp_retry_backoff_seconds: float = 0.5
+    smtp_ssl_fallback_port: int = 465
+    smtp_allow_ssl_fallback: bool = True
 
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
