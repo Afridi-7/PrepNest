@@ -399,3 +399,70 @@ async def seed_demo_content(
         "created_materials": created_materials,
         "created_mcqs": created_mcqs,
     }
+
+
+@router.post("/dedupe-subjects", status_code=status.HTTP_200_OK)
+async def dedupe_subjects(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    subject_rows = await db.execute(select(Subject).order_by(Subject.created_at.asc(), Subject.id.asc()))
+    subjects = list(subject_rows.scalars().all())
+
+    grouped: dict[tuple[str, str], list[Subject]] = {}
+    for subject in subjects:
+        key = (subject.name.strip().lower(), subject.exam_type.strip().upper())
+        grouped.setdefault(key, []).append(subject)
+
+    removed_subjects = 0
+    merged_topics = 0
+    moved_materials = 0
+    moved_mcqs = 0
+
+    for _, group in grouped.items():
+        if len(group) <= 1:
+            continue
+
+        keeper = group[0]
+        duplicates = group[1:]
+
+        for duplicate in duplicates:
+            dup_topics_rows = await db.execute(
+                select(Topic).where(Topic.subject_id == duplicate.id).order_by(Topic.created_at.asc(), Topic.id.asc())
+            )
+            dup_topics = list(dup_topics_rows.scalars().all())
+
+            for dup_topic in dup_topics:
+                keeper_topic_row = await db.execute(
+                    select(Topic).where(Topic.subject_id == keeper.id, Topic.title == dup_topic.title)
+                )
+                keeper_topic = keeper_topic_row.scalars().first()
+
+                if not keeper_topic:
+                    dup_topic.subject_id = keeper.id
+                    merged_topics += 1
+                    continue
+
+                mat_rows = await db.execute(select(Material).where(Material.topic_id == dup_topic.id))
+                for material in mat_rows.scalars().all():
+                    material.topic_id = keeper_topic.id
+                    moved_materials += 1
+
+                mcq_rows = await db.execute(select(MCQ).where(MCQ.topic_id == dup_topic.id))
+                for mcq in mcq_rows.scalars().all():
+                    mcq.topic_id = keeper_topic.id
+                    moved_mcqs += 1
+
+                await db.delete(dup_topic)
+
+            await db.delete(duplicate)
+            removed_subjects += 1
+
+    await db.commit()
+
+    return {
+        "removed_subjects": removed_subjects,
+        "merged_topics": merged_topics,
+        "moved_materials": moved_materials,
+        "moved_mcqs": moved_mcqs,
+    }

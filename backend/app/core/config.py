@@ -35,6 +35,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("CORS_ORIGINS", "BACKEND_CORS_ORIGINS"),
     )
+    cors_origin_regex: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CORS_ORIGIN_REGEX", "BACKEND_CORS_ORIGIN_REGEX"),
+    )
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_username: str | None = None

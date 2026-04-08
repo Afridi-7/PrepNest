@@ -144,6 +144,18 @@ const AdminContent = () => {
     }
   };
 
+  const onDedupeSubjects = async () => {
+    try {
+      const result = await apiClient.dedupeSubjects();
+      await loadData();
+      toast({
+        description: `Removed ${result.removed_subjects} duplicate subjects, merged ${result.merged_topics} topics, moved ${result.moved_materials} materials, ${result.moved_mcqs} MCQs`,
+      });
+    } catch (error: any) {
+      toast({ title: "Dedupe failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   if (!apiClient.isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
@@ -171,12 +183,19 @@ const AdminContent = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Admin Content Studio</h1>
             <p className="text-muted-foreground">Create subjects, topics, materials, and MCQs for learners.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="outline" onClick={onDedupeSubjects}>Remove Duplicate Subjects</Button>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <form onSubmit={onCreateSubject} className="rounded-2xl border bg-white p-5 space-y-3">
               <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Create Subject</h2>
               <input className="w-full border rounded-lg px-3 py-2" placeholder="Subject name" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} required />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setExamType("USAT")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT</button>
+                <button type="button" onClick={() => setExamType("HAT")} className="text-xs px-3 py-1 rounded border bg-slate-50">HAT</button>
+              </div>
               <input className="w-full border rounded-lg px-3 py-2" placeholder="Exam type (USAT/HAT)" value={examType} onChange={(e) => setExamType(e.target.value)} required />
               <Button type="submit" className="w-full">Save Subject</Button>
             </form>

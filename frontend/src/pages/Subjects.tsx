@@ -77,8 +77,16 @@ const Subjects = () => {
   };
 
   const groupedSubjects = useMemo(() => {
-    const groups: Record<string, Subject[]> = {};
+    const dedupedMap = new Map<string, Subject>();
     for (const subject of subjects) {
+      const key = `${subject.name.trim().toLowerCase()}::${(subject.exam_type || "General").trim().toUpperCase()}`;
+      if (!dedupedMap.has(key)) {
+        dedupedMap.set(key, subject);
+      }
+    }
+
+    const groups: Record<string, Subject[]> = {};
+    for (const subject of dedupedMap.values()) {
       const key = (subject.exam_type || "General").toUpperCase();
       groups[key] = groups[key] || [];
       groups[key].push(subject);

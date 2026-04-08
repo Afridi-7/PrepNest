@@ -484,6 +484,15 @@ class ApiClient {
     return this.request("/admin/seed-demo", "POST", {});
   }
 
+  async dedupeSubjects(): Promise<{
+    removed_subjects: number;
+    merged_topics: number;
+    moved_materials: number;
+    moved_mcqs: number;
+  }> {
+    return this.request("/admin/dedupe-subjects", "POST", {});
+  }
+
   async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {
     return this.request<AIResponse>("/ai/chat", "POST", { question, include_web: includeWeb });
   }
