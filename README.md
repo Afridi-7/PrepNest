@@ -84,6 +84,8 @@ The backend will be available at `http://127.0.0.1:8001`
 
 **Health Check**: `curl http://127.0.0.1:8001/health`
 
+**Database Health Check**: `curl http://127.0.0.1:8001/health/db`
+
 ### Frontend Setup
 
 ```bash
@@ -215,6 +217,7 @@ In default mode:
 - Frontend: `http://127.0.0.1:5173`
 - Backend API: `http://127.0.0.1:8000`
 - Health check: `http://127.0.0.1:8000/health`
+- DB health check: `http://127.0.0.1:8000/health/db`
 - PostgreSQL is internal to Docker network (not published to host)
 
 ### 3. Check running services

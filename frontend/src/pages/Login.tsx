@@ -43,16 +43,6 @@ const Login = () => {
       toast({ title: "Success", description: "Logged in successfully!" });
       navigate(redirectTo, { replace: true });
     } catch (error: any) {
-      if ((error.message || "").toLowerCase().includes("not verified")) {
-        toast({
-          title: "Verify your email",
-          description: error.message,
-          variant: "destructive",
-        });
-        navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`);
-        return;
-      }
-
       toast({ 
         title: "Login Failed", 
         description: error.message || "Invalid credentials", 

@@ -41,8 +41,8 @@ const Signup = () => {
     setLoading(true);
     try {
       const response = await apiClient.signup(email, password, name);
-      toast({ title: "Check your email", description: response.message || "Verification email sent." });
-      navigate(`/verify-email?email=${encodeURIComponent(email)}&sent=1`);
+      toast({ title: "Success", description: response.message || "Account created successfully. Please log in." });
+      navigate("/login", { replace: true });
     } catch (error: any) {
       toast({ 
         title: "Sign Up Failed", 

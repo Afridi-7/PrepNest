@@ -101,9 +101,8 @@ export interface AuthResponse {
   token_type: string;
 }
 
-export interface VerificationResponse {
+export interface SignupResponse {
   message: string;
-  verification_url?: string | null;
 }
 
 export interface UserProfile {
@@ -275,8 +274,8 @@ class ApiClient {
     email: string,
     password: string,
     fullName?: string
-  ): Promise<VerificationResponse> {
-    const response = await this.request<VerificationResponse>("/auth/signup", "POST", {
+  ): Promise<SignupResponse> {
+    const response = await this.request<SignupResponse>("/auth/signup", "POST", {
       email,
       password,
       full_name: fullName,
@@ -336,18 +335,6 @@ class ApiClient {
       conversation_id: conversationId || null,
       learning_level: learningLevel || "intermediate",
       attachments: attachments || [],
-    });
-  }
-
-  async verifyEmail(token: string): Promise<VerificationResponse> {
-    return this.request<VerificationResponse>("/auth/verify-email", "POST", {
-      token,
-    });
-  }
-
-  async resendVerification(email: string): Promise<VerificationResponse> {
-    return this.request<VerificationResponse>("/auth/resend-verification", "POST", {
-      email,
     });
   }
 

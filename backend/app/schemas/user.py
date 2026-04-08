@@ -21,20 +21,6 @@ class TokenResponse(BaseModel):
 
 class SignupResponse(BaseModel):
     message: str
-    verification_url: str | None = None
-
-
-class EmailVerificationRequest(BaseModel):
-    token: str = Field(min_length=16)
-
-
-class ResendVerificationRequest(BaseModel):
-    email: EmailStr
-
-
-class VerificationResponse(BaseModel):
-    message: str
-    verification_url: str | None = None
 
 
 class UserResponse(BaseModel):

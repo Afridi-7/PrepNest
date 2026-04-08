@@ -6,15 +6,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.routers import admin_content, ai_learning, auth, chat, content, conversations, files, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
 from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
-from app.db.session import engine
+from app.db.session import SessionLocal, database_url, engine
 from app.services.cache_service import cache_service
-from app.services.email_service import email_service
 
 settings = get_settings()
 configure_logging(logging.DEBUG if settings.app_debug else logging.INFO)
@@ -79,16 +79,6 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
 @app.on_event("startup")
 async def on_startup() -> None:
     try:
-        resolved_provider = email_service._resolve_provider()
-    except Exception as exc:
-        resolved_provider = f"invalid ({exc})"
-    logging.info(
-        "Email transport provider: %s (resend_key_set=%s)",
-        resolved_provider,
-        bool(settings.resend_api_key),
-    )
-
-    try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     except Exception as exc:
@@ -118,22 +108,24 @@ async def healthcheck() -> dict:
     return {"status": "ok", "service": settings.app_name}
 
 
-@app.get("/health/email")
-async def email_healthcheck() -> dict:
+@app.get("/health/db")
+async def database_healthcheck() -> dict:
     try:
-        provider = email_service._resolve_provider()
-        provider_error = None
+        async with SessionLocal() as session:
+            await session.execute(text("SELECT 1"))
     except Exception as exc:
-        provider = "invalid"
-        provider_error = str(exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "database": database_url,
+                "detail": str(exc),
+            },
+        )
 
     return {
-        "provider": provider,
-        "provider_error": provider_error,
-        "resend_key_set": bool(settings.resend_api_key),
-        "resend_from_email": settings.resend_from_email,
-        "smtp_host": settings.smtp_host,
-        "smtp_use_tls": settings.smtp_use_tls,
+        "status": "ok",
+        "database": database_url,
     }
 
 
