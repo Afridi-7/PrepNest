@@ -15,7 +15,7 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 httpx==0.28.1
 numpy==2.2.4
-faiss-cpu==1.10.0
+faiss-cpu
 pypdf==5.4.0
 pillow==11.2.1
 matplotlib==3.10.1
