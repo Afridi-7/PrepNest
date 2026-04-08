@@ -14,6 +14,9 @@ def resolve_database_url(database_url: str) -> str:
     if url.drivername.startswith("postgres") and url.host in {"localhost", "127.0.0.1", "::1"}:
         return "sqlite+aiosqlite:///./prepnest_ai_tutor.db"
 
+    if url.drivername in {"postgresql", "postgres"} or url.drivername.startswith("postgresql+"):
+        return url.set(drivername="postgresql+asyncpg").render_as_string(hide_password=False)
+
     return database_url
 
 
