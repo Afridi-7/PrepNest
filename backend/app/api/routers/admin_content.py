@@ -341,7 +341,7 @@ async def seed_demo_content(
         subject_result = await db.execute(
             select(Subject).where(Subject.name == entry["name"], Subject.exam_type == entry["exam_type"])
         )
-        subject = subject_result.scalar_one_or_none()
+        subject = subject_result.scalars().first()
         if not subject:
             subject = Subject(name=entry["name"], exam_type=entry["exam_type"])
             db.add(subject)
@@ -352,7 +352,7 @@ async def seed_demo_content(
             topic_result = await db.execute(
                 select(Topic).where(Topic.subject_id == subject.id, Topic.title == topic_title)
             )
-            topic = topic_result.scalar_one_or_none()
+            topic = topic_result.scalars().first()
             if not topic:
                 topic = Topic(subject_id=subject.id, title=topic_title)
                 db.add(topic)
@@ -363,7 +363,7 @@ async def seed_demo_content(
             material_result = await db.execute(
                 select(Material).where(Material.topic_id == topic.id, Material.title == material_title)
             )
-            if not material_result.scalar_one_or_none():
+            if not material_result.scalars().first():
                 db.add(
                     Material(
                         title=material_title,
@@ -376,7 +376,7 @@ async def seed_demo_content(
 
             question = f"Sample MCQ for {topic_title}?"
             mcq_result = await db.execute(select(MCQ).where(MCQ.topic_id == topic.id, MCQ.question == question))
-            if not mcq_result.scalar_one_or_none():
+            if not mcq_result.scalars().first():
                 db.add(
                     MCQ(
                         question=question,
