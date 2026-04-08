@@ -475,6 +475,15 @@ class ApiClient {
     await this.request<void>(`/admin/mcqs/${mcqId}`, "DELETE");
   }
 
+  async seedDemoContent(): Promise<{
+    created_subjects: number;
+    created_topics: number;
+    created_materials: number;
+    created_mcqs: number;
+  }> {
+    return this.request("/admin/seed-demo", "POST", {});
+  }
+
   async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {
     return this.request<AIResponse>("/ai/chat", "POST", { question, include_web: includeWeb });
   }

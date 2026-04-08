@@ -2,6 +2,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
@@ -25,6 +26,34 @@ from app.schemas.content import (
 
 router = APIRouter(prefix="/admin", tags=["admin-content"])
 settings = get_settings()
+
+DEMO_SUBJECTS = [
+    {
+        "name": "English",
+        "exam_type": "USAT",
+        "topics": ["Reading Comprehension", "Grammar"],
+    },
+    {
+        "name": "Mathematics",
+        "exam_type": "USAT",
+        "topics": ["Algebra", "Geometry"],
+    },
+    {
+        "name": "Physics",
+        "exam_type": "USAT",
+        "topics": ["Mechanics", "Thermodynamics"],
+    },
+    {
+        "name": "Chemistry",
+        "exam_type": "USAT",
+        "topics": ["Organic Chemistry", "Stoichiometry"],
+    },
+    {
+        "name": "Biology",
+        "exam_type": "USAT",
+        "topics": ["Cell Biology", "Genetics"],
+    },
+]
 
 
 @router.post("/subjects", response_model=SubjectRead, status_code=status.HTTP_201_CREATED)
@@ -296,3 +325,77 @@ async def upload_material_pdfs(
         await db.refresh(material)
 
     return [MaterialRead.model_validate(material) for material in created_materials]
+
+
+@router.post("/seed-demo", status_code=status.HTTP_200_OK)
+async def seed_demo_content(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    created_subjects = 0
+    created_topics = 0
+    created_materials = 0
+    created_mcqs = 0
+
+    for entry in DEMO_SUBJECTS:
+        subject_result = await db.execute(
+            select(Subject).where(Subject.name == entry["name"], Subject.exam_type == entry["exam_type"])
+        )
+        subject = subject_result.scalar_one_or_none()
+        if not subject:
+            subject = Subject(name=entry["name"], exam_type=entry["exam_type"])
+            db.add(subject)
+            await db.flush()
+            created_subjects += 1
+
+        for topic_title in entry["topics"]:
+            topic_result = await db.execute(
+                select(Topic).where(Topic.subject_id == subject.id, Topic.title == topic_title)
+            )
+            topic = topic_result.scalar_one_or_none()
+            if not topic:
+                topic = Topic(subject_id=subject.id, title=topic_title)
+                db.add(topic)
+                await db.flush()
+                created_topics += 1
+
+            material_title = f"{topic_title} Notes"
+            material_result = await db.execute(
+                select(Material).where(Material.topic_id == topic.id, Material.title == material_title)
+            )
+            if not material_result.scalar_one_or_none():
+                db.add(
+                    Material(
+                        title=material_title,
+                        content=f"Core concepts, examples, and revision pointers for {topic_title}.",
+                        type="notes",
+                        topic_id=topic.id,
+                    )
+                )
+                created_materials += 1
+
+            question = f"Sample MCQ for {topic_title}?"
+            mcq_result = await db.execute(select(MCQ).where(MCQ.topic_id == topic.id, MCQ.question == question))
+            if not mcq_result.scalar_one_or_none():
+                db.add(
+                    MCQ(
+                        question=question,
+                        option_a="Option A",
+                        option_b="Option B",
+                        option_c="Option C",
+                        option_d="Option D",
+                        correct_answer="A",
+                        explanation=f"Sample explanation for {topic_title}.",
+                        topic_id=topic.id,
+                    )
+                )
+                created_mcqs += 1
+
+    await db.commit()
+
+    return {
+        "created_subjects": created_subjects,
+        "created_topics": created_topics,
+        "created_materials": created_materials,
+        "created_mcqs": created_mcqs,
+    }

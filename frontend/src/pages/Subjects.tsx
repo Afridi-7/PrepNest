@@ -5,6 +5,8 @@ import { ArrowRight, BookOpen } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 import { apiClient, Subject } from "@/services/api";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const SubjectCard = ({
   subject,
@@ -32,21 +34,47 @@ const SubjectCard = ({
 );
 
 const Subjects = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const loadSubjects = async () => {
+    try {
+      const data = await apiClient.listSubjects();
+      setSubjects(data);
+    } catch {
+      setSubjects([]);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
     (async () => {
-      try {
-        const data = await apiClient.listSubjects();
-        setSubjects(data);
-      } catch {
-        setSubjects([]);
+      if (apiClient.isAuthenticated()) {
+        try {
+          const me = await apiClient.getCurrentUser();
+          setIsAdmin(Boolean(me.is_admin));
+        } catch {
+          setIsAdmin(false);
+        }
       }
+      await loadSubjects();
     })();
   }, []);
+
+  const seedDemo = async () => {
+    try {
+      const result = await apiClient.seedDemoContent();
+      await loadSubjects();
+      toast({
+        description: `Seeded: ${result.created_subjects} subjects, ${result.created_topics} topics, ${result.created_materials} materials, ${result.created_mcqs} MCQs`,
+      });
+    } catch (error: any) {
+      toast({ title: "Seed failed", description: error.message, variant: "destructive" });
+    }
+  };
 
   const groupedSubjects = useMemo(() => {
     const groups: Record<string, Subject[]> = {};
@@ -79,6 +107,11 @@ const Subjects = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
             <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Subjects</h1>
             <p className="text-muted-foreground">Browse all subjects and open detailed learning content.</p>
+            {isAdmin && (
+              <div className="mt-4">
+                <Button onClick={seedDemo} variant="outline">Seed Demo Subjects</Button>
+              </div>
+            )}
           </motion.div>
 
           {Object.keys(groupedSubjects).length === 0 ? (
