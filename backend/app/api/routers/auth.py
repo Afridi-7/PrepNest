@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
@@ -24,6 +25,7 @@ from app.schemas.user import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 DEV_MODE = False
 
@@ -60,10 +62,14 @@ async def create_pending_signup(
     try:
         await email_service.send_verification_email(pending.email, verification_url, pending.full_name)
     except Exception as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Verification email could not be sent. Check SMTP configuration.",
-        ) from error
+        logger.warning("Verification email delivery failed for %s: %s", pending.email, error)
+        return SignupResponse(
+            message=(
+                "Account created, but verification email could not be sent right now. "
+                "Use resend verification from the verify page."
+            ),
+            verification_url=verification_url,
+        )
 
     return SignupResponse(
         message="Verification email sent. Check your inbox to finish creating your account.",
@@ -191,10 +197,11 @@ async def resend_verification(
     try:
         await email_service.send_verification_email(refreshed.email, verification_url, refreshed.full_name)
     except Exception as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Verification email could not be sent. Check SMTP configuration.",
-        ) from error
+        logger.warning("Verification email resend failed for %s: %s", refreshed.email, error)
+        return VerificationResponse(
+            message="Could not send verification email right now. Please try again shortly.",
+            verification_url=verification_url,
+        )
 
     return VerificationResponse(
         message="Verification email resent. Check your inbox.",
