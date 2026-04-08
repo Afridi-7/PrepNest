@@ -29,9 +29,25 @@ logger = logging.getLogger(__name__)
 
 
 def _email_delivery_error_detail() -> str:
+    provider = settings.email_provider.strip().lower()
+    if provider == "auto":
+        provider = "resend" if settings.resend_api_key else "smtp"
+
+    if provider == "resend":
+        sender = (settings.resend_from_email or "").strip().lower()
+        if sender.endswith("@resend.dev"):
+            return (
+                "Verification email could not be sent. Resend test sender onboarding@resend.dev "
+                "can only deliver to limited test recipients. Use a verified domain sender in RESEND_FROM_EMAIL."
+            )
+        return (
+            "Verification email could not be sent via Resend. "
+            "Check RESEND_API_KEY and verify RESEND_FROM_EMAIL domain/sender."
+        )
+
     return (
-        "Verification email could not be sent right now. "
-        "Please try again in a moment."
+        "Verification email could not be sent via SMTP. "
+        "Check SMTP host/credentials and outbound network access on the deployment platform."
     )
 
 
