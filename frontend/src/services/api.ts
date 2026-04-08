@@ -1,10 +1,45 @@
-const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api/v1";
+const DEFAULT_API_PATH = "/api/v1";
+
+const ensureApiPrefix = (pathname: string): string => {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  if (!normalizedPath || normalizedPath === "/") {
+    return DEFAULT_API_PATH;
+  }
+
+  return normalizedPath.endsWith(DEFAULT_API_PATH)
+    ? normalizedPath
+    : `${normalizedPath}${DEFAULT_API_PATH}`;
+};
+
+const inferBrowserDefaultApiBaseUrl = (): string => {
+  if (typeof window === "undefined") {
+    return DEFAULT_API_PATH;
+  }
+
+  const browserHost = window.location.hostname || "127.0.0.1";
+  const browserIsLocal = browserHost === "localhost" || browserHost === "127.0.0.1" || browserHost === "::1";
+  if (browserIsLocal) {
+    const localHost = browserHost === "::1" ? "127.0.0.1" : browserHost;
+    return `http://${localHost}:8000${DEFAULT_API_PATH}`;
+  }
+
+  const url = new URL(window.location.origin);
+  url.pathname = DEFAULT_API_PATH;
+  return url.toString().replace(/\/$/, "");
+};
 
 const normalizeApiBaseUrl = (rawValue?: string): string => {
-  const configuredValue = (rawValue || "").trim() || DEFAULT_API_BASE_URL;
-  const valueWithProtocol = /^https?:\/\//i.test(configuredValue)
-    ? configuredValue
-    : `http://${configuredValue}`;
+  const configuredValue = (rawValue || "").trim();
+  if (!configuredValue) {
+    return inferBrowserDefaultApiBaseUrl();
+  }
+
+  const browserOrigin = typeof window !== "undefined" ? window.location.origin : "http://127.0.0.1:8000";
+  const valueWithProtocol = configuredValue.startsWith("/")
+    ? new URL(configuredValue, browserOrigin).toString()
+    : /^https?:\/\//i.test(configuredValue)
+      ? configuredValue
+      : `http://${configuredValue}`;
 
   try {
     const url = new URL(valueWithProtocol);
@@ -27,13 +62,21 @@ const normalizeApiBaseUrl = (rawValue?: string): string => {
       }
     }
 
+    url.pathname = ensureApiPrefix(url.pathname);
     return url.toString().replace(/\/$/, "");
   } catch {
-    return DEFAULT_API_BASE_URL;
+    return inferBrowserDefaultApiBaseUrl();
   }
 };
 
-const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL);
+const API_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE_URL, typeof window !== "undefined" ? window.location.origin : undefined).origin;
+  } catch {
+    return typeof window !== "undefined" ? window.location.origin : "http://127.0.0.1:8000";
+  }
+})();
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -177,7 +220,7 @@ class ApiClient {
 
   async getHealth() {
     try {
-      const response = await fetch(`${API_BASE_URL.replace("/api/v1", "")}/health`);
+      const response = await fetch(`${API_ORIGIN}/health`);
       return response.ok;
     } catch {
       return false;

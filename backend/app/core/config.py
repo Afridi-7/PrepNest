@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         default="http://localhost:8080",
         validation_alias=AliasChoices("FRONTEND_URL", "FRONTEND_BASE_URL"),
     )
+    cors_origins: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CORS_ORIGINS", "BACKEND_CORS_ORIGINS"),
+    )
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_username: str | None = None
