@@ -50,6 +50,22 @@ class Settings(BaseSettings):
     smtp_retry_backoff_seconds: float = 0.5
     smtp_ssl_fallback_port: int = 465
     smtp_allow_ssl_fallback: bool = True
+    email_provider: str = Field(
+        default="auto",
+        validation_alias=AliasChoices("EMAIL_PROVIDER", "EMAIL_TRANSPORT"),
+    )
+    resend_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("RESEND_API_KEY"),
+    )
+    resend_from_email: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("RESEND_FROM_EMAIL"),
+    )
+    resend_api_base_url: str = Field(
+        default="https://api.resend.com/emails",
+        validation_alias=AliasChoices("RESEND_API_BASE_URL"),
+    )
 
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"

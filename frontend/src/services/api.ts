@@ -190,8 +190,14 @@ class ApiClient {
     const response = await fetch(url, options);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || `API error: ${response.status}`);
+      const errorPayload = await response.json().catch(() => ({ message: response.statusText }));
+      const detailMessage =
+        typeof errorPayload?.detail === "string"
+          ? errorPayload.detail
+          : Array.isArray(errorPayload?.detail)
+            ? errorPayload.detail.map((item: any) => item?.msg).filter(Boolean).join(", ")
+            : undefined;
+      throw new Error(detailMessage || errorPayload?.message || `API error: ${response.status}`);
     }
 
     return response.json();

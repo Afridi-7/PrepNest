@@ -27,14 +27,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
-DEV_MODE = False
-
 
 def _email_delivery_error_detail() -> str:
     return (
         "Verification email could not be sent right now. "
         "Please try again in a moment."
     )
+
+
+async def send_verification_email_or_503(email: str, verification_url: str, full_name: str | None = None) -> None:
+    try:
+        await email_service.send_verification_email(email, verification_url, full_name)
+    except Exception as error:
+        logger.warning("Verification email delivery failed for %s: %s", email, error)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_email_delivery_error_detail(),
+        ) from error
 
 
 def build_verification_url(request: Request, token: str, email: str) -> str:
@@ -66,14 +75,7 @@ async def create_pending_signup(
     )
 
     verification_url = build_verification_url(request, pending.token, pending.email)
-    try:
-        await email_service.send_verification_email(pending.email, verification_url, pending.full_name)
-    except Exception as error:
-        logger.warning("Verification email delivery failed for %s: %s", pending.email, error)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=_email_delivery_error_detail(),
-        ) from error
+    await send_verification_email_or_503(pending.email, verification_url, pending.full_name)
 
     return SignupResponse(
         message=(
@@ -201,14 +203,7 @@ async def resend_verification(
     )
 
     verification_url = build_verification_url(request, refreshed.token, refreshed.email)
-    try:
-        await email_service.send_verification_email(refreshed.email, verification_url, refreshed.full_name)
-    except Exception as error:
-        logger.warning("Verification email resend failed for %s: %s", refreshed.email, error)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=_email_delivery_error_detail(),
-        ) from error
+    await send_verification_email_or_503(refreshed.email, verification_url, refreshed.full_name)
 
     return VerificationResponse(
         message="Verification email resent. Check inbox, spam, and promotions tabs.",
