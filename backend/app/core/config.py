@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+    web_search_api_url: str | None = None
+    web_search_api_key: str | None = None
 
     vector_store_path: str = "./data/vector_store"
     vector_dim: int = 384

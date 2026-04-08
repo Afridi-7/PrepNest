@@ -14,6 +14,7 @@ import Subjects from "./pages/Subjects.tsx";
 import SubjectDetail from "./pages/SubjectDetail.tsx";
 import Practice from "./pages/Practice.tsx";
 import AITutor from "./pages/AITutor.tsx";
+import AdminContent from "./pages/AdminContent.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { apiClient } from "./services/api";
 
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/subjects/:subjectId" element={<SubjectDetail />} />
           <Route path="/practice" element={<Practice />} />
           <Route path="/ai-tutor" element={<AITutor />} />
+          <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

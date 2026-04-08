@@ -106,6 +106,58 @@ export interface VerificationResponse {
   verification_url?: string | null;
 }
 
+export interface UserProfile {
+  id: number;
+  email: string;
+  full_name?: string | null;
+  is_admin: boolean;
+  preferences: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Subject {
+  id: number;
+  name: string;
+  exam_type: string;
+  created_at: string;
+}
+
+export interface Topic {
+  id: number;
+  title: string;
+  subject_id: number;
+  created_at: string;
+}
+
+export interface Material {
+  id: number;
+  title: string;
+  content: string;
+  type: string;
+  topic_id: number;
+  created_at: string;
+}
+
+export interface MCQ {
+  id: number;
+  question: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: string;
+  explanation: string;
+  topic_id: number;
+  created_at: string;
+}
+
+export interface AIResponse {
+  answer: string;
+  context_materials: Array<Record<string, unknown>>;
+  context_mcqs: Array<Record<string, unknown>>;
+  web_results: Array<Record<string, unknown>>;
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -289,6 +341,72 @@ class ApiClient {
     return this.request<VerificationResponse>("/auth/resend-verification", "POST", {
       email,
     });
+  }
+
+  async getCurrentUser(): Promise<UserProfile> {
+    return this.request<UserProfile>("/users/me");
+  }
+
+  async listSubjects(): Promise<Subject[]> {
+    return this.request<Subject[]>("/subjects");
+  }
+
+  async listTopics(subjectId: number): Promise<Topic[]> {
+    return this.request<Topic[]>(`/subjects/${subjectId}/topics`);
+  }
+
+  async listMaterials(topicId: number): Promise<Material[]> {
+    return this.request<Material[]>(`/topics/${topicId}/materials`);
+  }
+
+  async listMCQs(topicId: number): Promise<MCQ[]> {
+    return this.request<MCQ[]>(`/topics/${topicId}/mcqs`);
+  }
+
+  async createSubject(payload: { name: string; exam_type: string }): Promise<Subject> {
+    return this.request<Subject>("/admin/subjects", "POST", payload);
+  }
+
+  async createTopic(payload: { title: string; subject_id: number }): Promise<Topic> {
+    return this.request<Topic>("/admin/topics", "POST", payload);
+  }
+
+  async createMaterial(payload: {
+    title: string;
+    content: string;
+    type: "notes" | "past_paper";
+    topic_id: number;
+  }): Promise<Material> {
+    return this.request<Material>("/admin/materials", "POST", payload);
+  }
+
+  async createMCQ(payload: {
+    question: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_answer: "A" | "B" | "C" | "D";
+    explanation: string;
+    topic_id: number;
+  }): Promise<MCQ> {
+    return this.request<MCQ>("/admin/mcqs", "POST", payload);
+  }
+
+  async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {
+    return this.request<AIResponse>("/ai/chat", "POST", { question, include_web: includeWeb });
+  }
+
+  async aiExplain(topic: string, includeWeb: boolean = true): Promise<AIResponse> {
+    return this.request<AIResponse>("/ai/explain", "POST", { topic, include_web: includeWeb });
+  }
+
+  async aiSolve(
+    prompt: string,
+    mode: "mcq" | "math" | "essay" = "mcq",
+    includeWeb: boolean = true
+  ): Promise<AIResponse> {
+    return this.request<AIResponse>("/ai/solve", "POST", { prompt, mode, include_web: includeWeb });
   }
 
   getToken(): string | null {

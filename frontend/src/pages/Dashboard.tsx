@@ -156,6 +156,9 @@ const Dashboard = () => {
                 <Link to="/subjects">
                   <Button variant="outline" className="w-full justify-start gap-2"><BookOpen className="h-4 w-4" /> Browse Subjects</Button>
                 </Link>
+                <Link to="/admin">
+                  <Button variant="outline" className="w-full justify-start gap-2"><Award className="h-4 w-4" /> Admin Content Studio</Button>
+                </Link>
               </div>
             </motion.div>
 

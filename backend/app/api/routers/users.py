@@ -47,6 +47,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
+        is_admin=current_user.is_admin,
         preferences=current_user.preferences or {},
         created_at=current_user.created_at,
     )
@@ -64,6 +65,7 @@ async def update_preferences(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
+        is_admin=user.is_admin,
         preferences=user.preferences or {},
         created_at=user.created_at,
     )

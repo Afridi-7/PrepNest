@@ -41,5 +41,6 @@ class UserResponse(BaseModel):
     id: str
     email: EmailStr
     full_name: str | None
+    is_admin: bool = False
     preferences: dict
     created_at: datetime

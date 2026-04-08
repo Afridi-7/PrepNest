@@ -72,6 +72,7 @@ const AITutor = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [attachments, setAttachments] = useState<Array<{ type: string; name: string; data: string }>>([]);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<"chat" | "explain" | "solve-mcq" | "solve-math" | "solve-essay">("chat");
   const isMobile = useIsMobile();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -317,6 +318,34 @@ const AITutor = () => {
     scrollToBottom("auto");
 
     try {
+      if (attachments.length === 0) {
+        let aiResponse;
+        if (aiMode === "chat") {
+          aiResponse = await apiClient.aiChat(text.trim(), true);
+        } else if (aiMode === "explain") {
+          aiResponse = await apiClient.aiExplain(text.trim(), true);
+        } else if (aiMode === "solve-math") {
+          aiResponse = await apiClient.aiSolve(text.trim(), "math", true);
+        } else if (aiMode === "solve-essay") {
+          aiResponse = await apiClient.aiSolve(text.trim(), "essay", true);
+        } else {
+          aiResponse = await apiClient.aiSolve(text.trim(), "mcq", true);
+        }
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          if (updated[assistantIndex]) {
+            updated[assistantIndex] = {
+              ...updated[assistantIndex],
+              content: aiResponse.answer,
+              streaming: false,
+            };
+          }
+          return updated;
+        });
+        return;
+      }
+
       const stream = await apiClient.chatStream(
         text.trim(),
         conversationId || undefined,
@@ -782,6 +811,19 @@ const AITutor = () => {
                 }}
                 className="flex gap-2 items-end"
               >
+                <select
+                  value={aiMode}
+                  onChange={(e) => setAiMode(e.target.value as "chat" | "explain" | "solve-mcq" | "solve-math" | "solve-essay")}
+                  className="h-10 rounded-lg border border-input bg-background px-2 text-xs"
+                  disabled={loading}
+                >
+                  <option value="chat">AI Chat</option>
+                  <option value="explain">Explain Topic</option>
+                  <option value="solve-mcq">Solve MCQ</option>
+                  <option value="solve-math">Solve Math</option>
+                  <option value="solve-essay">Essay Feedback</option>
+                </select>
+
                 <div className="flex gap-1">
                   <input
                     type="file"

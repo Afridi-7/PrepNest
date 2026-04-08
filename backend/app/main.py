@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routers import auth, chat, conversations, files, users
+from app.api.routers import admin_content, ai_learning, auth, chat, content, conversations, files, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
@@ -115,6 +115,25 @@ async def healthcheck() -> dict:
     return {"status": "ok", "service": settings.app_name}
 
 
+@app.get("/health/email")
+async def email_healthcheck() -> dict:
+    try:
+        provider = email_service._resolve_provider()
+        provider_error = None
+    except Exception as exc:
+        provider = "invalid"
+        provider_error = str(exc)
+
+    return {
+        "provider": provider,
+        "provider_error": provider_error,
+        "resend_key_set": bool(settings.resend_api_key),
+        "resend_from_email": settings.resend_from_email,
+        "smtp_host": settings.smtp_host,
+        "smtp_use_tls": settings.smtp_use_tls,
+    }
+
+
 @app.get("/")
 async def root() -> dict:
     return {
@@ -129,3 +148,6 @@ app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(files.router, prefix=settings.api_prefix)
 app.include_router(conversations.router, prefix=settings.api_prefix)
+app.include_router(content.router, prefix=settings.api_prefix)
+app.include_router(admin_content.router, prefix=settings.api_prefix)
+app.include_router(ai_learning.router, prefix=settings.api_prefix)

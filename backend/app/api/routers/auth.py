@@ -28,7 +28,7 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-def _email_delivery_error_detail() -> str:
+def _email_delivery_error_detail(error: Exception | None = None) -> str:
     provider = settings.email_provider.strip().lower()
     if provider == "auto":
         provider = "resend" if settings.resend_api_key else "smtp"
@@ -40,15 +40,25 @@ def _email_delivery_error_detail() -> str:
                 "Verification email could not be sent. Resend test sender onboarding@resend.dev "
                 "can only deliver to limited test recipients. Use a verified domain sender in RESEND_FROM_EMAIL."
             )
-        return (
+        message = (
             "Verification email could not be sent via Resend. "
             "Check RESEND_API_KEY and verify RESEND_FROM_EMAIL domain/sender."
         )
+        if error:
+            error_text = str(error)
+            if error_text:
+                return f"{message} Provider message: {error_text}"
+        return message
 
-    return (
+    message = (
         "Verification email could not be sent via SMTP. "
         "Check SMTP host/credentials and outbound network access on the deployment platform."
     )
+    if error:
+        error_text = str(error)
+        if error_text:
+            return f"{message} Provider message: {error_text}"
+    return message
 
 
 async def send_verification_email_or_503(email: str, verification_url: str, full_name: str | None = None) -> None:
@@ -58,7 +68,7 @@ async def send_verification_email_or_503(email: str, verification_url: str, full
         logger.warning("Verification email delivery failed for %s: %s", email, error)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=_email_delivery_error_detail(),
+            detail=_email_delivery_error_detail(error),
         ) from error
 
 
