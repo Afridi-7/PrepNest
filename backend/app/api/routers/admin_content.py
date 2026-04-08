@@ -1,21 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
+from app.core.config import get_settings
 from app.db.models import MCQ, Material, Subject, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
     MCQCreate,
     MCQRead,
+    MCQUpdate,
     MaterialCreate,
     MaterialRead,
+    MaterialUpdate,
     SubjectCreate,
     SubjectRead,
+    SubjectUpdate,
     TopicCreate,
     TopicRead,
+    TopicUpdate,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin-content"])
+settings = get_settings()
 
 
 @router.post("/subjects", response_model=SubjectRead, status_code=status.HTTP_201_CREATED)
@@ -29,6 +38,38 @@ async def create_subject(
     await db.commit()
     await db.refresh(subject)
     return SubjectRead.model_validate(subject)
+
+
+@router.patch("/subjects/{subject_id}", response_model=SubjectRead)
+async def update_subject(
+    subject_id: int,
+    payload: SubjectUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> SubjectRead:
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(subject, key, value)
+    await db.commit()
+    await db.refresh(subject)
+    return SubjectRead.model_validate(subject)
+
+
+@router.delete("/subjects/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_subject(
+    subject_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    await db.delete(subject)
+    await db.commit()
 
 
 @router.post("/topics", response_model=TopicRead, status_code=status.HTTP_201_CREATED)
@@ -46,6 +87,42 @@ async def create_topic(
     await db.commit()
     await db.refresh(topic)
     return TopicRead.model_validate(topic)
+
+
+@router.patch("/topics/{topic_id}", response_model=TopicRead)
+async def update_topic(
+    topic_id: int,
+    payload: TopicUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> TopicRead:
+    topic = await db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "subject_id" in updates and updates["subject_id"] is not None:
+        subject = await db.get(Subject, updates["subject_id"])
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+    for key, value in updates.items():
+        setattr(topic, key, value)
+    await db.commit()
+    await db.refresh(topic)
+    return TopicRead.model_validate(topic)
+
+
+@router.delete("/topics/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_topic(
+    topic_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    topic = await db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    await db.delete(topic)
+    await db.commit()
 
 
 @router.post("/materials", response_model=MaterialRead, status_code=status.HTTP_201_CREATED)
@@ -68,6 +145,42 @@ async def create_material(
     await db.commit()
     await db.refresh(material)
     return MaterialRead.model_validate(material)
+
+
+@router.patch("/materials/{material_id}", response_model=MaterialRead)
+async def update_material(
+    material_id: int,
+    payload: MaterialUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> MaterialRead:
+    material = await db.get(Material, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "topic_id" in updates and updates["topic_id"] is not None:
+        topic = await db.get(Topic, updates["topic_id"])
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+    for key, value in updates.items():
+        setattr(material, key, value)
+    await db.commit()
+    await db.refresh(material)
+    return MaterialRead.model_validate(material)
+
+
+@router.delete("/materials/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_material(
+    material_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    material = await db.get(Material, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+    await db.delete(material)
+    await db.commit()
 
 
 @router.post("/mcqs", response_model=MCQRead, status_code=status.HTTP_201_CREATED)
@@ -94,3 +207,92 @@ async def create_mcq(
     await db.commit()
     await db.refresh(mcq)
     return MCQRead.model_validate(mcq)
+
+
+@router.patch("/mcqs/{mcq_id}", response_model=MCQRead)
+async def update_mcq(
+    mcq_id: int,
+    payload: MCQUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> MCQRead:
+    mcq = await db.get(MCQ, mcq_id)
+    if not mcq:
+        raise HTTPException(status_code=404, detail="MCQ not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "topic_id" in updates and updates["topic_id"] is not None:
+        topic = await db.get(Topic, updates["topic_id"])
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+    for key, value in updates.items():
+        setattr(mcq, key, value)
+    await db.commit()
+    await db.refresh(mcq)
+    return MCQRead.model_validate(mcq)
+
+
+@router.delete("/mcqs/{mcq_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_mcq(
+    mcq_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    mcq = await db.get(MCQ, mcq_id)
+    if not mcq:
+        raise HTTPException(status_code=404, detail="MCQ not found")
+    await db.delete(mcq)
+    await db.commit()
+
+
+@router.post("/materials/upload-pdfs", response_model=list[MaterialRead], status_code=status.HTTP_201_CREATED)
+async def upload_material_pdfs(
+    topic_id: int = Form(...),
+    files: list[UploadFile] = File(...),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[MaterialRead]:
+    topic = await db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    created_materials: list[Material] = []
+    target_dir = settings.upload_dir_path / "content" / str(topic_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+
+    for file in files:
+        filename = file.filename or "document.pdf"
+        is_pdf = filename.lower().endswith(".pdf") or (file.content_type or "").lower() == "application/pdf"
+        if not is_pdf:
+            raise HTTPException(status_code=400, detail=f"Only PDF files are allowed: {filename}")
+
+        content = await file.read()
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large ({filename}). Max size is {settings.max_upload_size_mb} MB",
+            )
+
+        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
+        destination = target_dir / safe_name
+        destination.write_bytes(content)
+
+        public_path = f"/uploads/content/{topic_id}/{safe_name}"
+        material = Material(
+            title=Path(filename).stem,
+            content=public_path,
+            type="past_paper",
+            topic_id=topic_id,
+        )
+        db.add(material)
+        created_materials.append(material)
+
+    await db.commit()
+    for material in created_materials:
+        await db.refresh(material)
+
+    return [MaterialRead.model_validate(material) for material in created_materials]

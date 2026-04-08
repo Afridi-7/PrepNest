@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routers import admin_content, ai_learning, auth, chat, content, conversations, files, users
 from app.core.config import get_settings
@@ -56,6 +57,7 @@ def _build_allowed_origins() -> list[str]:
 allowed_origins = _build_allowed_origins()
 
 app = FastAPI(title=settings.app_name, version="1.0.0")
+app.mount("/uploads", StaticFiles(directory=str(settings.upload_dir_path)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

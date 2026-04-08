@@ -222,6 +222,14 @@ class ApiClient {
     return headers;
   }
 
+  private getAuthHeaders(): HeadersInit {
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+    return headers;
+  }
+
   async request<T>(
     endpoint: string,
     method: string = "GET",
@@ -367,8 +375,24 @@ class ApiClient {
     return this.request<Subject>("/admin/subjects", "POST", payload);
   }
 
+  async updateSubject(subjectId: number, payload: Partial<{ name: string; exam_type: string }>): Promise<Subject> {
+    return this.request<Subject>(`/admin/subjects/${subjectId}`, "PATCH", payload);
+  }
+
+  async deleteSubject(subjectId: number): Promise<void> {
+    await this.request<void>(`/admin/subjects/${subjectId}`, "DELETE");
+  }
+
   async createTopic(payload: { title: string; subject_id: number }): Promise<Topic> {
     return this.request<Topic>("/admin/topics", "POST", payload);
+  }
+
+  async updateTopic(topicId: number, payload: Partial<{ title: string; subject_id: number }>): Promise<Topic> {
+    return this.request<Topic>(`/admin/topics/${topicId}`, "PATCH", payload);
+  }
+
+  async deleteTopic(topicId: number): Promise<void> {
+    await this.request<void>(`/admin/topics/${topicId}`, "DELETE");
   }
 
   async createMaterial(payload: {
@@ -378,6 +402,44 @@ class ApiClient {
     topic_id: number;
   }): Promise<Material> {
     return this.request<Material>("/admin/materials", "POST", payload);
+  }
+
+  async updateMaterial(
+    materialId: number,
+    payload: Partial<{ title: string; content: string; type: "notes" | "past_paper"; topic_id: number }>
+  ): Promise<Material> {
+    return this.request<Material>(`/admin/materials/${materialId}`, "PATCH", payload);
+  }
+
+  async deleteMaterial(materialId: number): Promise<void> {
+    await this.request<void>(`/admin/materials/${materialId}`, "DELETE");
+  }
+
+  async uploadMaterialPDFs(topicId: number, files: File[]): Promise<Material[]> {
+    const url = `${API_BASE_URL}/admin/materials/upload-pdfs`;
+    const form = new FormData();
+    form.append("topic_id", String(topicId));
+    for (const file of files) {
+      form.append("files", file);
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({ message: response.statusText }));
+      const detailMessage =
+        typeof errorPayload?.detail === "string"
+          ? errorPayload.detail
+          : errorPayload?.message || `API error: ${response.status}`;
+      throw new Error(detailMessage);
+    }
+
+    return response.json();
   }
 
   async createMCQ(payload: {
@@ -391,6 +453,26 @@ class ApiClient {
     topic_id: number;
   }): Promise<MCQ> {
     return this.request<MCQ>("/admin/mcqs", "POST", payload);
+  }
+
+  async updateMCQ(
+    mcqId: number,
+    payload: Partial<{
+      question: string;
+      option_a: string;
+      option_b: string;
+      option_c: string;
+      option_d: string;
+      correct_answer: "A" | "B" | "C" | "D";
+      explanation: string;
+      topic_id: number;
+    }>
+  ): Promise<MCQ> {
+    return this.request<MCQ>(`/admin/mcqs/${mcqId}`, "PATCH", payload);
+  }
+
+  async deleteMCQ(mcqId: number): Promise<void> {
+    await this.request<void>(`/admin/mcqs/${mcqId}`, "DELETE");
   }
 
   async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {

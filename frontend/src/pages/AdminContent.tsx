@@ -32,6 +32,8 @@ const AdminContent = () => {
   const [optionD, setOptionD] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState<"A" | "B" | "C" | "D">("A");
   const [explanation, setExplanation] = useState("");
+  const [pdfTopicId, setPdfTopicId] = useState<number | "">("");
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
 
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => a.name.localeCompare(b.name)),
@@ -130,6 +132,18 @@ const AdminContent = () => {
     }
   };
 
+  const onUploadPDFs = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pdfTopicId || pdfFiles.length === 0) return;
+    try {
+      await apiClient.uploadMaterialPDFs(pdfTopicId, pdfFiles);
+      setPdfFiles([]);
+      toast({ description: "PDFs uploaded and added as materials" });
+    } catch (error: any) {
+      toast({ title: "PDF upload failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   if (!apiClient.isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
@@ -217,6 +231,28 @@ const AdminContent = () => {
               </select>
               <textarea className="w-full border rounded-lg px-3 py-2 min-h-20" placeholder="Explanation" value={explanation} onChange={(e) => setExplanation(e.target.value)} required />
               <Button type="submit" className="w-full">Save MCQ</Button>
+            </form>
+
+            <form onSubmit={onUploadPDFs} className="rounded-2xl border bg-white p-5 space-y-3 md:col-span-2">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Upload Multiple PDFs</h2>
+              <select className="w-full border rounded-lg px-3 py-2" value={pdfTopicId} onChange={(e) => setPdfTopicId(Number(e.target.value))} required>
+                <option value="">Select topic</option>
+                {sortedTopics.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <input
+                className="w-full border rounded-lg px-3 py-2"
+                type="file"
+                accept="application/pdf"
+                multiple
+                onChange={(e) => setPdfFiles(Array.from(e.target.files || []))}
+                required
+              />
+              {pdfFiles.length > 0 && (
+                <p className="text-sm text-muted-foreground">{pdfFiles.length} PDF file(s) selected</p>
+              )}
+              <Button type="submit" className="w-full">Upload PDFs</Button>
             </form>
           </div>
         </div>

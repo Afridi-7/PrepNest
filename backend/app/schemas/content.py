@@ -9,6 +9,11 @@ class SubjectCreate(BaseModel):
     exam_type: str = Field(min_length=2, max_length=64)
 
 
+class SubjectUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    exam_type: str | None = Field(default=None, min_length=2, max_length=64)
+
+
 class SubjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,6 +26,11 @@ class SubjectRead(BaseModel):
 class TopicCreate(BaseModel):
     title: str = Field(min_length=2, max_length=255)
     subject_id: int
+
+
+class TopicUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=255)
+    subject_id: int | None = None
 
 
 class TopicRead(BaseModel):
@@ -37,6 +47,13 @@ class MaterialCreate(BaseModel):
     content: str = Field(min_length=1)
     type: Literal["notes", "past_paper"]
     topic_id: int
+
+
+class MaterialUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=255)
+    content: str | None = Field(default=None, min_length=1)
+    type: Literal["notes", "past_paper"] | None = None
+    topic_id: int | None = None
 
 
 class MaterialRead(BaseModel):
@@ -59,6 +76,17 @@ class MCQCreate(BaseModel):
     correct_answer: Literal["A", "B", "C", "D"]
     explanation: str = Field(min_length=1)
     topic_id: int
+
+
+class MCQUpdate(BaseModel):
+    question: str | None = Field(default=None, min_length=1)
+    option_a: str | None = Field(default=None, min_length=1)
+    option_b: str | None = Field(default=None, min_length=1)
+    option_c: str | None = Field(default=None, min_length=1)
+    option_d: str | None = Field(default=None, min_length=1)
+    correct_answer: Literal["A", "B", "C", "D"] | None = None
+    explanation: str | None = Field(default=None, min_length=1)
+    topic_id: int | None = None
 
 
 class MCQRead(BaseModel):
