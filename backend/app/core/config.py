@@ -35,7 +35,10 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str | None = None
     smtp_password: str | None = None
-    smtp_from_address: str | None = None
+    smtp_from_address: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_FROM_ADDRESS", "SMTP_FROM_EMAIL"),
+    )
     smtp_from_name: str = "PrepNest"
     smtp_use_tls: bool = True
 

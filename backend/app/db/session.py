@@ -19,10 +19,13 @@ def resolve_database_url(database_url: str) -> tuple[str, dict[str, object]]:
         sslmode = url.query.get("sslmode")
         if sslmode is not None:
             url = url.difference_update_query(["sslmode"])
-            if sslmode in {"require", "verify-ca", "verify-full"}:
-                connect_args["ssl"] = True
-            elif sslmode == "disable":
-                connect_args["ssl"] = False
+            sslmode_value = str(sslmode).strip().lower()
+            valid_ssl_modes = {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+            if sslmode_value in valid_ssl_modes:
+                # asyncpg accepts libpq-style SSL mode strings.
+                # Using mode strings preserves expected behavior for "require"
+                # (encrypted connection without strict CA verification).
+                connect_args["ssl"] = sslmode_value
 
         return url.set(drivername="postgresql+asyncpg").render_as_string(hide_password=False), connect_args
 
