@@ -67,6 +67,35 @@ class MaterialRead(BaseModel):
     created_at: datetime
 
 
+class PastPaperCreate(BaseModel):
+    subject_id: int
+    year: int = Field(ge=2000, le=2100)
+    title: str | None = Field(default=None, min_length=2, max_length=255)
+    content: str | None = Field(default=None, min_length=1)
+
+
+class TipCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    content: str = Field(min_length=1)
+    subject_id: int
+
+
+class TipRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    content: str
+    subject_id: int
+    created_at: datetime
+
+
+class USATCategoryRead(BaseModel):
+    code: str
+    title: str
+    description: str
+
+
 class MCQCreate(BaseModel):
     question: str = Field(min_length=1)
     option_a: str = Field(min_length=1)

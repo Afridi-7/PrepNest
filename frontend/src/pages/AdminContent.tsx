@@ -14,7 +14,7 @@ const AdminContent = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
 
   const [subjectName, setSubjectName] = useState("");
-  const [examType, setExamType] = useState("USAT");
+  const [examType, setExamType] = useState("USAT-E");
 
   const [topicTitle, setTopicTitle] = useState("");
   const [topicSubjectId, setTopicSubjectId] = useState<number | "">("");
@@ -34,6 +34,16 @@ const AdminContent = () => {
   const [explanation, setExplanation] = useState("");
   const [pdfTopicId, setPdfTopicId] = useState<number | "">("");
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+
+  const [pastPaperSubjectId, setPastPaperSubjectId] = useState<number | "">("");
+  const [pastPaperYear, setPastPaperYear] = useState<number>(2025);
+  const [pastPaperTitle, setPastPaperTitle] = useState("");
+  const [pastPaperContent, setPastPaperContent] = useState("");
+  const [pastPaperFile, setPastPaperFile] = useState<File | null>(null);
+
+  const [tipSubjectId, setTipSubjectId] = useState<number | "">("");
+  const [tipTitle, setTipTitle] = useState("");
+  const [tipContent, setTipContent] = useState("");
 
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => a.name.localeCompare(b.name)),
@@ -144,6 +154,43 @@ const AdminContent = () => {
     }
   };
 
+  const onCreatePastPaper = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pastPaperSubjectId) return;
+    try {
+      await apiClient.createPastPaper({
+        subject_id: pastPaperSubjectId,
+        year: Number(pastPaperYear),
+        title: pastPaperTitle.trim() || undefined,
+        content: pastPaperContent.trim() || undefined,
+        file: pastPaperFile || undefined,
+      });
+      setPastPaperTitle("");
+      setPastPaperContent("");
+      setPastPaperFile(null);
+      toast({ description: "Past paper created" });
+    } catch (error: any) {
+      toast({ title: "Create past paper failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const onCreateTip = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!tipSubjectId) return;
+    try {
+      await apiClient.createTip({
+        title: tipTitle.trim(),
+        content: tipContent.trim(),
+        subject_id: tipSubjectId,
+      });
+      setTipTitle("");
+      setTipContent("");
+      toast({ description: "Tip added" });
+    } catch (error: any) {
+      toast({ title: "Create tip failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   const onDedupeSubjects = async () => {
     try {
       const result = await apiClient.dedupeSubjects();
@@ -193,10 +240,13 @@ const AdminContent = () => {
               <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Create Subject</h2>
               <input className="w-full border rounded-lg px-3 py-2" placeholder="Subject name" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} required />
               <div className="flex gap-2">
-                <button type="button" onClick={() => setExamType("USAT")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT</button>
-                <button type="button" onClick={() => setExamType("HAT")} className="text-xs px-3 py-1 rounded border bg-slate-50">HAT</button>
+                <button type="button" onClick={() => setExamType("USAT-E")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT-E</button>
+                <button type="button" onClick={() => setExamType("USAT-M")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT-M</button>
+                <button type="button" onClick={() => setExamType("USAT-CS")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT-CS</button>
+                <button type="button" onClick={() => setExamType("USAT-GS")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT-GS</button>
+                <button type="button" onClick={() => setExamType("USAT-A")} className="text-xs px-3 py-1 rounded border bg-slate-50">USAT-A</button>
               </div>
-              <input className="w-full border rounded-lg px-3 py-2" placeholder="Exam type (USAT/HAT)" value={examType} onChange={(e) => setExamType(e.target.value)} required />
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Exam type (USAT-E/USAT-M/...)" value={examType} onChange={(e) => setExamType(e.target.value)} required />
               <Button type="submit" className="w-full">Save Subject</Button>
             </form>
 
@@ -272,6 +322,34 @@ const AdminContent = () => {
                 <p className="text-sm text-muted-foreground">{pdfFiles.length} PDF file(s) selected</p>
               )}
               <Button type="submit" className="w-full">Upload PDFs</Button>
+            </form>
+
+            <form onSubmit={onCreatePastPaper} className="rounded-2xl border bg-white p-5 space-y-3">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Create Past Paper</h2>
+              <select className="w-full border rounded-lg px-3 py-2" value={pastPaperSubjectId} onChange={(e) => setPastPaperSubjectId(Number(e.target.value))} required>
+                <option value="">Select subject</option>
+                {sortedSubjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.exam_type})</option>
+                ))}
+              </select>
+              <input className="w-full border rounded-lg px-3 py-2" type="number" min={2000} max={2100} value={pastPaperYear} onChange={(e) => setPastPaperYear(Number(e.target.value))} required />
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Title (optional)" value={pastPaperTitle} onChange={(e) => setPastPaperTitle(e.target.value)} />
+              <input className="w-full border rounded-lg px-3 py-2" type="file" accept="application/pdf" onChange={(e) => setPastPaperFile((e.target.files && e.target.files[0]) || null)} />
+              <textarea className="w-full border rounded-lg px-3 py-2 min-h-24" placeholder="Optional: PDF link path or markdown/text content" value={pastPaperContent} onChange={(e) => setPastPaperContent(e.target.value)} />
+              <Button type="submit" className="w-full">Save Past Paper</Button>
+            </form>
+
+            <form onSubmit={onCreateTip} className="rounded-2xl border bg-white p-5 space-y-3">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Tips & Tricks</h2>
+              <select className="w-full border rounded-lg px-3 py-2" value={tipSubjectId} onChange={(e) => setTipSubjectId(Number(e.target.value))} required>
+                <option value="">Select subject</option>
+                {sortedSubjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.exam_type})</option>
+                ))}
+              </select>
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Tip title" value={tipTitle} onChange={(e) => setTipTitle(e.target.value)} required />
+              <textarea className="w-full border rounded-lg px-3 py-2 min-h-24" placeholder="Study strategy / exam tip" value={tipContent} onChange={(e) => setTipContent(e.target.value)} required />
+              <Button type="submit" className="w-full">Save Tip</Button>
             </form>
           </div>
         </div>

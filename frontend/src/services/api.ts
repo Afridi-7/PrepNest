@@ -121,6 +121,12 @@ export interface Subject {
   created_at: string;
 }
 
+export interface USATCategory {
+  code: string;
+  title: string;
+  description: string;
+}
+
 export interface Topic {
   id: number;
   title: string;
@@ -147,6 +153,14 @@ export interface MCQ {
   correct_answer: string;
   explanation: string;
   topic_id: number;
+  created_at: string;
+}
+
+export interface Tip {
+  id: number;
+  title: string;
+  content: string;
+  subject_id: number;
   created_at: string;
 }
 
@@ -346,6 +360,14 @@ class ApiClient {
     return this.request<Subject[]>("/subjects");
   }
 
+  async listUSATCategories(): Promise<USATCategory[]> {
+    return this.request<USATCategory[]>("/usat/categories");
+  }
+
+  async listUSATCategorySubjects(category: string): Promise<Subject[]> {
+    return this.request<Subject[]>(`/usat/${encodeURIComponent(category)}/subjects`);
+  }
+
   async listTopics(subjectId: number): Promise<Topic[]> {
     return this.request<Topic[]>(`/subjects/${subjectId}/topics`);
   }
@@ -356,6 +378,18 @@ class ApiClient {
 
   async listMCQs(topicId: number): Promise<MCQ[]> {
     return this.request<MCQ[]>(`/topics/${topicId}/mcqs`);
+  }
+
+  async listSubjectMaterials(subjectId: number): Promise<Material[]> {
+    return this.request<Material[]>(`/subjects/${subjectId}/materials`);
+  }
+
+  async listSubjectPastPapers(subjectId: number): Promise<Material[]> {
+    return this.request<Material[]>(`/subjects/${subjectId}/past-papers`);
+  }
+
+  async listSubjectTips(subjectId: number): Promise<Tip[]> {
+    return this.request<Tip[]>(`/subjects/${subjectId}/tips`);
   }
 
   async createSubject(payload: { name: string; exam_type: string }): Promise<Subject> {
@@ -389,6 +423,50 @@ class ApiClient {
     topic_id: number;
   }): Promise<Material> {
     return this.request<Material>("/admin/materials", "POST", payload);
+  }
+
+  async createPastPaper(payload: {
+    subject_id: number;
+    year: number;
+    title?: string;
+    content?: string;
+    file?: File;
+  }): Promise<Material> {
+    const url = `${API_BASE_URL}/admin/past-papers`;
+    const form = new FormData();
+    form.append("subject_id", String(payload.subject_id));
+    form.append("year", String(payload.year));
+    if (payload.title) {
+      form.append("title", payload.title);
+    }
+    if (payload.content) {
+      form.append("content", payload.content);
+    }
+    if (payload.file) {
+      form.append("file", payload.file);
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({ message: response.statusText }));
+      const detailMessage =
+        typeof errorPayload?.detail === "string"
+          ? errorPayload.detail
+          : errorPayload?.message || `API error: ${response.status}`;
+      throw new Error(detailMessage);
+    }
+
+    return response.json();
+  }
+
+  async createTip(payload: { title: string; content: string; subject_id: number }): Promise<Tip> {
+    return this.request<Tip>("/admin/tips", "POST", payload);
   }
 
   async updateMaterial(

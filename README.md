@@ -107,6 +107,22 @@ The frontend will be available at `http://127.0.0.1:5173`
 - `POST /api/v1/auth/login` - User login
 - `GET /api/v1/auth/me` - Get current user
 
+### USAT Preparation
+- `GET /api/v1/usat/categories` - List USAT categories (USAT-E, USAT-M, USAT-CS, USAT-GS, USAT-A)
+- `GET /api/v1/usat/{category}/subjects` - Subjects for a selected USAT category
+- `GET /api/v1/subjects/{id}/topics` - Subject topics
+- `GET /api/v1/topics/{id}/mcqs` - Topic MCQs
+- `GET /api/v1/subjects/{id}/materials` - Subject notes/resources
+- `GET /api/v1/subjects/{id}/past-papers` - Subject past papers
+- `GET /api/v1/subjects/{id}/tips` - Subject tips and tricks
+
+### Admin Content Upload
+- `POST /api/v1/admin/topics` - Create topic
+- `POST /api/v1/admin/mcqs` - Create MCQ
+- `POST /api/v1/admin/materials` - Create note or generic material
+- `POST /api/v1/admin/past-papers` - Create past paper with year tagging
+- `POST /api/v1/admin/tips` - Create tips & tricks
+
 ### Chat
 - `POST /api/v1/chat/stream` - Stream AI response (WebSocket compatible)
 

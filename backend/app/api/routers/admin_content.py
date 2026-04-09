@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
-from app.db.models import MCQ, Material, Subject, Topic, User
+from app.db.models import MCQ, Material, Subject, Tip, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
     MCQCreate,
@@ -16,9 +16,12 @@ from app.schemas.content import (
     MaterialCreate,
     MaterialRead,
     MaterialUpdate,
+    PastPaperCreate,
     SubjectCreate,
     SubjectRead,
     SubjectUpdate,
+    TipCreate,
+    TipRead,
     TopicCreate,
     TopicRead,
     TopicUpdate,
@@ -27,33 +30,224 @@ from app.schemas.content import (
 router = APIRouter(prefix="/admin", tags=["admin-content"])
 settings = get_settings()
 
-DEMO_SUBJECTS = [
+USAT_SEED_BLUEPRINT = [
     {
-        "name": "English",
-        "exam_type": "USAT",
-        "topics": ["Reading Comprehension", "Grammar"],
+        "exam_type": "USAT-E",
+        "subjects": [
+            {
+                "name": "Physics",
+                "topics": ["Mechanics", "Waves & Optics", "Thermodynamics"],
+                "tips": ["Always draw force diagrams before solving numerical MCQs."],
+            },
+            {
+                "name": "Mathematics",
+                "topics": ["Algebra", "Trigonometry", "Coordinate Geometry"],
+                "tips": ["Keep a formula sheet and revise identities daily for speed."],
+            },
+            {
+                "name": "Chemistry",
+                "topics": ["Stoichiometry", "Organic Chemistry", "Chemical Equilibrium"],
+                "tips": ["Memorize reaction trends by grouping compounds, not isolated facts."],
+            },
+        ],
     },
     {
-        "name": "Mathematics",
-        "exam_type": "USAT",
-        "topics": ["Algebra", "Geometry"],
+        "exam_type": "USAT-M",
+        "subjects": [
+            {
+                "name": "Biology",
+                "topics": ["Cell Biology", "Genetics", "Human Physiology"],
+                "tips": ["Use active recall with diagrams for body systems and pathways."],
+            },
+            {
+                "name": "Chemistry",
+                "topics": ["Organic Chemistry", "Biochemistry", "Chemical Bonding"],
+                "tips": ["Practice conversions and molarity questions under time pressure."],
+            },
+            {
+                "name": "Physics",
+                "topics": ["Kinematics", "Electricity", "Modern Physics"],
+                "tips": ["Solve at least 15 mixed-concept MCQs every day."],
+            },
+        ],
     },
     {
-        "name": "Physics",
-        "exam_type": "USAT",
-        "topics": ["Mechanics", "Thermodynamics"],
+        "exam_type": "USAT-CS",
+        "subjects": [
+            {
+                "name": "Mathematics",
+                "topics": ["Functions", "Probability", "Discrete Basics"],
+                "tips": ["Prioritize pattern recognition for sequence and logic questions."],
+            },
+            {
+                "name": "Physics",
+                "topics": ["Motion", "Current Electricity", "Electromagnetism"],
+                "tips": ["Track units at each step to avoid elimination mistakes."],
+            },
+            {
+                "name": "Computer Science",
+                "topics": ["Programming Fundamentals", "Data Representation", "Problem Solving"],
+                "tips": ["Convert word problems into step-by-step pseudo-code first."],
+            },
+        ],
     },
     {
-        "name": "Chemistry",
-        "exam_type": "USAT",
-        "topics": ["Organic Chemistry", "Stoichiometry"],
+        "exam_type": "USAT-GS",
+        "subjects": [
+            {
+                "name": "Mathematics",
+                "topics": ["Arithmetic", "Algebra", "Word Problems"],
+                "tips": ["Use approximation to quickly eliminate impossible options."],
+            },
+            {
+                "name": "Physics",
+                "topics": ["Basic Mechanics", "Heat & Temperature", "Light"],
+                "tips": ["Focus on conceptual understanding before formula memorization."],
+            },
+            {
+                "name": "Statistics / Economics",
+                "topics": ["Descriptive Statistics", "Graphs", "Basic Economics"],
+                "tips": ["Interpret charts first, then compute only what is necessary."],
+            },
+        ],
     },
     {
-        "name": "Biology",
-        "exam_type": "USAT",
-        "topics": ["Cell Biology", "Genetics"],
+        "exam_type": "USAT-A",
+        "subjects": [
+            {
+                "name": "General Knowledge",
+                "topics": ["Current Affairs", "World Facts", "Pakistani Institutions"],
+                "tips": ["Read reliable summaries daily and maintain a fact notebook."],
+            },
+            {
+                "name": "Pakistan Studies",
+                "topics": ["Pakistan Movement", "Constitutional Development", "Geography"],
+                "tips": ["Build timeline charts for historical and constitutional events."],
+            },
+            {
+                "name": "Islamic Studies",
+                "topics": ["Seerah", "Quranic Studies", "Islamic Civilization"],
+                "tips": ["Revise themes and references in short, consistent sessions."],
+            },
+        ],
     },
 ]
+
+
+async def _seed_usat_blueprint(db: AsyncSession) -> dict:
+    created_subjects = 0
+    created_topics = 0
+    created_materials = 0
+    created_mcqs = 0
+    created_tips = 0
+    created_past_papers = 0
+
+    for category in USAT_SEED_BLUEPRINT:
+        exam_type = category["exam_type"]
+        for subject_entry in category["subjects"]:
+            subject_name = subject_entry["name"]
+            subject_result = await db.execute(
+                select(Subject).where(Subject.name == subject_name, Subject.exam_type == exam_type)
+            )
+            subject = subject_result.scalars().first()
+            if not subject:
+                subject = Subject(name=subject_name, exam_type=exam_type)
+                db.add(subject)
+                await db.flush()
+                created_subjects += 1
+
+            topic_result = await db.execute(
+                select(Topic).where(Topic.subject_id == subject.id, Topic.title == "Past Papers")
+            )
+            past_paper_topic = topic_result.scalars().first()
+            if not past_paper_topic:
+                past_paper_topic = Topic(subject_id=subject.id, title="Past Papers")
+                db.add(past_paper_topic)
+                await db.flush()
+                created_topics += 1
+
+            for year in [2023, 2024]:
+                past_paper_title = f"{subject.name} Past Paper {year}"
+                past_paper_result = await db.execute(
+                    select(Material).where(
+                        Material.topic_id == past_paper_topic.id,
+                        Material.type == "past_paper",
+                        Material.title == past_paper_title,
+                    )
+                )
+                if not past_paper_result.scalars().first():
+                    db.add(
+                        Material(
+                            title=past_paper_title,
+                            content=f"Past paper resource and solution outline for {subject.name} ({year}).",
+                            type="past_paper",
+                            topic_id=past_paper_topic.id,
+                        )
+                    )
+                    created_past_papers += 1
+
+            for topic_title in subject_entry["topics"]:
+                topic_result = await db.execute(
+                    select(Topic).where(Topic.subject_id == subject.id, Topic.title == topic_title)
+                )
+                topic = topic_result.scalars().first()
+                if not topic:
+                    topic = Topic(subject_id=subject.id, title=topic_title)
+                    db.add(topic)
+                    await db.flush()
+                    created_topics += 1
+
+                material_title = f"{topic_title} Notes"
+                material_result = await db.execute(
+                    select(Material).where(Material.topic_id == topic.id, Material.title == material_title)
+                )
+                if not material_result.scalars().first():
+                    db.add(
+                        Material(
+                            title=material_title,
+                            content=f"Structured revision notes for {topic_title} in {subject.name} ({exam_type}).",
+                            type="notes",
+                            topic_id=topic.id,
+                        )
+                    )
+                    created_materials += 1
+
+                question = f"USAT sample MCQ: key concept from {topic_title}?"
+                mcq_result = await db.execute(select(MCQ).where(MCQ.topic_id == topic.id, MCQ.question == question))
+                if not mcq_result.scalars().first():
+                    db.add(
+                        MCQ(
+                            question=question,
+                            option_a="Core principle",
+                            option_b="Secondary detail",
+                            option_c="Unrelated statement",
+                            option_d="Partially correct statement",
+                            correct_answer="A",
+                            explanation=f"The core principle is the most accurate answer for {topic_title}.",
+                            topic_id=topic.id,
+                        )
+                    )
+                    created_mcqs += 1
+
+            for tip_text in subject_entry.get("tips", []):
+                tip_result = await db.execute(
+                    select(Tip).where(Tip.subject_id == subject.id, Tip.title == "Study Tip")
+                )
+                existing_tip = tip_result.scalars().first()
+                if not existing_tip:
+                    db.add(Tip(title="Study Tip", content=tip_text, subject_id=subject.id))
+                    created_tips += 1
+
+    await db.commit()
+
+    return {
+        "created_subjects": created_subjects,
+        "created_topics": created_topics,
+        "created_materials": created_materials,
+        "created_mcqs": created_mcqs,
+        "created_tips": created_tips,
+        "created_past_papers": created_past_papers,
+    }
 
 
 @router.post("/subjects", response_model=SubjectRead, status_code=status.HTTP_201_CREATED)
@@ -174,6 +368,91 @@ async def create_material(
     await db.commit()
     await db.refresh(material)
     return MaterialRead.model_validate(material)
+
+
+@router.post("/past-papers", response_model=MaterialRead, status_code=status.HTTP_201_CREATED)
+async def create_past_paper(
+    subject_id: int = Form(...),
+    year: int = Form(...),
+    title: str | None = Form(default=None),
+    content: str | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> MaterialRead:
+    payload = PastPaperCreate(
+        subject_id=subject_id,
+        year=year,
+        title=title,
+        content=content,
+    )
+
+    subject = await db.get(Subject, payload.subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    topic_result = await db.execute(
+        select(Topic).where(Topic.subject_id == payload.subject_id, Topic.title == "Past Papers")
+    )
+    topic = topic_result.scalars().first()
+    if not topic:
+        topic = Topic(title="Past Papers", subject_id=payload.subject_id)
+        db.add(topic)
+        await db.flush()
+
+    final_content = payload.content
+    if file is not None:
+        filename = file.filename or f"past-paper-{payload.year}.pdf"
+        is_pdf = filename.lower().endswith(".pdf") or (file.content_type or "").lower() == "application/pdf"
+        if not is_pdf:
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed for past papers")
+
+        file_bytes = await file.read()
+        max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        if len(file_bytes) > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Max size is {settings.max_upload_size_mb} MB",
+            )
+
+        target_dir = settings.upload_dir_path / "past_papers" / str(payload.subject_id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
+        destination = target_dir / safe_name
+        destination.write_bytes(file_bytes)
+        final_content = f"/uploads/past_papers/{payload.subject_id}/{safe_name}"
+
+    if not final_content:
+        raise HTTPException(status_code=400, detail="Either content or file is required")
+
+    final_title = payload.title or f"{subject.name} Past Paper {payload.year}"
+    material = Material(
+        title=final_title,
+        content=final_content,
+        type="past_paper",
+        topic_id=topic.id,
+    )
+    db.add(material)
+    await db.commit()
+    await db.refresh(material)
+    return MaterialRead.model_validate(material)
+
+
+@router.post("/tips", response_model=TipRead, status_code=status.HTTP_201_CREATED)
+async def create_tip(
+    payload: TipCreate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> TipRead:
+    subject = await db.get(Subject, payload.subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    tip = Tip(title=payload.title, content=payload.content, subject_id=payload.subject_id)
+    db.add(tip)
+    await db.commit()
+    await db.refresh(tip)
+    return TipRead.model_validate(tip)
 
 
 @router.patch("/materials/{material_id}", response_model=MaterialRead)
@@ -332,73 +611,15 @@ async def seed_demo_content(
     _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
-    created_subjects = 0
-    created_topics = 0
-    created_materials = 0
-    created_mcqs = 0
+    return await _seed_usat_blueprint(db)
 
-    for entry in DEMO_SUBJECTS:
-        subject_result = await db.execute(
-            select(Subject).where(Subject.name == entry["name"], Subject.exam_type == entry["exam_type"])
-        )
-        subject = subject_result.scalars().first()
-        if not subject:
-            subject = Subject(name=entry["name"], exam_type=entry["exam_type"])
-            db.add(subject)
-            await db.flush()
-            created_subjects += 1
 
-        for topic_title in entry["topics"]:
-            topic_result = await db.execute(
-                select(Topic).where(Topic.subject_id == subject.id, Topic.title == topic_title)
-            )
-            topic = topic_result.scalars().first()
-            if not topic:
-                topic = Topic(subject_id=subject.id, title=topic_title)
-                db.add(topic)
-                await db.flush()
-                created_topics += 1
-
-            material_title = f"{topic_title} Notes"
-            material_result = await db.execute(
-                select(Material).where(Material.topic_id == topic.id, Material.title == material_title)
-            )
-            if not material_result.scalars().first():
-                db.add(
-                    Material(
-                        title=material_title,
-                        content=f"Core concepts, examples, and revision pointers for {topic_title}.",
-                        type="notes",
-                        topic_id=topic.id,
-                    )
-                )
-                created_materials += 1
-
-            question = f"Sample MCQ for {topic_title}?"
-            mcq_result = await db.execute(select(MCQ).where(MCQ.topic_id == topic.id, MCQ.question == question))
-            if not mcq_result.scalars().first():
-                db.add(
-                    MCQ(
-                        question=question,
-                        option_a="Option A",
-                        option_b="Option B",
-                        option_c="Option C",
-                        option_d="Option D",
-                        correct_answer="A",
-                        explanation=f"Sample explanation for {topic_title}.",
-                        topic_id=topic.id,
-                    )
-                )
-                created_mcqs += 1
-
-    await db.commit()
-
-    return {
-        "created_subjects": created_subjects,
-        "created_topics": created_topics,
-        "created_materials": created_materials,
-        "created_mcqs": created_mcqs,
-    }
+@router.post("/seed-usat", status_code=status.HTTP_200_OK)
+async def seed_usat_content(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    return await _seed_usat_blueprint(db)
 
 
 @router.post("/dedupe-subjects", status_code=status.HTTP_200_OK)

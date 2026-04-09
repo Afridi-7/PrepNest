@@ -119,3 +119,15 @@ class MCQ(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     topic: Mapped[Topic] = relationship(back_populates="mcqs")
+
+
+class Tip(Base):
+    __tablename__ = "tips"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    subject: Mapped[Subject] = relationship()

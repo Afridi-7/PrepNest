@@ -7,6 +7,7 @@ import { apiClient } from "@/services/api";
 
 const navLinks = [
   { label: "Home", path: "/" },
+  { label: "USAT", path: "/usat" },
   { label: "Subjects", path: "/subjects" },
   { label: "Practice", path: "/practice" },
   { label: "AI Tutor", path: "/ai-tutor" },
