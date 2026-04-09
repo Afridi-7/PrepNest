@@ -10,6 +10,8 @@ import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import USAT from "./pages/USAT.tsx";
+import USATSubjects from "./pages/USATSubjects.tsx";
+import USATSubjectChapters from "./pages/USATSubjectChapters.tsx";
 import Practice from "./pages/Practice.tsx";
 import AITutor from "./pages/AITutor.tsx";
 import AdminContent from "./pages/AdminContent.tsx";
@@ -49,6 +51,8 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/usat" element={<USAT />} />
+          <Route path="/usat/:category" element={<USATSubjects />} />
+          <Route path="/usat/:category/:subject" element={<USATSubjectChapters />} />
           <Route path="/practice" element={<Practice />} />
           <Route path="/ai-tutor" element={<AITutor />} />
           <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
