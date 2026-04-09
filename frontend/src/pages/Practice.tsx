@@ -31,26 +31,33 @@ const allQuestions = [
 
 const buildExplanation = (correctOption: string, subject: string) => {
   const templates: Record<string, string> = {
-    English: `In English, meaning and context are key. The correct choice is \"${correctOption}\" because it best matches the grammar or vocabulary usage in the question.`,
-    Mathematics: `Use the core math rule in the question and simplify step by step. This leads to \"${correctOption}\" as the correct result.`,
-    Physics: `Apply the relevant physics concept or law directly. With the standard definition, \"${correctOption}\" is correct.`,
-    Chemistry: `Using standard chemical facts and notation, the correct answer is \"${correctOption}\".`,
-    Biology: `From basic biology definitions and functions, \"${correctOption}\" is the correct option.`,
+    English: `In English, meaning and context are key. The correct choice is "${correctOption}" because it best matches the grammar or vocabulary usage in the question.`,
+    Mathematics: `Use the core math rule in the question and simplify step by step. This leads to "${correctOption}" as the correct result.`,
+    Physics: `Apply the relevant physics concept or law directly. With the standard definition, "${correctOption}" is correct.`,
+    Chemistry: `Using standard chemical facts and notation, the correct answer is "${correctOption}".`,
+    Biology: `From basic biology definitions and functions, "${correctOption}" is the correct option.`,
   };
-
-  return templates[subject] || `For this question, the correct answer is \"${correctOption}\" based on the core concept being tested.`;
+  return templates[subject] || `For this question, the correct answer is "${correctOption}" based on the core concept being tested.`;
 };
 
 const subjectOptions = ["All Subjects", "English", "Mathematics", "Physics", "Chemistry", "Biology"];
 const mcqCountOptions = [5, 10, 15, 20];
 const timeOptions = [
   { label: "No Timer", value: 0 },
-  { label: "5 minutes", value: 5 },
-  { label: "10 minutes", value: 10 },
-  { label: "15 minutes", value: 15 },
-  { label: "20 minutes", value: 20 },
-  { label: "30 minutes", value: 30 },
+  { label: "5 min", value: 5 },
+  { label: "10 min", value: 10 },
+  { label: "15 min", value: 15 },
+  { label: "20 min", value: 20 },
+  { label: "30 min", value: 30 },
 ];
+
+const SUBJECT_PILLS: Record<string, string> = {
+  English:     "bg-violet-100 text-violet-700 border-violet-200",
+  Mathematics: "bg-cyan-100 text-cyan-700 border-cyan-200",
+  Physics:     "bg-amber-100 text-amber-700 border-amber-200",
+  Chemistry:   "bg-emerald-100 text-emerald-700 border-emerald-200",
+  Biology:     "bg-rose-100 text-rose-700 border-rose-200",
+};
 
 const Practice = () => {
   const [phase, setPhase] = useState<"config" | "quiz" | "result">("config");
@@ -66,13 +73,8 @@ const Practice = () => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const startQuiz = () => {
-    if (!apiClient.isAuthenticated()) {
-      setAuthDialogOpen(true);
-      return;
-    }
-
+    if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
     let pool = subject === "All Subjects" ? [...allQuestions] : allQuestions.filter(q => q.subject === subject);
-    // Shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -94,23 +96,15 @@ const Practice = () => {
     setPhase("result");
   }, [answers, questions]);
 
-  // Timer
   useEffect(() => {
     if (phase !== "quiz" || timeLimit === 0) return;
-    if (timeLeft <= 0) {
-      setTimeUp(true);
-      finishQuiz();
-      return;
-    }
+    if (timeLeft <= 0) { setTimeUp(true); finishQuiz(); return; }
     const t = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, timeLeft, timeLimit, finishQuiz]);
 
-  // Keep quiz navigation anchored at the top when a test starts.
   useEffect(() => {
-    if (phase === "quiz") {
-      window.scrollTo({ top: 0, behavior: "auto" });
-    }
+    if (phase === "quiz") window.scrollTo({ top: 0, behavior: "auto" });
   }, [phase]);
 
   const handleSelect = (i: number) => {
@@ -119,27 +113,12 @@ const Practice = () => {
     setAnswers(newAnswers);
   };
 
-  const jumpToQuestion = (index: number) => {
-    setCurrentQ(index);
-  };
-
-  const nextQ = () => {
-    if (currentQ < questions.length - 1) {
-      setCurrentQ(c => c + 1);
-    }
-  };
-
-  const prevQ = () => {
-    if (currentQ > 0) {
-      setCurrentQ(c => c - 1);
-    }
-  };
-
-  const restart = () => {
-    setPhase("config");
-  };
-
-  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+  const jumpToQuestion = (index: number) => setCurrentQ(index);
+  const nextQ = () => { if (currentQ < questions.length - 1) setCurrentQ(c => c + 1); };
+  const prevQ = () => { if (currentQ > 0) setCurrentQ(c => c - 1); };
+  const restart = () => setPhase("config");
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
   const q = questions[currentQ];
   const selected = answers[currentQ] ?? null;
@@ -154,262 +133,308 @@ const Practice = () => {
         onOpenChange={setAuthDialogOpen}
         message="Please log in first to start a practice test."
       />
-      <div className="min-h-screen pt-24 pb-12">
-        <div className="container mx-auto px-4 max-w-6xl">
 
-          {/* CONFIG PHASE */}
+      {/* same bg as rest of app */}
+      <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
+
+        {/* ambient blobs — identical to other pages */}
+        <motion.div aria-hidden animate={{ x: [0, 22, 0], y: [0, -18, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+          className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl" />
+        <motion.div aria-hidden animate={{ x: [0, -18, 0], y: [0, 16, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+          className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl" />
+        <motion.div aria-hidden animate={{ x: [0, 10, 0], y: [0, -12, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/15 blur-3xl" />
+
+        <div className="container relative z-10 mx-auto px-4 max-w-6xl">
+
+          {/* ══════════ CONFIG ══════════ */}
           {phase === "config" && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4">
-                  <Settings className="h-8 w-8 text-primary-foreground" />
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
+
+              {/* hero — same violet gradient as all other pages */}
+              <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30">
+                <motion.div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
+                  animate={{ x: [0, 16, 0], y: [0, -14, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
+                <motion.div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl"
+                  animate={{ x: [0, -12, 0], y: [0, 12, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
+                <div className="relative z-10">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                    <Settings className="h-3.5 w-3.5" /> Practice Test
+                  </span>
+                  <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">Configure Your Test</h1>
+                  <p className="mt-1.5 text-sm text-violet-200">Pick your subject, question count and time limit — then hit start.</p>
+                  <div className="mt-5 flex gap-1.5">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="h-1 rounded-full bg-white/25" style={{ width: i === 0 ? 24 : 8 }} />
+                    ))}
+                  </div>
                 </div>
-                <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2">Configure Your Test</h1>
-                <p className="text-muted-foreground">Customize your practice session below.</p>
               </div>
 
-              <div className="bg-card rounded-xl p-6 shadow-card space-y-6">
-                {/* Subject */}
+              {/* white config card */}
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 space-y-8">
+
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-3 block">Subject</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Subject</label>
                   <div className="flex flex-wrap gap-2">
                     {subjectOptions.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setSubject(s)}
-                        className={`px-4 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      <button key={s} onClick={() => setSubject(s)}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
                           subject === s
-                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
-                        }`}
-                      >
+                            ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                        }`}>
                         {s}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* MCQ Count */}
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-3 block">Number of Questions</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Number of Questions</label>
+                  <div className="grid grid-cols-4 gap-2 sm:max-w-xs">
                     {mcqCountOptions.map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setMcqCount(n)}
-                        className={`px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+                      <button key={n} onClick={() => setMcqCount(n)}
+                        className={`py-3 rounded-xl text-sm font-bold transition-all duration-200 border ${
                           mcqCount === n
-                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
-                        }`}
-                      >
+                            ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                        }`}>
                         {n}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Time */}
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-3 block">Time Limit</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Time Limit</label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {timeOptions.map(t => (
-                      <button
-                        key={t.value}
-                        onClick={() => setTimeLimit(t.value)}
-                        className={`px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      <button key={t.value} onClick={() => setTimeLimit(t.value)}
+                        className={`py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 border ${
                           timeLimit === t.value
-                            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                            : "bg-white text-gray-700 hover:text-gray-900 border-2 border-gray-200 hover:border-purple-300"
-                        }`}
-                      >
+                            ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                        }`}>
                         {t.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Summary */}
-                <div className="bg-secondary/50 rounded-lg p-4 flex flex-wrap items-center gap-3 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground"><BookOpen className="h-4 w-4" /> {subject}</div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground"><Target className="h-4 w-4" /> {mcqCount} MCQs</div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-4 w-4" /> {timeLimit === 0 ? "Untimed" : `${timeLimit} min`}</div>
+                {/* summary */}
+                <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-5 py-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <BookOpen className="h-4 w-4 text-violet-400" />
+                    <span className="font-semibold text-slate-700">{subject}</span>
+                  </div>
+                  <div className="h-4 w-px bg-violet-200" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <Target className="h-4 w-4 text-fuchsia-400" />
+                    <span className="font-semibold text-slate-700">{mcqCount} MCQs</span>
+                  </div>
+                  <div className="h-4 w-px bg-violet-200" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-cyan-400" />
+                    <span className="font-semibold text-slate-700">{timeLimit === 0 ? "Untimed" : `${timeLimit} min`}</span>
+                  </div>
                 </div>
 
-                <Button onClick={startQuiz} size="lg" variant="gradient" className="w-full gap-2">
+                <button onClick={startQuiz}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 active:scale-[0.99]">
                   <Play className="h-5 w-5" /> Start Test
-                </Button>
+                </button>
               </div>
             </motion.div>
           )}
 
-          {/* QUIZ PHASE */}
+          {/* ══════════ QUIZ ══════════ */}
           {phase === "quiz" && q && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_290px] gap-6 items-start">
+
                 <div>
-                  {/* Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-                    <span className="text-sm text-muted-foreground">Question {currentQ + 1} of {questions.length}</span>
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">{q.subject}</span>
+                  {/* top bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={restart}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300 hover:text-violet-700">
+                        <ArrowLeft className="h-3.5 w-3.5" /> Back
+                      </button>
+                      <button onClick={restart}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500 transition hover:bg-rose-100">
+                        <LogOut className="h-3.5 w-3.5" /> Quit
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-3 py-1 rounded-full border font-semibold ${SUBJECT_PILLS[q.subject] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                        {q.subject}
+                      </span>
                       {timeLimit > 0 && (
-                        <span className={`text-sm font-mono font-semibold flex items-center gap-1 ${timeLeft < 60 ? "text-destructive" : "text-foreground"}`}>
-                          <Clock className="h-4 w-4" /> {formatTime(timeLeft)}
+                        <span className={`font-mono text-sm font-bold flex items-center gap-1.5 rounded-xl px-3 py-1.5 border ${
+                          timeLeft < 60 ? "text-rose-600 bg-rose-50 border-rose-200" : "text-emerald-600 bg-emerald-50 border-emerald-200"
+                        }`}>
+                          <Clock className="h-3.5 w-3.5" /> {formatTime(timeLeft)}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <Button onClick={restart} variant="outline" size="sm" className="gap-1.5">
-                      <ArrowLeft className="h-4 w-4" /> Back to Setup
-                    </Button>
-                    <Button onClick={restart} variant="outline" size="sm" className="gap-1.5">
-                      <LogOut className="h-4 w-4" /> Quit Test
-                    </Button>
+                  {/* progress */}
+                  <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                    <span>Question {currentQ + 1} of {questions.length}</span>
+                    <span>{Math.round(((currentQ + 1) / questions.length) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-slate-100 mb-6 overflow-hidden">
+                    <motion.div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                      animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }}
+                      transition={{ duration: 0.3 }} />
                   </div>
 
-                  <div className="h-1.5 bg-secondary rounded-full mb-6 overflow-hidden">
-                    <div className="h-full gradient-primary rounded-full transition-all" style={{ width: `${((currentQ + 1) / questions.length) * 100}%` }} />
-                  </div>
-
-                  {/* Question */}
-                  <div className="bg-card rounded-xl p-4 sm:p-6 shadow-card mb-6">
-                    <h2 className="font-heading text-lg sm:text-xl font-semibold text-foreground mb-5 sm:mb-6">{q.question}</h2>
+                  {/* question card — white */}
+                  <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 mb-5">
+                    <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed mb-8">{q.question}</p>
                     <div className="space-y-3">
                       {q.options.map((opt, i) => {
-                        let classes = "border-gray-300 bg-white hover:bg-purple-50 hover:border-purple-400 text-gray-800";
-                        if (selected === i) classes = "border-purple-500 bg-purple-50 text-purple-900";
-
+                        const isSelected = selected === i;
                         return (
-                          <button
-                            key={i}
+                          <motion.button key={i} whileHover={{ x: 3 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
                             onClick={() => handleSelect(i)}
-                            className={`w-full text-left p-3.5 sm:p-4 rounded-xl border-2 transition-all shadow-sm hover:shadow-md ${classes}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
-                                selected === i
-                                  ? "border-purple-600 bg-purple-100 text-purple-700"
-                                  : "border-gray-400 bg-gray-50 text-gray-700"
-                              }`}>
-                                {String.fromCharCode(65 + i)}
-                              </span>
-                              <span className="text-sm sm:text-base font-semibold flex-1">{opt}</span>
-                              {selected === i && <CheckCircle2 className="h-5 w-5 text-purple-600 ml-auto" />}
-                            </div>
-                          </button>
+                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 ${
+                              isSelected
+                                ? "border-violet-400 bg-violet-50 shadow-md shadow-violet-100"
+                                : "border-slate-100 bg-slate-50 hover:border-violet-200 hover:bg-violet-50/50"
+                            }`}>
+                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black border-2 transition-all ${
+                              isSelected ? "border-violet-500 bg-violet-500 text-white" : "border-slate-200 bg-white text-slate-500"
+                            }`}>
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            <span className={`text-sm sm:text-base font-semibold flex-1 ${isSelected ? "text-violet-900" : "text-slate-700"}`}>
+                              {opt}
+                            </span>
+                            {isSelected && <CheckCircle2 className="h-5 w-5 text-violet-500 shrink-0" />}
+                          </motion.button>
                         );
                       })}
                     </div>
                   </div>
                 </div>
 
+                {/* sidebar */}
                 <aside className="lg:sticky lg:top-28 space-y-4">
-                  <div className="rounded-2xl p-[1px] bg-gradient-to-br from-cyan-500 via-indigo-600 to-fuchsia-600 shadow-xl">
-                    <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-4 border border-white/70">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-semibold text-foreground">Question Navigator</p>
-                        <p className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</p>
-                      </div>
-                      <div className="grid grid-cols-5 sm:grid-cols-5 gap-2">
-                        {questions.map((_, index) => {
-                          const isCurrent = index === currentQ;
-                          const isAnswered = answers[index] !== null;
-                          return (
-                            <button
-                              key={index}
-                              onClick={() => jumpToQuestion(index)}
-                              className={`h-9 rounded-lg text-xs font-semibold border transition-all ${
-                                isCurrent
-                                  ? "bg-primary text-primary-foreground border-primary shadow"
-                                  : isAnswered
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                  : "bg-white text-gray-700 border-gray-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              {index + 1}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-violet-100/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-bold text-slate-800">Navigator</p>
+                      <span className="text-xs text-slate-400">{answeredCount}/{questions.length}</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1.5 mb-3">
+                      {questions.map((_, index) => {
+                        const isCurrent = index === currentQ;
+                        const isAnswered = answers[index] !== null;
+                        return (
+                          <button key={index} onClick={() => jumpToQuestion(index)}
+                            className={`h-9 rounded-lg text-xs font-bold transition-all ${
+                              isCurrent
+                                ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200"
+                                : isAnswered
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100"
+                                : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-violet-50 hover:border-violet-200"
+                            }`}>
+                            {index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-br from-violet-500 to-fuchsia-500" />Current</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-200" />Done</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-200" />Skip</span>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl p-[1px] bg-gradient-to-br from-violet-500 via-blue-600 to-cyan-500 shadow-lg">
-                    <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-4 border border-white/70">
-                      <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-3">Actions</p>
-                      <div className="grid grid-cols-1 gap-2.5">
-                        <Button onClick={prevQ} variant="outline" className="gap-2 w-full" disabled={currentQ === 0}>
-                          <ArrowLeft className="h-4 w-4" /> Previous
-                        </Button>
-                        {currentQ < questions.length - 1 ? (
-                          <Button onClick={nextQ} variant="gradient" className="gap-2 w-full">
-                            Next <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button onClick={finishQuiz} variant="gradient" className="gap-2 w-full">
-                            Submit Test <CheckCircle2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button onClick={finishQuiz} variant="outline" className="gap-2 w-full border-primary/40 text-primary hover:bg-primary/5">
-                          Finish Now
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-violet-100/20 space-y-2">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-3">Actions</p>
+                    <button onClick={prevQ} disabled={currentQ === 0}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <ArrowLeft className="h-4 w-4" /> Previous
+                    </button>
+                    {currentQ < questions.length - 1 ? (
+                      <button onClick={nextQ}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2.5 text-sm font-bold text-white shadow-md shadow-violet-200 transition hover:from-violet-500 hover:to-fuchsia-500">
+                        Next <ArrowRight className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button onClick={finishQuiz}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-200 transition hover:from-emerald-400 hover:to-teal-400">
+                        Submit <CheckCircle2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button onClick={finishQuiz}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-sm font-semibold text-amber-600 transition hover:bg-amber-100">
+                      Finish Now
+                    </button>
                   </div>
                 </aside>
               </div>
             </motion.div>
           )}
 
-          {/* RESULT PHASE */}
+          {/* ══════════ RESULT ══════════ */}
           {phase === "result" && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
+
               {timeUp && (
-                <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 mb-6 flex items-center gap-3">
-                  <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
-                  <p className="text-sm text-foreground">Time's up! Your test has been auto-submitted.</p>
+                <div className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                  <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
+                  <p className="text-sm text-amber-800">Time's up! Your test has been auto-submitted.</p>
                 </div>
               )}
 
-              <div className="bg-card rounded-2xl p-6 sm:p-10 shadow-card text-center mb-6">
-                <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="h-10 w-10 text-primary-foreground" />
-                </div>
-                <h2 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-2">Test Complete!</h2>
-                <p className="text-muted-foreground mb-2">You scored {score} out of {questions.length}</p>
-                <div className="text-4xl sm:text-5xl font-heading font-bold gradient-text mb-4">{pct}%</div>
+              {/* score hero — same violet gradient */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 sm:p-12 text-center mb-6 shadow-2xl shadow-violet-400/30">
+                <motion.div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
+                  animate={{ x: [0, 16, 0], y: [0, -14, 0] }} transition={{ duration: 10, repeat: Infinity }} />
+                <motion.div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl"
+                  animate={{ x: [0, -12, 0], y: [0, 12, 0] }} transition={{ duration: 12, repeat: Infinity }} />
+                <div className="relative z-10">
+                  <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-white/20 backdrop-blur-sm shadow-xl mb-5">
+                    <CheckCircle2 className="h-10 w-10 text-white" />
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-1">Test Complete!</h2>
+                  <p className="text-violet-200 text-sm mb-4">You scored {score} out of {questions.length}</p>
+                  <div className="text-6xl sm:text-7xl font-black text-white drop-shadow-lg mb-8">{pct}%</div>
 
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-sm mx-auto mb-8">
-                  <div className="bg-success/10 rounded-lg p-3">
-                    <div className="font-bold text-success text-lg">{score}</div>
-                    <div className="text-xs text-muted-foreground">Correct</div>
+                  <div className="flex flex-wrap justify-center gap-3 mb-8">
+                    {[
+                      { label: "Correct", value: score },
+                      { label: "Wrong",   value: answers.filter((a, i) => a !== null && a !== questions[i]?.correct).length },
+                      { label: "Skipped", value: answers.filter(a => a === null).length },
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-2xl border border-white/20 bg-white/15 backdrop-blur-sm px-6 py-3">
+                        <div className="text-2xl font-black text-white">{stat.value}</div>
+                        <div className="text-xs text-violet-200 mt-0.5">{stat.label}</div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="bg-destructive/10 rounded-lg p-3">
-                    <div className="font-bold text-destructive text-lg">{answers.filter((a, i) => a !== null && a !== questions[i]?.correct).length}</div>
-                    <div className="text-xs text-muted-foreground">Wrong</div>
-                  </div>
-                  <div className="bg-secondary rounded-lg p-3">
-                    <div className="font-bold text-muted-foreground text-lg">{answers.filter(a => a === null).length}</div>
-                    <div className="text-xs text-muted-foreground">Skipped</div>
-                  </div>
-                </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={restart} variant="outline" className="gap-2 w-full sm:w-auto">
-                    <Settings className="h-4 w-4" /> New Test
-                  </Button>
-                  <Button onClick={() => { setPhase("config"); startQuiz(); }} variant="gradient" className="gap-2 w-full sm:w-auto">
-                    <RotateCcw className="h-4 w-4" /> Retry Same
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button onClick={restart}
+                      className="flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/15 backdrop-blur-sm px-6 py-3 text-sm font-bold text-white transition hover:bg-white/25">
+                      <Settings className="h-4 w-4" /> New Test
+                    </button>
+                    <button onClick={() => { setPhase("config"); startQuiz(); }}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-violet-700 shadow-xl transition hover:bg-violet-50">
+                      <RotateCcw className="h-4 w-4" /> Retry Same
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Review answers */}
-              <div className="bg-card rounded-xl p-6 shadow-card">
-                <h3 className="font-heading font-semibold text-foreground mb-4">Answer Review</h3>
+              {/* answer review — white card */}
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/20">
+                <h3 className="text-lg font-bold text-slate-900 mb-5">Answer Review</h3>
                 <div className="space-y-3">
                   {questions.map((q, i) => {
                     const userAns = answers[i];
@@ -417,32 +442,34 @@ const Practice = () => {
                     const isSkipped = userAns === null;
                     const explanation = buildExplanation(q.options[q.correct], q.subject);
                     return (
-                      <div
-                        key={i}
-                        className={`p-4 rounded-lg border ${
-                          isCorrect
-                            ? "border-success/30 bg-success/5"
-                            : isSkipped
-                            ? "border-slate-300 bg-slate-50"
-                            : "border-destructive/30 bg-destructive/5"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          {isCorrect ? (
-                            <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                          ) : (
-                            <XCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isSkipped ? "text-slate-500" : "text-destructive"}`} />
-                          )}
+                      <div key={i} className={`rounded-2xl border p-4 sm:p-5 ${
+                        isCorrect ? "border-emerald-200 bg-emerald-50/60"
+                        : isSkipped ? "border-slate-200 bg-slate-50"
+                        : "border-rose-200 bg-rose-50/60"
+                      }`}>
+                        <div className="flex items-start gap-3">
+                          {isCorrect
+                            ? <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                            : <XCircle className={`h-4 w-4 mt-0.5 shrink-0 ${isSkipped ? "text-slate-400" : "text-rose-500"}`} />
+                          }
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Q{i + 1} · {q.subject}</p>
-                            <p className="text-sm font-medium text-foreground mb-2">{q.question}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Your answer: <span className={isCorrect ? "text-success" : isSkipped ? "text-slate-600" : "text-destructive"}>{userAns !== null ? q.options[userAns] : "Skipped"}</span>
-                              {!isCorrect && <> · Correct: <span className="text-success">{q.options[q.correct]}</span></>}
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Q{i + 1}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${SUBJECT_PILLS[q.subject] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+                                {q.subject}
+                              </span>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-800 mb-2">{q.question}</p>
+                            <p className="text-xs text-slate-500">
+                              Your answer:{" "}
+                              <span className={isCorrect ? "text-emerald-600 font-semibold" : isSkipped ? "text-slate-500" : "text-rose-600 font-semibold"}>
+                                {userAns !== null ? q.options[userAns] : "Skipped"}
+                              </span>
+                              {!isCorrect && <> · Correct: <span className="text-emerald-600 font-semibold">{q.options[q.correct]}</span></>}
                             </p>
-                            <p className="mt-2 text-xs text-foreground/80 leading-relaxed bg-white/70 border border-border/60 rounded-md px-3 py-2">
-                              <span className="font-semibold">Explanation:</span> {explanation}
-                            </p>
+                            <div className="mt-2.5 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2.5 text-xs text-slate-600 leading-relaxed">
+                              <span className="font-bold text-violet-600">Explanation: </span>{explanation}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -452,6 +479,7 @@ const Practice = () => {
               </div>
             </motion.div>
           )}
+
         </div>
       </div>
     </>
