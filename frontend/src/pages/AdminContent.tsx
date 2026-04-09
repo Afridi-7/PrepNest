@@ -111,7 +111,9 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Subject created" });
     } catch (error: any) {
-      toast({ title: "Create subject failed", description: error.message, variant: "destructive" });
+      console.error("Create subject failed", error);
+      toast({ title: "Create subject failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     }
   };
 
@@ -124,7 +126,9 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Topic created" });
     } catch (error: any) {
-      toast({ title: "Create topic failed", description: error.message, variant: "destructive" });
+      console.error("Create topic failed", error);
+      toast({ title: "Create topic failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     }
   };
 
@@ -146,7 +150,13 @@ const AdminContent = () => {
       }
       toast({ description: "Material created" });
     } catch (error: any) {
-      toast({ title: "Create material failed", description: error.message, variant: "destructive" });
+      console.error("Create material failed", error);
+      toast({ title: "Create material failed", description: error?.message || String(error), variant: "destructive" });
+      if (manageTopicId === materialTopicId) {
+        const refreshed = await apiClient.listMaterials(materialTopicId);
+        setTopicMaterials(refreshed);
+      }
+      await loadData();
     }
   };
 
@@ -253,7 +263,9 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Subject renamed" });
     } catch (error: any) {
-      toast({ title: "Rename subject failed", description: error.message, variant: "destructive" });
+      console.error("Rename subject failed", error);
+      toast({ title: "Rename subject failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     } finally {
       setActionBusy(null);
     }
@@ -271,7 +283,9 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Chapter renamed" });
     } catch (error: any) {
-      toast({ title: "Rename chapter failed", description: error.message, variant: "destructive" });
+      console.error("Rename chapter failed", error);
+      toast({ title: "Rename chapter failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     } finally {
       setActionBusy(null);
     }
@@ -292,7 +306,13 @@ const AdminContent = () => {
       }
       toast({ description: "Material renamed" });
     } catch (error: any) {
-      toast({ title: "Rename material failed", description: error.message, variant: "destructive" });
+      console.error("Rename material failed", error);
+      toast({ title: "Rename material failed", description: error?.message || String(error), variant: "destructive" });
+      if (manageTopicId) {
+        const refreshed = await apiClient.listMaterials(manageTopicId);
+        setTopicMaterials(refreshed);
+      }
+      await loadData();
     } finally {
       setActionBusy(null);
     }
@@ -308,14 +328,16 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Subject deleted" });
     } catch (error: any) {
-      toast({ title: "Delete subject failed", description: error.message, variant: "destructive" });
+      console.error("Delete subject failed", error);
+      toast({ title: "Delete subject failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     } finally {
       setActionBusy(null);
     }
   };
 
   const onDeleteTopic = async (topicId: number, topicLabel: string) => {
-    if (!window.confirm(`Delete chapter \"${topicLabel}\" and all contained materials/MCQs?`)) return;
+    if (!window.confirm(`Delete chapter "${topicLabel}" and all contained materials/MCQs?`)) return;
     setActionBusy(`topic-${topicId}`);
     try {
       await apiClient.deleteTopic(topicId);
@@ -325,14 +347,16 @@ const AdminContent = () => {
       await loadData();
       toast({ description: "Chapter deleted" });
     } catch (error: any) {
-      toast({ title: "Delete chapter failed", description: error.message, variant: "destructive" });
+      console.error("Delete chapter failed", error);
+      toast({ title: "Delete chapter failed", description: error?.message || String(error), variant: "destructive" });
+      await loadData();
     } finally {
       setActionBusy(null);
     }
   };
 
   const onDeleteMaterial = async (materialId: number, materialLabel: string) => {
-    if (!window.confirm(`Delete material \"${materialLabel}\"?`)) return;
+    if (!window.confirm(`Delete material "${materialLabel}"?`)) return;
     setActionBusy(`material-${materialId}`);
     try {
       await apiClient.deleteMaterial(materialId);
@@ -342,7 +366,13 @@ const AdminContent = () => {
       }
       toast({ description: "Material deleted" });
     } catch (error: any) {
-      toast({ title: "Delete material failed", description: error.message, variant: "destructive" });
+      console.error("Delete material failed", error);
+      toast({ title: "Delete material failed", description: error?.message || String(error), variant: "destructive" });
+      if (manageTopicId) {
+        const refreshed = await apiClient.listMaterials(manageTopicId);
+        setTopicMaterials(refreshed);
+      }
+      await loadData();
     } finally {
       setActionBusy(null);
     }
