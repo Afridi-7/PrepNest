@@ -153,8 +153,8 @@ const Dashboard = () => {
                 <Link to="/ai-tutor">
                   <Button variant="outline" className="w-full justify-start gap-2"><Brain className="h-4 w-4" /> Ask AI Tutor</Button>
                 </Link>
-                <Link to="/subjects">
-                  <Button variant="outline" className="w-full justify-start gap-2"><BookOpen className="h-4 w-4" /> Browse Subjects</Button>
+                <Link to="/usat">
+                  <Button variant="outline" className="w-full justify-start gap-2"><BookOpen className="h-4 w-4" /> Open USAT Hub</Button>
                 </Link>
                 <Link to="/admin">
                   <Button variant="outline" className="w-full justify-start gap-2"><Award className="h-4 w-4" /> Admin Content Studio</Button>

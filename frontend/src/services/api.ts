@@ -357,7 +357,7 @@ class ApiClient {
   }
 
   async listSubjects(): Promise<Subject[]> {
-    return this.request<Subject[]>("/subjects");
+    return this.request<Subject[]>("/usat/subjects");
   }
 
   async listUSATCategories(): Promise<USATCategory[]> {
@@ -369,27 +369,27 @@ class ApiClient {
   }
 
   async listTopics(subjectId: number): Promise<Topic[]> {
-    return this.request<Topic[]>(`/subjects/${subjectId}/topics`);
+    return this.request<Topic[]>(`/usat/subjects/${subjectId}/chapters`);
   }
 
   async listMaterials(topicId: number): Promise<Material[]> {
-    return this.request<Material[]>(`/topics/${topicId}/materials`);
+    return this.request<Material[]>(`/usat/chapters/${topicId}/materials`);
   }
 
   async listMCQs(topicId: number): Promise<MCQ[]> {
-    return this.request<MCQ[]>(`/topics/${topicId}/mcqs`);
+    return this.request<MCQ[]>(`/usat/chapters/${topicId}/mcqs`);
   }
 
   async listSubjectMaterials(subjectId: number): Promise<Material[]> {
-    return this.request<Material[]>(`/subjects/${subjectId}/materials`);
+    return this.request<Material[]>(`/usat/subjects/${subjectId}/materials`);
   }
 
   async listSubjectPastPapers(subjectId: number): Promise<Material[]> {
-    return this.request<Material[]>(`/subjects/${subjectId}/past-papers`);
+    return this.request<Material[]>(`/usat/subjects/${subjectId}/past-papers`);
   }
 
   async listSubjectTips(subjectId: number): Promise<Tip[]> {
-    return this.request<Tip[]>(`/subjects/${subjectId}/tips`);
+    return this.request<Tip[]>(`/usat/subjects/${subjectId}/tips`);
   }
 
   async createSubject(payload: { name: string; exam_type: string }): Promise<Subject> {

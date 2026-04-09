@@ -68,7 +68,7 @@ const Landing = () => (
             The next-generation platform combining smart learning, past papers, mock tests, AI tutoring, and adaptive practice — everything you need in one place.
           </p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none mx-auto">
-            <Link to="/subjects" className="w-full sm:w-auto">
+            <Link to="/usat" className="w-full sm:w-auto">
               <Button size="lg" variant="gradient" className="px-10 gap-2 group">
                 Start Learning <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -157,8 +157,8 @@ const Landing = () => (
           ))}
         </div>
         <div className="text-center">
-          <Link to="/subjects">
-            <Button variant="gradient" size="lg" className="gap-2">Browse All Subjects <ArrowRight className="h-5 w-5" /></Button>
+          <Link to="/usat">
+            <Button variant="gradient" size="lg" className="gap-2">Explore USAT Categories <ArrowRight className="h-5 w-5" /></Button>
           </Link>
         </div>
       </div>

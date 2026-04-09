@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from app.api.routers import admin_content, ai_learning, auth, chat, content, conversations, files, usat, users
+from app.api.routers import admin_content, ai_learning, auth, chat, conversations, files, usat, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
@@ -143,7 +143,6 @@ app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(files.router, prefix=settings.api_prefix)
 app.include_router(conversations.router, prefix=settings.api_prefix)
-app.include_router(content.router, prefix=settings.api_prefix)
 app.include_router(usat.router, prefix=settings.api_prefix)
 app.include_router(admin_content.router, prefix=settings.api_prefix)
 app.include_router(ai_learning.router, prefix=settings.api_prefix)
