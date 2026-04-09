@@ -14,10 +14,10 @@ const CATEGORY_CARD_STYLES: Record<string, string> = {
 };
 
 const examInfo = [
-  { label: "Verbal Reasoning", marks: "20" },
-  { label: "Quantitative Reasoning", marks: "25" },
-  { label: "Subject Knowledge", marks: "30" },
-  { label: "Essay Writing", marks: "25" },
+  { label: "Verbal Reasoning", marks: "20", style: "from-cyan-100 via-sky-100 to-blue-100 border-cyan-200" },
+  { label: "Quantitative Reasoning", marks: "25", style: "from-emerald-100 via-lime-100 to-green-100 border-emerald-200" },
+  { label: "Subject Knowledge", marks: "30", style: "from-amber-100 via-yellow-100 to-orange-100 border-amber-200" },
+  { label: "Essay Writing", marks: "25", style: "from-rose-100 via-orange-100 to-amber-100 border-rose-200" },
 ];
 
 const USAT = () => {
@@ -70,7 +70,7 @@ const USAT = () => {
             className="mb-8 rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100/80 p-6 shadow-xl ring-1 ring-cyan-100/70 md:p-8"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
+              <div className="max-w-3xl">
                 <p className="inline-flex items-center gap-1 rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
                   <Sparkles className="h-3.5 w-3.5" /> USAT Premium Preparation Space
                 </p>
@@ -78,6 +78,9 @@ const USAT = () => {
                 <p className="mt-2 max-w-2xl text-sm text-slate-600 md:text-base">
                   Start with a category. A dedicated subjects window opens next. Then open a subject to enter chapters and resources.
                 </p>
+                <div className="mt-4 inline-flex items-center rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm">
+                  Flow: Category Window -&gt; Subject Window -&gt; Chapter & Materials Window
+                </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
                 <p className="inline-flex items-center gap-2 font-semibold text-slate-800"><Clock3 className="h-4 w-4 text-cyan-700" /> Total Time: 140 minutes</p>
@@ -87,11 +90,17 @@ const USAT = () => {
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {examInfo.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className={`rounded-2xl border bg-gradient-to-br p-4 shadow-sm ring-1 ring-white/70 ${item.style}`}
+                >
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{item.label}</p>
                   <p className="mt-2 text-2xl font-extrabold text-slate-900">{item.marks}</p>
                   <p className="text-xs text-slate-500">Marks</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.section>
