@@ -251,7 +251,7 @@ async def upload_user_note(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserNoteRead:
-    if current_user.role != "admin":
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     subject = await db.get(Subject, subject_id)
     if not subject:
@@ -310,7 +310,7 @@ async def delete_user_note(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    if current_user.role != "admin":
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     note = await db.get(UserNote, note_id)
     if not note:

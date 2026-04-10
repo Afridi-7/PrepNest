@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     file_storage_mode: str = "local"
     local_upload_dir: str = "./data/uploads"
-    max_upload_size_mb: int = 30
+    max_upload_size_mb: int = 100
 
     s3_endpoint: str | None = None
     s3_bucket: str | None = None
