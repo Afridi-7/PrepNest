@@ -164,6 +164,32 @@ export interface Tip {
   created_at: string;
 }
 
+export interface Resource {
+  id: number;
+  title: string;
+  url: string;
+  chapter_id: number;
+  created_at: string;
+}
+
+export interface Note {
+  id: number;
+  title: string;
+  content: string;
+  subject_id: number | null;
+  chapter_id: number | null;
+  created_at: string;
+}
+
+export interface PastPaper {
+  id: number;
+  title: string;
+  file_path: string;
+  subject_id: number;
+  chapter_id: number | null;
+  created_at: string;
+}
+
 export interface AIResponse {
   answer: string;
   context_materials: Array<Record<string, unknown>>;
@@ -390,6 +416,122 @@ class ApiClient {
 
   async listSubjectTips(subjectId: number): Promise<Tip[]> {
     return this.request<Tip[]>(`/usat/subjects/${subjectId}/tips`);
+  }
+
+  // ── New dedicated endpoints ──────────────────────────────────────────────
+
+  async listChapterResources(chapterId: number): Promise<Resource[]> {
+    return this.request<Resource[]>(`/usat/chapters/${chapterId}/resources`);
+  }
+
+  async listSubjectNotes(subjectId: number): Promise<Note[]> {
+    return this.request<Note[]>(`/usat/subjects/${subjectId}/notes`);
+  }
+
+  async listChapterNotes(chapterId: number): Promise<Note[]> {
+    return this.request<Note[]>(`/usat/chapters/${chapterId}/notes`);
+  }
+
+  async listSubjectPapers(subjectId: number): Promise<PastPaper[]> {
+    return this.request<PastPaper[]>(`/usat/subjects/${subjectId}/papers`);
+  }
+
+  async listChapterMCQsPaginated(chapterId: number, limit = 30, offset = 0): Promise<MCQ[]> {
+    return this.request<MCQ[]>(
+      `/usat/chapters/${chapterId}/mcqs?limit=${limit}&offset=${offset}`
+    );
+  }
+
+  // ── Resource admin ───────────────────────────────────────────────────────
+
+  async createResource(payload: { title: string; url: string; chapter_id: number }): Promise<Resource> {
+    return this.request<Resource>("/admin/resources", "POST", payload);
+  }
+
+  async updateResource(
+    resourceId: number,
+    payload: Partial<{ title: string; url: string }>
+  ): Promise<Resource> {
+    return this.request<Resource>(`/admin/resources/${resourceId}`, "PATCH", payload);
+  }
+
+  async deleteResource(resourceId: number): Promise<void> {
+    await this.request<void>(`/admin/resources/${resourceId}`, "DELETE");
+  }
+
+  // ── Note admin ───────────────────────────────────────────────────────────
+
+  async createNote(payload: {
+    title: string;
+    content: string;
+    subject_id?: number;
+    chapter_id?: number;
+  }): Promise<Note> {
+    return this.request<Note>("/admin/notes", "POST", payload);
+  }
+
+  async deleteNote(noteId: number): Promise<void> {
+    await this.request<void>(`/admin/notes/${noteId}`, "DELETE");
+  }
+
+  // ── PastPaper admin (new dedicated table) ────────────────────────────────
+
+  async createPaper(payload: {
+    subject_id: number;
+    title: string;
+    chapter_id?: number;
+    url?: string;
+    file?: File;
+  }): Promise<PastPaper> {
+    const apiUrl = `${API_BASE_URL}/admin/papers`;
+    const form = new FormData();
+    form.append("subject_id", String(payload.subject_id));
+    form.append("title", payload.title);
+    if (payload.chapter_id != null) form.append("chapter_id", String(payload.chapter_id));
+    if (payload.url) form.append("url", payload.url);
+    if (payload.file) form.append("file", payload.file);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async deletePaper(paperId: number): Promise<void> {
+    await this.request<void>(`/admin/papers/${paperId}`, "DELETE");
+  }
+
+  // ── MCQ CSV upload ───────────────────────────────────────────────────────
+
+  async uploadMCQCSV(
+    topicId: number,
+    file: File
+  ): Promise<{ created: number; skipped: number; total_rows: number; chapter_id: number }> {
+    const apiUrl = `${API_BASE_URL}/admin/mcqs/upload-csv`;
+    const form = new FormData();
+    form.append("topic_id", String(topicId));
+    form.append("file", file);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
   }
 
   async createSubject(payload: { name: string; exam_type: string }): Promise<Subject> {

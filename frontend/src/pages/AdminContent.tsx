@@ -1,13 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { Shield, PlusCircle, Trash2, Layers, FolderOpen, Pencil } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Shield, PlusCircle, Trash2, Layers, FolderOpen, Pencil, Upload } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient, Material, Subject, Topic } from "@/services/api";
+import { apiClient, Material, Note, Resource, Subject, Topic } from "@/services/api";
 
 const AdminContent = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -56,6 +57,33 @@ const AdminContent = () => {
   const [editMaterialId, setEditMaterialId] = useState<number | null>(null);
   const [editMaterialTitle, setEditMaterialTitle] = useState("");
 
+  // Resource form
+  const [resourceTitle, setResourceTitle] = useState("");
+  const [resourceUrl, setResourceUrl] = useState("");
+  const [resourceChapterId, setResourceChapterId] = useState<number | "">("");
+
+  // Note form
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteContent, setNoteContent] = useState("");
+  const [noteSubjectId, setNoteSubjectId] = useState<number | "">("");
+  const [noteChapterId, setNoteChapterId] = useState<number | "">("");
+
+  // MCQ CSV upload form
+  const [csvTopicId, setCsvTopicId] = useState<number | "">("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+
+  // Past paper (new table) form
+  const [paperSubjectId, setPaperSubjectId] = useState<number | "">("");
+  const [paperChapterId, setPaperChapterId] = useState<number | "">("");
+  const [paperTitle, setPaperTitle] = useState("");
+  const [paperUrl, setPaperUrl] = useState("");
+  const [paperFile, setPaperFile] = useState<File | null>(null);
+
+  // Manage: resources and notes for selected chapter/subject
+  const [chapterResources, setChapterResources] = useState<Resource[]>([]);
+  const [subjectNotesList, setSubjectNotesList] = useState<Note[]>([]);
+  const [chapterNotesList, setChapterNotesList] = useState<Note[]>([]);
+
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => a.name.localeCompare(b.name)),
     [subjects]
@@ -81,6 +109,18 @@ const AdminContent = () => {
       try {
         await loadData();
       } catch (error: any) {
+        // If auth error, clear token and redirect to login
+        const msg: string = (error?.message || "").toLowerCase();
+        if (
+          msg.includes("401") ||
+          msg.includes("unauthorized") ||
+          msg.includes("invalid authentication") ||
+          msg.includes("not authenticated")
+        ) {
+          apiClient.clearToken();
+          navigate("/login", { replace: true, state: { reason: "session-expired" } });
+          return;
+        }
         toast({ title: "Failed to load admin data", description: error.message, variant: "destructive" });
       } finally {
         setLoading(false);
@@ -92,16 +132,38 @@ const AdminContent = () => {
     (async () => {
       if (!manageTopicId) {
         setTopicMaterials([]);
+        setChapterResources([]);
+        setChapterNotesList([]);
         return;
       }
       try {
-        const materials = await apiClient.listMaterials(manageTopicId);
+        const [materials, resources, notes] = await Promise.all([
+          apiClient.listMaterials(manageTopicId),
+          apiClient.listChapterResources(manageTopicId),
+          apiClient.listChapterNotes(manageTopicId),
+        ]);
         setTopicMaterials(materials);
+        setChapterResources(resources);
+        setChapterNotesList(notes);
       } catch {
         setTopicMaterials([]);
+        setChapterResources([]);
+        setChapterNotesList([]);
       }
     })();
   }, [manageTopicId]);
+
+  useEffect(() => {
+    (async () => {
+      if (!manageSubjectId) { setSubjectNotesList([]); return; }
+      try {
+        const notes = await apiClient.listSubjectNotes(manageSubjectId);
+        setSubjectNotesList(notes);
+      } catch {
+        setSubjectNotesList([]);
+      }
+    })();
+  }, [manageSubjectId]);
 
   const onCreateSubject = async (e: FormEvent) => {
     e.preventDefault();
@@ -236,6 +298,128 @@ const AdminContent = () => {
       toast({ description: "Tip added" });
     } catch (error: any) {
       toast({ title: "Create tip failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const onCreateResource = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!resourceChapterId) return;
+    try {
+      await apiClient.createResource({
+        title: resourceTitle.trim(),
+        url: resourceUrl.trim(),
+        chapter_id: resourceChapterId,
+      });
+      setResourceTitle("");
+      setResourceUrl("");
+      if (manageTopicId === resourceChapterId) {
+        const refreshed = await apiClient.listChapterResources(resourceChapterId);
+        setChapterResources(refreshed);
+      }
+      toast({ description: "Resource link added" });
+    } catch (error: any) {
+      toast({ title: "Add resource failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const onDeleteResource = async (resourceId: number, label: string) => {
+    if (!window.confirm(`Delete resource "${label}"?`)) return;
+    setActionBusy(`resource-${resourceId}`);
+    try {
+      await apiClient.deleteResource(resourceId);
+      if (manageTopicId) {
+        const refreshed = await apiClient.listChapterResources(manageTopicId);
+        setChapterResources(refreshed);
+      }
+      toast({ description: "Resource deleted" });
+    } catch (error: any) {
+      toast({ title: "Delete resource failed", description: error.message, variant: "destructive" });
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const onCreateNote = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!noteSubjectId && !noteChapterId) {
+      toast({ title: "Select a subject or chapter for the note", variant: "destructive" });
+      return;
+    }
+    try {
+      await apiClient.createNote({
+        title: noteTitle.trim(),
+        content: noteContent.trim(),
+        subject_id: noteSubjectId || undefined,
+        chapter_id: noteChapterId || undefined,
+      });
+      setNoteTitle("");
+      setNoteContent("");
+      if (manageSubjectId && noteSubjectId === manageSubjectId) {
+        const refreshed = await apiClient.listSubjectNotes(manageSubjectId);
+        setSubjectNotesList(refreshed);
+      }
+      if (manageTopicId && noteChapterId === manageTopicId) {
+        const refreshed = await apiClient.listChapterNotes(manageTopicId);
+        setChapterNotesList(refreshed);
+      }
+      toast({ description: "Note added" });
+    } catch (error: any) {
+      toast({ title: "Add note failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const onDeleteNote = async (noteId: number, label: string) => {
+    if (!window.confirm(`Delete note "${label}"?`)) return;
+    setActionBusy(`note-${noteId}`);
+    try {
+      await apiClient.deleteNote(noteId);
+      if (manageSubjectId) {
+        const refreshed = await apiClient.listSubjectNotes(manageSubjectId);
+        setSubjectNotesList(refreshed);
+      }
+      if (manageTopicId) {
+        const refreshed = await apiClient.listChapterNotes(manageTopicId);
+        setChapterNotesList(refreshed);
+      }
+      toast({ description: "Note deleted" });
+    } catch (error: any) {
+      toast({ title: "Delete note failed", description: error.message, variant: "destructive" });
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const onUploadMCQCSV = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!csvTopicId || !csvFile) return;
+    try {
+      const result = await apiClient.uploadMCQCSV(csvTopicId, csvFile);
+      setCsvFile(null);
+      toast({
+        description: `MCQ CSV imported: ${result.created} created, ${result.skipped} skipped (${result.total_rows} total rows)`,
+      });
+    } catch (error: any) {
+      toast({ title: "CSV upload failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const onCreatePaper = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!paperSubjectId || !paperTitle.trim()) return;
+    try {
+      await apiClient.createPaper({
+        subject_id: paperSubjectId,
+        title: paperTitle.trim(),
+        chapter_id: paperChapterId || undefined,
+        url: paperUrl.trim() || undefined,
+        file: paperFile || undefined,
+      });
+      setPaperTitle("");
+      setPaperUrl("");
+      setPaperFile(null);
+      toast({ description: "Past paper added" });
+    } catch (error: any) {
+      toast({ title: "Add past paper failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -515,7 +699,7 @@ const AdminContent = () => {
             </form>
 
             <form onSubmit={onCreateTip} className="rounded-2xl border bg-white p-5 space-y-3">
-              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Tips & Tricks</h2>
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Tips &amp; Tricks</h2>
               <select className="w-full border rounded-lg px-3 py-2" value={tipSubjectId} onChange={(e) => setTipSubjectId(Number(e.target.value))} required>
                 <option value="">Select subject</option>
                 {sortedSubjects.map((s) => (
@@ -525,6 +709,91 @@ const AdminContent = () => {
               <input className="w-full border rounded-lg px-3 py-2" placeholder="Tip title" value={tipTitle} onChange={(e) => setTipTitle(e.target.value)} required />
               <textarea className="w-full border rounded-lg px-3 py-2 min-h-24" placeholder="Study strategy / exam tip" value={tipContent} onChange={(e) => setTipContent(e.target.value)} required />
               <Button type="submit" className="w-full">Save Tip</Button>
+            </form>
+
+            {/* ── Resource Links ── */}
+            <form onSubmit={onCreateResource} className="rounded-2xl border bg-white p-5 space-y-3">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Resource Link to Chapter</h2>
+              <p className="text-xs text-muted-foreground">Add Google Drive links, external URLs, or any resource URL to a chapter.</p>
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Resource title (e.g. Chapter 1 Drive Notes)" value={resourceTitle} onChange={(e) => setResourceTitle(e.target.value)} required />
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="URL (https://...)" value={resourceUrl} onChange={(e) => setResourceUrl(e.target.value)} required />
+              <select className="w-full border rounded-lg px-3 py-2" value={resourceChapterId} onChange={(e) => setResourceChapterId(Number(e.target.value))} required>
+                <option value="">Select chapter</option>
+                {sortedTopics.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <Button type="submit" className="w-full">Save Resource Link</Button>
+            </form>
+
+            {/* ── Notes ── */}
+            <form onSubmit={onCreateNote} className="rounded-2xl border bg-white p-5 space-y-3">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Note</h2>
+              <p className="text-xs text-muted-foreground">Link to a subject (appears in right column) or a chapter (appears in chapter accordion). At least one is required.</p>
+              <input className="w-full border rounded-lg px-3 py-2" placeholder="Note title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} required />
+              <textarea className="w-full border rounded-lg px-3 py-2 min-h-24" placeholder="Note content (text or URL)" value={noteContent} onChange={(e) => setNoteContent(e.target.value)} required />
+              <select className="w-full border rounded-lg px-3 py-2" value={noteSubjectId} onChange={(e) => setNoteSubjectId(e.target.value ? Number(e.target.value) : "")}>
+                <option value="">— Subject (optional) —</option>
+                {sortedSubjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.exam_type})</option>
+                ))}
+              </select>
+              <select className="w-full border rounded-lg px-3 py-2" value={noteChapterId} onChange={(e) => setNoteChapterId(e.target.value ? Number(e.target.value) : "")}>
+                <option value="">— Chapter (optional) —</option>
+                {sortedTopics.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <Button type="submit" className="w-full">Save Note</Button>
+            </form>
+
+            {/* ── MCQ CSV Upload ── */}
+            <form onSubmit={onUploadMCQCSV} className="rounded-2xl border bg-white p-5 space-y-3 md:col-span-2">
+              <h2 className="font-semibold flex items-center gap-2"><Upload className="h-4 w-4" /> Bulk Upload MCQs via CSV</h2>
+              <p className="text-xs text-muted-foreground">
+                CSV must have columns: <code className="bg-slate-100 px-1 rounded text-[11px]">question, option_a, option_b, option_c, option_d, correct_answer</code> (and optional <code className="bg-slate-100 px-1 rounded text-[11px]">explanation</code>).
+                Correct answer must be A, B, C, or D. Thousands of rows supported.
+              </p>
+              <select className="w-full border rounded-lg px-3 py-2" value={csvTopicId} onChange={(e) => setCsvTopicId(Number(e.target.value))} required>
+                <option value="">Select chapter</option>
+                {sortedTopics.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <input
+                className="w-full border rounded-lg px-3 py-2"
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setCsvFile((e.target.files && e.target.files[0]) || null)}
+                required
+              />
+              {csvFile && <p className="text-sm text-muted-foreground">{csvFile.name}</p>}
+              <Button type="submit" className="w-full" disabled={!csvTopicId || !csvFile}>Upload MCQ CSV</Button>
+            </form>
+
+            {/* ── Past Papers (new dedicated table) ── */}
+            <form onSubmit={onCreatePaper} className="rounded-2xl border bg-white p-5 space-y-3 md:col-span-2">
+              <h2 className="font-semibold flex items-center gap-2"><PlusCircle className="h-4 w-4" /> Add Past Paper (New System)</h2>
+              <p className="text-xs text-muted-foreground">Stored in the dedicated past-papers table. Appears under subject's Past Papers panel. Chapter is optional.</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <select className="w-full border rounded-lg px-3 py-2" value={paperSubjectId} onChange={(e) => setPaperSubjectId(Number(e.target.value))} required>
+                  <option value="">Select subject *</option>
+                  {sortedSubjects.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.exam_type})</option>
+                  ))}
+                </select>
+                <select className="w-full border rounded-lg px-3 py-2" value={paperChapterId} onChange={(e) => setPaperChapterId(e.target.value ? Number(e.target.value) : "")}>
+                  <option value="">— Chapter (optional) —</option>
+                  {sortedTopics.map((t) => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </select>
+                <input className="w-full border rounded-lg px-3 py-2" placeholder="Paper title (e.g. Physics 2024)" value={paperTitle} onChange={(e) => setPaperTitle(e.target.value)} required />
+                <input className="w-full border rounded-lg px-3 py-2" placeholder="External URL (optional if uploading file)" value={paperUrl} onChange={(e) => setPaperUrl(e.target.value)} />
+              </div>
+              <input className="w-full border rounded-lg px-3 py-2" type="file" accept="application/pdf" onChange={(e) => setPaperFile((e.target.files && e.target.files[0]) || null)} />
+              {paperFile && <p className="text-sm text-muted-foreground">{paperFile.name}</p>}
+              <Button type="submit" className="w-full">Save Past Paper</Button>
             </form>
 
             <section className="rounded-2xl border bg-white p-5 space-y-4 md:col-span-2">
@@ -706,6 +975,96 @@ const AdminContent = () => {
                             <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
                           </Button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Resource Links in Selected Chapter ── */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <h3 className="mb-2 flex items-center gap-2 font-medium"><FolderOpen className="h-4 w-4" /> Resource Links in Selected Chapter</h3>
+                {!manageTopicId ? (
+                  <p className="text-xs text-muted-foreground">Select a chapter above.</p>
+                ) : chapterResources.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No resource links for this chapter.</p>
+                ) : (
+                  <div className="max-h-64 space-y-2 overflow-auto pr-1">
+                    {chapterResources.map((r) => (
+                      <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{r.title}</p>
+                          <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-600 truncate block">{r.url}</a>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={actionBusy === `resource-${r.id}`}
+                          onClick={() => onDeleteResource(r.id, r.title)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Chapter Notes ── */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <h3 className="mb-2 flex items-center gap-2 font-medium"><FolderOpen className="h-4 w-4" /> Notes in Selected Chapter</h3>
+                {!manageTopicId ? (
+                  <p className="text-xs text-muted-foreground">Select a chapter above.</p>
+                ) : chapterNotesList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No chapter-level notes.</p>
+                ) : (
+                  <div className="max-h-64 space-y-2 overflow-auto pr-1">
+                    {chapterNotesList.map((n) => (
+                      <div key={n.id} className="flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{n.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{n.content}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={actionBusy === `note-${n.id}`}
+                          onClick={() => onDeleteNote(n.id, n.title)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Subject Notes ── */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <h3 className="mb-2 flex items-center gap-2 font-medium"><FolderOpen className="h-4 w-4" /> Notes for Selected Subject</h3>
+                {!manageSubjectId ? (
+                  <p className="text-xs text-muted-foreground">Select a subject above.</p>
+                ) : subjectNotesList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No subject-level notes.</p>
+                ) : (
+                  <div className="max-h-64 space-y-2 overflow-auto pr-1">
+                    {subjectNotesList.map((n) => (
+                      <div key={n.id} className="flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{n.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{n.content}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={actionBusy === `note-${n.id}`}
+                          onClick={() => onDeleteNote(n.id, n.title)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
+                        </Button>
                       </div>
                     ))}
                   </div>

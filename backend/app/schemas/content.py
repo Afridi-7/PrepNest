@@ -154,3 +154,59 @@ class AIResponse(BaseModel):
     context_materials: list[dict]
     context_mcqs: list[dict]
     web_results: list[dict]
+
+
+# ── Resource schemas ────────────────────────────────────────────────────────
+
+class ResourceCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    url: str = Field(min_length=1, max_length=2048)
+    chapter_id: int
+
+
+class ResourceUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=255)
+    url: str | None = Field(default=None, min_length=1, max_length=2048)
+
+
+class ResourceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    url: str
+    chapter_id: int
+    created_at: datetime
+
+
+# ── Note schemas ─────────────────────────────────────────────────────────────
+
+class NoteCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    content: str = Field(min_length=1)
+    subject_id: int | None = None
+    chapter_id: int | None = None
+
+
+class NoteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    content: str
+    subject_id: int | None
+    chapter_id: int | None
+    created_at: datetime
+
+
+# ── PastPaper schemas ─────────────────────────────────────────────────────────
+
+class PastPaperRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    file_path: str
+    subject_id: int
+    chapter_id: int | None
+    created_at: datetime

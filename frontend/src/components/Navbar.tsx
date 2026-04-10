@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, GraduationCap } from "lucide-react";
+import { Menu, X, GraduationCap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
@@ -57,6 +57,18 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          {isAuthenticated && (
+            <button
+              onClick={() => handleNav("/admin")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                location.pathname === "/admin"
+                  ? "text-primary bg-gradient-to-r from-primary/15 to-secondary/15 shadow-md"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5" /> Admin
+            </button>
+          )}
           {isAuthenticated ? (
             <Button variant="outline" size="sm" className="font-semibold" onClick={handleLogout}>
               Logout
@@ -98,6 +110,16 @@ const Navbar = () => {
                   {link.label}
                 </button>
               ))}
+              {isAuthenticated && (
+                <button
+                  onClick={() => handleNav("/admin")}
+                  className={`flex items-center gap-1.5 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${
+                    location.pathname === "/admin" ? "text-primary bg-primary/10" : "text-muted-foreground"
+                  }`}
+                >
+                  <Shield className="h-3.5 w-3.5" /> Admin Panel
+                </button>
+              )}
               {isAuthenticated ? (
                 <div className="pt-2">
                   <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>Logout</Button>

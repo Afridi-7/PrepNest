@@ -89,6 +89,8 @@ class Topic(Base):
     subject: Mapped[Subject] = relationship(back_populates="topics")
     materials: Mapped[list["Material"]] = relationship(back_populates="topic", cascade="all, delete-orphan")
     mcqs: Mapped[list["MCQ"]] = relationship(back_populates="topic", cascade="all, delete-orphan")
+    resources: Mapped[list["Resource"]] = relationship(back_populates="chapter", cascade="all, delete-orphan")
+    notes: Mapped[list["Note"]] = relationship(back_populates="chapter", cascade="all, delete-orphan", foreign_keys="Note.chapter_id")
 
 
 class Material(Base):
@@ -131,3 +133,55 @@ class Tip(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     subject: Mapped[Subject] = relationship()
+
+
+class Resource(Base):
+    """Chapter-level resource links (Google Drive, PDFs, external URLs, etc.)."""
+
+    __tablename__ = "resources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    url: Mapped[str] = mapped_column(Text)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    chapter: Mapped["Topic"] = relationship(back_populates="resources")
+
+
+class Note(Base):
+    """Flexible notes: linked to a subject, a chapter, or both."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    subject_id: Mapped[int | None] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("topics.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    subject: Mapped["Subject | None"] = relationship(foreign_keys=[subject_id])
+    chapter: Mapped["Topic | None"] = relationship(back_populates="notes", foreign_keys=[chapter_id])
+
+
+class PastPaper(Base):
+    """Dedicated past papers table with proper subject + optional chapter association."""
+
+    __tablename__ = "past_papers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    file_path: Mapped[str] = mapped_column(Text)
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), index=True)
+    chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("topics.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    subject: Mapped["Subject"] = relationship()
+    chapter: Mapped["Topic | None"] = relationship()

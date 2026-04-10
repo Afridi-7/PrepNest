@@ -1,3 +1,5 @@
+import csv
+import io
 import uuid
 from pathlib import Path
 
@@ -7,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
-from app.db.models import MCQ, Material, Subject, Tip, Topic, User
+from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, Tip, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
     MCQCreate,
@@ -16,7 +18,13 @@ from app.schemas.content import (
     MaterialCreate,
     MaterialRead,
     MaterialUpdate,
+    NoteCreate,
+    NoteRead,
     PastPaperCreate,
+    PastPaperRead,
+    ResourceCreate,
+    ResourceRead,
+    ResourceUpdate,
     SubjectCreate,
     SubjectRead,
     SubjectUpdate,
@@ -686,4 +694,278 @@ async def dedupe_subjects(
         "merged_topics": merged_topics,
         "moved_materials": moved_materials,
         "moved_mcqs": moved_mcqs,
+    }
+
+
+# ── Resource CRUD ─────────────────────────────────────────────────────────────
+
+@router.post("/resources", response_model=ResourceRead, status_code=status.HTTP_201_CREATED)
+async def create_resource(
+    payload: ResourceCreate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> ResourceRead:
+    chapter = await db.get(Topic, payload.chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    resource = Resource(title=payload.title, url=payload.url, chapter_id=payload.chapter_id)
+    db.add(resource)
+    await db.commit()
+    await db.refresh(resource)
+    return ResourceRead.model_validate(resource)
+
+
+@router.patch("/resources/{resource_id}", response_model=ResourceRead)
+async def update_resource(
+    resource_id: int,
+    payload: ResourceUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> ResourceRead:
+    resource = await db.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(resource, key, value)
+    await db.commit()
+    await db.refresh(resource)
+    return ResourceRead.model_validate(resource)
+
+
+@router.delete("/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resource(
+    resource_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    resource = await db.get(Resource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    await db.delete(resource)
+    await db.commit()
+
+
+# ── Note CRUD ─────────────────────────────────────────────────────────────────
+
+@router.post("/notes", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
+async def create_note(
+    payload: NoteCreate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> NoteRead:
+    if payload.subject_id is None and payload.chapter_id is None:
+        raise HTTPException(status_code=400, detail="Either subject_id or chapter_id is required")
+
+    if payload.subject_id is not None:
+        subject = await db.get(Subject, payload.subject_id)
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+    if payload.chapter_id is not None:
+        chapter = await db.get(Topic, payload.chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+
+    note = Note(
+        title=payload.title,
+        content=payload.content,
+        subject_id=payload.subject_id,
+        chapter_id=payload.chapter_id,
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return NoteRead.model_validate(note)
+
+
+@router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_note(
+    note_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    note = await db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    await db.delete(note)
+    await db.commit()
+
+
+# ── PastPaper CRUD (new dedicated table) ─────────────────────────────────────
+
+@router.post("/papers", response_model=PastPaperRead, status_code=status.HTTP_201_CREATED)
+async def create_paper(
+    subject_id: int = Form(...),
+    title: str = Form(...),
+    chapter_id: int | None = Form(default=None),
+    url: str | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> PastPaperRead:
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    if chapter_id is not None:
+        chapter = await db.get(Topic, chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+
+    file_path: str | None = url
+
+    if file is not None:
+        filename = file.filename or "past-paper.pdf"
+        is_pdf = filename.lower().endswith(".pdf") or (file.content_type or "").lower() == "application/pdf"
+        if not is_pdf:
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed for past papers")
+
+        file_bytes = await file.read()
+        max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        if len(file_bytes) > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Max size is {settings.max_upload_size_mb} MB",
+            )
+
+        target_dir = settings.upload_dir_path / "papers" / str(subject_id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
+        destination = target_dir / safe_name
+        destination.write_bytes(file_bytes)
+        file_path = f"/uploads/papers/{subject_id}/{safe_name}"
+
+    if not file_path:
+        raise HTTPException(status_code=400, detail="Either a PDF file or a URL is required")
+
+    paper = PastPaper(
+        title=title,
+        file_path=file_path,
+        subject_id=subject_id,
+        chapter_id=chapter_id,
+    )
+    db.add(paper)
+    await db.commit()
+    await db.refresh(paper)
+    return PastPaperRead.model_validate(paper)
+
+
+@router.delete("/papers/{paper_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_paper(
+    paper_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    paper = await db.get(PastPaper, paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Past paper not found")
+    await db.delete(paper)
+    await db.commit()
+
+
+# ── MCQ CSV Bulk Upload ───────────────────────────────────────────────────────
+
+MCQ_CSV_REQUIRED_COLUMNS = {"question", "option_a", "option_b", "option_c", "option_d", "correct_answer"}
+MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
+
+
+@router.post("/mcqs/upload-csv", status_code=status.HTTP_200_OK)
+async def upload_mcq_csv(
+    topic_id: int = Form(...),
+    file: UploadFile = File(...),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Bulk-upload MCQs from a CSV file.
+
+    Expected CSV columns (case-insensitive):
+        question, option_a, option_b, option_c, option_d, correct_answer, explanation (optional)
+    """
+    chapter = await db.get(Topic, topic_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    filename = file.filename or "mcqs.csv"
+    is_csv = filename.lower().endswith(".csv") or (file.content_type or "").lower() in (
+        "text/csv",
+        "application/csv",
+        "text/plain",
+    )
+    if not is_csv:
+        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
+
+    raw_bytes = await file.read()
+    max_bytes = 10 * 1024 * 1024  # 10 MB max for CSV
+    if len(raw_bytes) > max_bytes:
+        raise HTTPException(status_code=400, detail="CSV file too large (max 10 MB)")
+
+    try:
+        text_content = raw_bytes.decode("utf-8-sig")  # handle BOM
+    except UnicodeDecodeError:
+        text_content = raw_bytes.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text_content))
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=400, detail="CSV file is empty or has no header row")
+
+    normalized_fields = {f.strip().lower() for f in reader.fieldnames}
+    missing_cols = MCQ_CSV_REQUIRED_COLUMNS - normalized_fields
+    if missing_cols:
+        raise HTTPException(
+            status_code=400,
+            detail=f"CSV missing required columns: {', '.join(sorted(missing_cols))}",
+        )
+
+    mcqs_to_insert: list[MCQ] = []
+    skipped = 0
+    row_num = 1
+
+    for row in reader:
+        row_num += 1
+        # Normalize keys
+        normalized_row = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
+
+        question = normalized_row.get("question", "")
+        option_a = normalized_row.get("option_a", "")
+        option_b = normalized_row.get("option_b", "")
+        option_c = normalized_row.get("option_c", "")
+        option_d = normalized_row.get("option_d", "")
+        correct_answer = normalized_row.get("correct_answer", "").upper()
+        explanation = normalized_row.get("explanation", "") or "See answer above."
+
+        if not all([question, option_a, option_b, option_c, option_d]):
+            skipped += 1
+            continue
+
+        if correct_answer not in MCQ_CSV_VALID_ANSWERS:
+            skipped += 1
+            continue
+
+        mcqs_to_insert.append(
+            MCQ(
+                question=question,
+                option_a=option_a,
+                option_b=option_b,
+                option_c=option_c,
+                option_d=option_d,
+                correct_answer=correct_answer,
+                explanation=explanation,
+                topic_id=topic_id,
+            )
+        )
+
+    if not mcqs_to_insert:
+        raise HTTPException(status_code=400, detail="No valid MCQ rows found in CSV")
+
+    db.add_all(mcqs_to_insert)
+    await db.commit()
+
+    return {
+        "created": len(mcqs_to_insert),
+        "skipped": skipped,
+        "total_rows": row_num - 1,
+        "chapter_id": topic_id,
     }
