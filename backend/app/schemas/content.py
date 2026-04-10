@@ -223,3 +223,50 @@ class UserNoteRead(BaseModel):
     subject_id: int
     user_id: str
     created_at: datetime
+
+
+# ── ContactInfo schemas ───────────────────────────────────────────────────────
+
+class ContactInfoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    bio: str
+    image_url: str | None
+    email: str | None
+    github_url: str | None
+    linkedin_url: str | None
+    discord_url: str | None
+    twitter_url: str | None
+    whatsapp_url: str | None
+    updated_at: datetime
+
+
+class ContactInfoUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    bio: str | None = None
+    image_url: str | None = None
+    email: str | None = Field(default=None, max_length=255)
+    github_url: str | None = None
+    linkedin_url: str | None = None
+    discord_url: str | None = None
+    twitter_url: str | None = None
+    whatsapp_url: str | None = None
+
+
+# ── Dashboard schemas ─────────────────────────────────────────────────────────
+
+class DashboardSubjectStat(BaseModel):
+    id: int
+    name: str
+    topic_count: int
+    mcq_count: int
+
+
+class DashboardStats(BaseModel):
+    user_name: str
+    total_subjects: int
+    total_topics: int
+    total_mcqs: int
+    subjects: list[DashboardSubjectStat]

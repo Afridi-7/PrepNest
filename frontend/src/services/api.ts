@@ -206,6 +206,47 @@ export interface AIResponse {
   web_results: Array<Record<string, unknown>>;
 }
 
+export interface DashboardSubjectStat {
+  id: number;
+  name: string;
+  topic_count: number;
+  mcq_count: number;
+}
+
+export interface DashboardStats {
+  user_name: string;
+  total_subjects: number;
+  total_topics: number;
+  total_mcqs: number;
+  subjects: DashboardSubjectStat[];
+}
+
+export interface ContactInfo {
+  id: number;
+  name: string;
+  bio: string;
+  image_url: string | null;
+  email: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  discord_url: string | null;
+  twitter_url: string | null;
+  whatsapp_url: string | null;
+  updated_at: string;
+}
+
+export interface ContactInfoUpdate {
+  name?: string;
+  bio?: string;
+  image_url?: string | null;
+  email?: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
+  discord_url?: string | null;
+  twitter_url?: string | null;
+  whatsapp_url?: string | null;
+}
+
 class ApiClient {
   private token: string | null = null;
   private _adminCache: boolean | null = null;
@@ -815,6 +856,39 @@ class ApiClient {
 
   getToken(): string | null {
     return this.token || localStorage.getItem("access_token");
+  }
+
+  // ── Dashboard ────────────────────────────────────────────────────────────
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    return this.request<DashboardStats>("/dashboard/stats");
+  }
+
+  // ── Contact ──────────────────────────────────────────────────────────────
+
+  async getContactInfo(): Promise<ContactInfo> {
+    return this.request<ContactInfo>("/contact");
+  }
+
+  async updateContactInfo(payload: ContactInfoUpdate): Promise<ContactInfo> {
+    return this.request<ContactInfo>("/contact", "PUT", payload);
+  }
+
+  async uploadContactImage(file: File): Promise<ContactInfo> {
+    const url = `${API_BASE_URL}/contact/image`;
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
   }
 }
 

@@ -199,5 +199,20 @@ class UserNote(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    subject: Mapped["Subject"] = relationship()
-    user: Mapped["User"] = relationship()
+
+class ContactInfo(Base):
+    """Singleton row holding public contact / social links (admin-editable)."""
+
+    __tablename__ = "contact_info"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), default="PrepNest Team")
+    bio: Mapped[str] = mapped_column(Text, default="")
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    discord_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    twitter_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

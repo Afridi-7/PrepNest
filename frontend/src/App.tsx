@@ -15,7 +15,7 @@ import USATSubjectChapters from "./pages/USATSubjectChapters.tsx";
 import Practice from "./pages/Practice.tsx";
 import AITutor from "./pages/AITutor.tsx";
 import AdminContent from "./pages/AdminContent.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import Contact from "./pages/Contact.tsx";
 import { apiClient } from "./services/api";
 
 const queryClient = new QueryClient();
@@ -56,7 +56,8 @@ const App = () => (
           <Route path="/practice" element={<Practice />} />
           <Route path="/ai-tutor" element={<AITutor />} />
           <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

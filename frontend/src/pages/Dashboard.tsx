@@ -1,52 +1,68 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Brain, Target, TrendingUp, Clock, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, FileText, ChevronRight } from "lucide-react";
+import { BookOpen, Brain, Target, TrendingUp, Clock, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
+import { apiClient, type DashboardStats } from "@/services/api";
 
-const progressData = [
-  { subject: "English",     progress: 72, color: "from-violet-500 to-purple-500" },
-  { subject: "Mathematics", progress: 58, color: "from-cyan-500 to-sky-500" },
-  { subject: "Physics",     progress: 45, color: "from-amber-500 to-orange-500" },
-  { subject: "Chemistry",   progress: 63, color: "from-emerald-500 to-teal-500" },
-  { subject: "Biology",     progress: 34, color: "from-rose-500 to-pink-500" },
-  { subject: "Islamiat",    progress: 80, color: "from-indigo-500 to-violet-500" },
+const SUBJECT_COLORS = [
+  "from-violet-500 to-purple-500",
+  "from-cyan-500 to-sky-500",
+  "from-amber-500 to-orange-500",
+  "from-emerald-500 to-teal-500",
+  "from-rose-500 to-pink-500",
+  "from-indigo-500 to-violet-500",
 ];
-
-const recentActivity = [
-  { type: "quiz",  title: "English Vocabulary Quiz",       score: "8/10", time: "2 hours ago",  icon: Target },
-  { type: "study", title: "Physics: Newton's Laws",                        time: "5 hours ago",  icon: BookOpen },
-  { type: "ai",    title: "AI Tutor: Math Problem Solving",                time: "Yesterday",    icon: Brain },
-  { type: "essay", title: "Essay: Climate Change",          score: "B+",   time: "Yesterday",    icon: FileText },
-  { type: "quiz",  title: "Chemistry MCQs - Organic",       score: "7/10", time: "2 days ago",   icon: Target },
-];
-
-const weakAreas = [
-  { topic: "Quadratic Equations", subject: "Mathematics", accuracy: 35 },
-  { topic: "Thermodynamics",      subject: "Physics",     accuracy: 40 },
-  { topic: "Organic Chemistry",   subject: "Chemistry",   accuracy: 42 },
-];
-
-const suggestions = [
-  { title: "Revise Quadratic Equations", desc: "Your accuracy is low. Try practice set #4.",        icon: AlertTriangle },
-  { title: "Take Physics Mock Test",     desc: "You haven't practiced Physics in 3 days.",          icon: Target },
-  { title: "Essay Writing Practice",     desc: "Improve your writing score with AI feedback.",      icon: FileText },
-];
-
-const weeklyScores = [65, 70, 68, 75, 72, 78, 82];
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const ACTIVITY_COLORS: Record<string, string> = {
-  quiz:  "bg-violet-100 text-violet-600",
-  study: "bg-cyan-100 text-cyan-600",
-  ai:    "bg-fuchsia-100 text-fuchsia-600",
-  essay: "bg-amber-100 text-amber-600",
-};
 
 const Dashboard = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
+    apiClient
+      .getDashboardStats()
+      .then(setStats)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  const userName = stats?.user_name ?? "Student";
+
+  // Deduplicate subjects by name (merge topic_count & mcq_count for duplicates)
+  const uniqueSubjects = (() => {
+    const map = new Map<string, { id: number; name: string; topic_count: number; mcq_count: number }>();
+    for (const s of stats?.subjects ?? []) {
+      const existing = map.get(s.name);
+      if (existing) {
+        existing.topic_count += s.topic_count;
+        existing.mcq_count += s.mcq_count;
+      } else {
+        map.set(s.name, { ...s });
+      }
+    }
+    return Array.from(map.values());
+  })();
+
+  const totalSubjects = uniqueSubjects.length;
+  const totalTopics = uniqueSubjects.reduce((sum, s) => sum + s.topic_count, 0);
+  const totalMcqs = uniqueSubjects.reduce((sum, s) => sum + s.mcq_count, 0);
+  const maxMcqs = uniqueSubjects.length ? Math.max(...uniqueSubjects.map((s) => s.mcq_count), 1) : 1;
+
+  const progressData = uniqueSubjects.map((s, i) => ({
+    subject: s.name,
+    topics: s.topic_count,
+    mcqs: s.mcq_count,
+    progress: Math.min(100, Math.round((s.mcq_count / maxMcqs) * 100)),
+    color: SUBJECT_COLORS[i % SUBJECT_COLORS.length],
+  }));
+
+  const greetingByTime = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
 
   return (
     <>
@@ -61,6 +77,11 @@ const Dashboard = () => {
         <motion.div aria-hidden animate={{ x: [0, 10, 0], y: [0, -10, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
           className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl" />
 
+        {loading ? (
+          <div className="flex items-center justify-center h-[60vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+          </div>
+        ) : (
         <div className="container relative mx-auto px-4">
 
           {/* ── HERO HEADER ── */}
@@ -78,32 +99,18 @@ const Dashboard = () => {
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-violet-100 backdrop-blur-sm">
-                  <Flame className="h-3.5 w-3.5 text-amber-300" /> 7-day streak 🔥
+                  <Flame className="h-3.5 w-3.5 text-amber-300" /> {totalSubjects} subjects loaded 📚
                 </p>
                 <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                  Welcome back, Pandaa! 👋
+                  {greetingByTime}, {userName}! 👋
                 </h1>
                 <p className="mt-1.5 text-sm text-violet-200">Here's your preparation overview for today.</p>
               </div>
               <div className="flex gap-2">
-                {[...Array(7)].map((_, i) => (
-                  <div key={i} className={`h-8 w-2 rounded-full ${i < 7 ? "bg-white/80" : "bg-white/20"}`} />
+                {[...Array(Math.min(totalSubjects, 7))].map((_, i) => (
+                  <div key={i} className="h-8 w-2 rounded-full bg-white/80" />
                 ))}
               </div>
-            </div>
-
-            {/* mini stat chips inside hero */}
-            <div className="relative z-10 mt-6 flex flex-wrap gap-3">
-              {[
-                { label: "Quizzes", value: "42",   color: "bg-white/15" },
-                { label: "Accuracy", value: "74%", color: "bg-white/15" },
-                { label: "Hours",   value: "126h",  color: "bg-white/15" },
-              ].map(chip => (
-                <div key={chip.label} className={`${chip.color} backdrop-blur-sm rounded-2xl border border-white/20 px-4 py-2`}>
-                  <div className="text-lg font-black text-white">{chip.value}</div>
-                  <div className="text-[10px] text-violet-200 font-medium">{chip.label}</div>
-                </div>
-              ))}
             </div>
 
             {/* dots row */}
@@ -119,13 +126,12 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.45 }}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
           >
             {[
-              { label: "Study Streak",  value: "7 Days", icon: Flame,     bar: "from-violet-400 to-purple-500",  bg: "bg-violet-50",  text: "text-violet-600",  border: "border-violet-100" },
-              { label: "Quizzes Taken", value: "42",      icon: Target,    bar: "from-fuchsia-400 to-pink-500",   bg: "bg-fuchsia-50", text: "text-fuchsia-600", border: "border-fuchsia-100" },
-              { label: "Avg Accuracy",  value: "74%",     icon: TrendingUp,bar: "from-cyan-400 to-sky-500",       bg: "bg-cyan-50",    text: "text-cyan-600",    border: "border-cyan-100" },
-              { label: "Hours Studied", value: "126h",    icon: Clock,     bar: "from-emerald-400 to-teal-500",   bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100" },
+              { label: "Subjects",    value: String(totalSubjects), icon: Flame,     bar: "from-violet-400 to-purple-500",  bg: "bg-violet-50",  text: "text-violet-600",  border: "border-violet-100" },
+              { label: "Topics",      value: String(totalTopics),   icon: Target,    bar: "from-fuchsia-400 to-pink-500",   bg: "bg-fuchsia-50", text: "text-fuchsia-600", border: "border-fuchsia-100" },
+              { label: "Total MCQs",  value: String(totalMcqs),     icon: TrendingUp,bar: "from-cyan-400 to-sky-500",       bg: "bg-cyan-50",    text: "text-cyan-600",    border: "border-cyan-100" },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -167,21 +173,24 @@ const Dashboard = () => {
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
                       <BarChart3 className="h-4 w-4 text-violet-600" />
                     </span>
-                    Weekly Performance
+                    Content by Subject
                   </h2>
-                  <span className="text-xs text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full font-semibold">This week</span>
+                  <span className="text-xs text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full font-semibold">MCQs</span>
                 </div>
                 <div className="flex items-end gap-2 sm:gap-3 h-44">
-                  {weeklyScores.map((score, i) => {
-                    const isToday = i === 6;
+                  {uniqueSubjects.slice(0, 7).map((s, i) => {
+                    const pct = maxMcqs > 0 ? Math.round((s.mcq_count / maxMcqs) * 100) : 0;
+                    const isMax = s.mcq_count === maxMcqs;
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                        <span className="text-[11px] text-slate-500 font-semibold">{score}%</span>
-                        <div
-                          className={`w-full rounded-t-xl transition-all ${isToday ? "bg-gradient-to-t from-violet-600 to-fuchsia-500 shadow-md shadow-violet-200" : "bg-gradient-to-t from-violet-200 to-violet-100"}`}
-                          style={{ height: `${score}%` }}
+                      <div key={s.id} className="flex-1 flex flex-col items-center gap-2 group cursor-pointer" title={`${s.name}: ${s.mcq_count} MCQs, ${s.topic_count} topics`}>
+                        <span className="text-[11px] text-slate-500 font-semibold group-hover:text-violet-600 transition-colors">{s.mcq_count}</span>
+                        <motion.div
+                          className={`w-full rounded-t-xl transition-colors ${isMax ? "bg-gradient-to-t from-violet-600 to-fuchsia-500 shadow-md shadow-violet-200" : "bg-gradient-to-t from-violet-200 to-violet-100 group-hover:from-violet-400 group-hover:to-violet-300"}`}
+                          initial={{ height: 0 }}
+                          animate={{ height: `${Math.max(pct, 5)}%` }}
+                          transition={{ delay: 0.3 + i * 0.06, duration: 0.5, ease: "easeOut" }}
                         />
-                        <span className={`text-[11px] font-semibold ${isToday ? "text-violet-600" : "text-slate-400"}`}>{days[i]}</span>
+                        <span className={`text-[11px] font-semibold ${isMax ? "text-violet-600" : "text-slate-400 group-hover:text-violet-500"} transition-colors`}>{s.name.slice(0, 4)}</span>
                       </div>
                     );
                   })}
@@ -205,9 +214,12 @@ const Dashboard = () => {
                 </div>
                 <div className="space-y-4">
                   {progressData.map((s, i) => (
-                    <div key={i}>
+                    <div key={s.subject} className="group">
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="font-semibold text-slate-700">{s.subject}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-700">{s.subject}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">{s.topics} topics · {s.mcqs} MCQs</span>
+                        </div>
                         <span className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">{s.progress}%</span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -223,7 +235,7 @@ const Dashboard = () => {
                 </div>
               </motion.div>
 
-              {/* Weak Areas */}
+              {/* Needs Attention */}
               <motion.div
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -234,20 +246,26 @@ const Dashboard = () => {
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
                   </span>
-                  Weak Areas
+                  Needs Attention
                 </h2>
                 <div className="space-y-3">
-                  {weakAreas.map((w, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-50/70 to-orange-50/50 border border-amber-100">
+                  {uniqueSubjects
+                    .filter((s) => s.mcq_count < 10)
+                    .slice(0, 3)
+                    .map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-50/70 to-orange-50/50 border border-amber-100">
                       <div>
-                        <div className="font-semibold text-sm text-slate-800">{w.topic}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{w.subject}</div>
+                        <div className="font-semibold text-sm text-slate-800">{s.name}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{s.topic_count} topics</div>
                       </div>
                       <span className="shrink-0 rounded-full bg-rose-100 border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">
-                        {w.accuracy}%
+                        {s.mcq_count} MCQs
                       </span>
                     </div>
                   ))}
+                  {uniqueSubjects.filter((s) => s.mcq_count < 10).length === 0 && (
+                    <p className="text-sm text-slate-400 text-center py-4">All subjects have good MCQ coverage!</p>
+                  )}
                 </div>
               </motion.div>
             </div>
@@ -302,7 +320,11 @@ const Dashboard = () => {
                   </h2>
                 </div>
                 <div className="p-4 space-y-3">
-                  {suggestions.map((s, i) => (
+                  {[
+                    { title: "Practice MCQs", desc: `You have ${totalMcqs} MCQs available — start a quiz!`, icon: Target },
+                    { title: "Explore Subjects", desc: `${totalSubjects} subjects with ${totalTopics} topics to study.`, icon: BookOpen },
+                    { title: "Ask AI Tutor", desc: "Get instant help with any topic or question.", icon: Brain },
+                  ].map((s, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-fuchsia-50/60 to-pink-50/40 border border-fuchsia-100">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fuchsia-100">
                         <s.icon className="h-3.5 w-3.5 text-fuchsia-600" />
@@ -316,41 +338,11 @@ const Dashboard = () => {
                 </div>
               </motion.div>
 
-              {/* Recent Activity */}
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-md"
-              >
-                <div className="bg-gradient-to-r from-cyan-500 to-sky-500 px-5 py-3.5">
-                  <h2 className="font-bold text-sm text-white flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> Recent Activity
-                  </h2>
-                </div>
-                <div className="p-4 space-y-3">
-                  {recentActivity.map((a, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${ACTIVITY_COLORS[a.type] ?? "bg-slate-100 text-slate-500"}`}>
-                        <a.icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-slate-700 truncate">{a.title}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{a.time}</div>
-                      </div>
-                      {a.score && (
-                        <span className="shrink-0 rounded-full bg-violet-100 border border-violet-200 px-2 py-0.5 text-[10px] font-bold text-violet-600">
-                          {a.score}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
 
             </div>
           </div>
         </div>
+        )}
       </div>
     </>
   );

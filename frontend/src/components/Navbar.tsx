@@ -11,6 +11,7 @@ const navLinks = [
   { label: "Practice", path: "/practice" },
   { label: "AI Tutor", path: "/ai-tutor" },
   { label: "Dashboard", path: "/dashboard" },
+  { label: "Contact", path: "/contact" },
 ];
 
 const Navbar = () => {
