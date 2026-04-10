@@ -1,9 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from pathlib import Path
+import uuid
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, Tip, Topic
+from app.api.deps import get_current_user
+from app.core.config import get_settings
+from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, Tip, Topic, UserNote
 from app.db.session import get_db_session
+from app.models import User
 from app.schemas.content import (
     MCQRead,
     MaterialRead,
@@ -14,6 +21,7 @@ from app.schemas.content import (
     TipRead,
     TopicRead,
     USATCategoryRead,
+    UserNoteRead,
 )
 
 router = APIRouter(prefix="/usat", tags=["usat"])
@@ -203,3 +211,142 @@ async def list_subject_papers(
         select(PastPaper).where(PastPaper.subject_id == subject_id).order_by(PastPaper.created_at.desc())
     )
     return [PastPaperRead.model_validate(p) for p in result.scalars().all()]
+
+
+@router.get("/subjects/{subject_id}/practice-mcqs", response_model=list[MCQRead])
+async def list_subject_practice_mcqs(
+    subject_id: int,
+    limit: int = Query(default=20, ge=1, le=200),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[MCQRead]:
+    """Return random MCQs across all chapters of a subject (for Practice mode)."""
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    topic_ids_result = await db.execute(select(Topic.id).where(Topic.subject_id == subject_id))
+    topic_ids = [row[0] for row in topic_ids_result.fetchall()]
+    if not topic_ids:
+        return []
+
+    result = await db.execute(
+        select(MCQ)
+        .where(MCQ.topic_id.in_(topic_ids))
+        .order_by(func.random())
+        .limit(limit)
+    )
+    return [MCQRead.model_validate(m) for m in result.scalars().all()]
+
+
+# ── User-uploaded PDF Notes ──────────────────────────────────────────────────
+
+settings = get_settings()
+
+
+@router.post("/subjects/{subject_id}/user-notes", response_model=UserNoteRead, status_code=201)
+async def upload_user_note(
+    subject_id: int,
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> UserNoteRead:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    filename = file.filename or "note.pdf"
+    is_pdf = filename.lower().endswith(".pdf") or (file.content_type or "").lower() == "application/pdf"
+    if not is_pdf:
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    file_bytes = await file.read()
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {settings.max_upload_size_mb} MB")
+
+    target_dir = settings.upload_dir_path / "user_notes" / current_user.id / str(subject_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
+    destination = target_dir / safe_name
+    destination.write_bytes(file_bytes)
+
+    stored_path = f"/uploads/user_notes/{current_user.id}/{subject_id}/{safe_name}"
+
+    user_note = UserNote(
+        title=title,
+        file_path=stored_path,
+        subject_id=subject_id,
+        user_id=current_user.id,
+    )
+    db.add(user_note)
+    await db.commit()
+    await db.refresh(user_note)
+    return UserNoteRead.model_validate(user_note)
+
+
+@router.get("/subjects/{subject_id}/user-notes", response_model=list[UserNoteRead])
+async def list_user_notes(
+    subject_id: int,
+    db: AsyncSession = Depends(get_db_session),
+) -> list[UserNoteRead]:
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    result = await db.execute(
+        select(UserNote)
+        .where(UserNote.subject_id == subject_id)
+        .order_by(UserNote.created_at.desc())
+    )
+    return [UserNoteRead.model_validate(n) for n in result.scalars().all()]
+
+
+@router.delete("/user-notes/{note_id}", status_code=204)
+async def delete_user_note(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    note = await db.get(UserNote, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    await db.delete(note)
+    await db.commit()
+
+
+@router.get("/user-notes/{note_id}/view")
+async def view_user_note_pdf(
+    note_id: int,
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Serve the PDF inline (view-only). Auth via ?token= query param so iframes work."""
+    from app.core.security import decode_access_token
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    note = await db.get(UserNote, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Resolve absolute path from stored relative path
+    relative = note.file_path.lstrip("/")
+    if relative.startswith("uploads/"):
+        relative = relative[len("uploads/"):]
+    abs_path = settings.upload_dir_path / relative
+
+    if not abs_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(
+        path=str(abs_path),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline"},
+    )

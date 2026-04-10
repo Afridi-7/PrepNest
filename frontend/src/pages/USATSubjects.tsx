@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, Plus, Sparkles, Trash2, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { apiClient, Subject } from "@/services/api";
 
@@ -74,9 +74,16 @@ const USATSubjects = () => {
   const { category = "" } = useParams();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Admin add-subject form
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
+    apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -89,6 +96,32 @@ const USATSubjects = () => {
       .catch(() => setSubjects([]))
       .finally(() => setLoading(false));
   }, [category]);
+
+  const handleAddSubject = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim() || busy) return;
+    setBusy(true);
+    try {
+      const created = await apiClient.createSubject({ name: newName.trim(), exam_type: category });
+      setSubjects((prev) => [...prev, created]);
+      setNewName("");
+      setShowAddForm(false);
+    } catch (err: any) {
+      alert(err.message || "Failed to create subject");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteSubject = async (id: number) => {
+    if (!confirm("Delete this subject and all its chapters/MCQs?")) return;
+    try {
+      await apiClient.deleteSubject(id);
+      setSubjects((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      alert(err.message || "Failed to delete subject");
+    }
+  };
 
   return (
     <>
@@ -205,46 +238,111 @@ const USATSubjects = () => {
               {subjects.map((subject, index) => {
                 const style = CARD_STYLES[index % CARD_STYLES.length];
                 return (
-                  <motion.button
+                  <motion.div
                     key={subject.id}
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.055, duration: 0.4, ease: "easeOut" }}
-                    whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() =>
-                      navigate(`/usat/${encodeURIComponent(category)}/${slugify(subject.name)}`)
-                    }
-                    className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 text-left shadow-md transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
+                    className="relative"
                   >
-                    {/* top accent bar */}
-                    <div className={`absolute top-0 left-0 h-1 w-full ${style.bar}`} />
+                    {/* Admin delete badge */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSubject(subject.id)}
+                        className="absolute -top-2 -right-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white shadow-md transition hover:bg-rose-600"
+                        title="Delete subject"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                    <motion.button
+                      whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() =>
+                        navigate(`/usat/${encodeURIComponent(category)}/${slugify(subject.name)}`)
+                      }
+                      className={`group relative w-full overflow-hidden rounded-2xl border bg-gradient-to-br p-5 text-left shadow-md transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
+                    >
+                      {/* top accent bar */}
+                      <div className={`absolute top-0 left-0 h-1 w-full ${style.bar}`} />
 
-                    {/* card number badge */}
-                    <div className="absolute top-4 right-4">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${style.pill}`}>
-                        #{String(index + 1).padStart(2, "0")}
-                      </span>
-                    </div>
+                      {/* card number badge */}
+                      <div className="absolute top-4 right-4">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${style.pill}`}>
+                          #{String(index + 1).padStart(2, "0")}
+                        </span>
+                      </div>
 
-                    {/* icon */}
-                    <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ${style.icon}`}>
-                      <BookOpen className="h-5 w-5" />
-                    </div>
+                      {/* icon */}
+                      <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ${style.icon}`}>
+                        <BookOpen className="h-5 w-5" />
+                      </div>
 
-                    {/* text */}
-                    <h3 className="mt-3 pr-10 text-base font-bold leading-snug text-slate-900">
-                      {subject.name}
-                    </h3>
+                      {/* text */}
+                      <h3 className="mt-3 pr-10 text-base font-bold leading-snug text-slate-900">
+                        {subject.name}
+                      </h3>
 
-                    {/* cta row */}
-                    <div className={`mt-3 flex items-center gap-1 text-xs font-semibold ${style.label} transition-all duration-200 group-hover:gap-2`}>
-                      Open chapters
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                    </div>
-                  </motion.button>
+                      {/* cta row */}
+                      <div className={`mt-3 flex items-center gap-1 text-xs font-semibold ${style.label} transition-all duration-200 group-hover:gap-2`}>
+                        Open chapters
+                        <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                      </div>
+                    </motion.button>
+                  </motion.div>
                 );
               })}
+
+              {/* Admin: Add Subject card */}
+              {isAdmin && !showAddForm && (
+                <motion.button
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => setShowAddForm(true)}
+                  className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-white/60 p-5 text-violet-500 transition hover:border-violet-400 hover:bg-violet-50/60"
+                >
+                  <Plus className="h-8 w-8" />
+                  <span className="text-sm font-bold">Add Subject</span>
+                </motion.button>
+              )}
+
+              {/* Admin: Inline add form */}
+              {isAdmin && showAddForm && (
+                <motion.form
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onSubmit={handleAddSubject}
+                  className="flex flex-col gap-3 rounded-2xl border border-violet-200 bg-white p-5 shadow-md"
+                >
+                  <p className="text-xs font-bold uppercase tracking-widest text-violet-500">New Subject</p>
+                  <input
+                    type="text"
+                    placeholder="Subject name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={busy || !newName.trim()}
+                      className="flex-1 rounded-xl bg-violet-600 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Create"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddForm(false); setNewName(""); }}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.form>
+              )}
             </div>
           )}
         </div>

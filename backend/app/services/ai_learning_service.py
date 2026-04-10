@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import httpx
+from collections.abc import AsyncGenerator
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,15 +99,34 @@ class AILearningService:
 
         return "\n".join(lines)
 
+    _SYSTEM_PROMPT = (
+        "# PrepNest AI Tutor – Expert Learning Companion\n\n"
+        "You are an exceptional AI tutor specialising in **USAT & HAT exam preparation**.\n\n"
+        "## Core Principles\n"
+        "1. **Context First** – ground every answer in the provided study materials, MCQs, topics and web results before adding your own knowledge.\n"
+        "2. **Clarity & Structure** – use headings (##, ###), bullet points and numbered lists for easy scanning.\n"
+        "3. **Progressive Depth** – start with a concise answer, then build toward deeper understanding.\n"
+        "4. **Engaging Teaching** – use memorable analogies, real-world examples and relatable scenarios.\n"
+        "5. **Accuracy** – never fabricate facts. If uncertain, say so.\n\n"
+        "## Mode-Specific Instructions\n"
+        "- **chat**: Answer the question clearly and conversationally. End with a follow-up thought or practice prompt.\n"
+        "- **explain**: Give a thorough, concept-focused explanation. Define key terms, show cause-and-effect, and use examples. Finish with 2-3 quick review questions.\n"
+        "- **mcq**: Identify the correct option, explain *why* it is correct **and** why each distractor is wrong. Reference the underlying concept.\n"
+        "- **math**: Show complete step-by-step working with every formula and substitution labelled. Highlight common mistakes students make.\n"
+        "- **essay**: Provide structured, constructive feedback – strengths first, then specific improvements with rewrite suggestions.\n\n"
+        "## Formatting Rules\n"
+        "- Use **bold** for key terms on first mention.\n"
+        "- Use `inline code` for formulas, variables, and short expressions.\n"
+        "- Use fenced code blocks (```lang) for multi-line derivations or code.\n"
+        "- Keep paragraphs short (2-4 sentences).\n"
+        "- End every response with actionable next steps or a quick practice question.\n\n"
+        "## Tone\n"
+        "Professional yet warm and encouraging. Be enthusiastic about the subject. Motivate the student to keep going."
+    )
+
     async def _generate_answer(self, user_prompt: str, context_text: str, mode: str) -> str:
-        system_prompt = (
-            "You are an educational AI tutor. Use provided context first, then reason clearly. "
-            "For mcq mode explain why the correct option is correct and why others are wrong. "
-            "For math mode provide step-by-step derivation and formulas. "
-            "For essay mode provide structured feedback with strengths, weaknesses, and improvements."
-        )
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": self._SYSTEM_PROMPT},
             {"role": "user", "content": f"Mode: {mode}\n\nContext:\n{context_text}\n\nQuestion:\n{user_prompt}"},
         ]
         return await llm_service.complete(messages)
@@ -135,3 +156,33 @@ class AILearningService:
             ],
             web_results=web_results,
         )
+
+    async def stream_run(self, prompt: str, mode: str, include_web: bool) -> AsyncGenerator[str, None]:
+        """SSE streaming variant – yields `data: {...}\n\n` lines."""
+        materials = await self._search_materials(prompt)
+        mcqs = await self._search_mcqs(prompt)
+        topics = await self._load_topic_context(prompt)
+        web_results = await self._web_search(prompt) if include_web else []
+
+        context_text = self._build_context_text(materials, mcqs, topics, web_results)
+
+        messages = [
+            {"role": "system", "content": self._SYSTEM_PROMPT},
+            {"role": "user", "content": f"Mode: {mode}\n\nContext:\n{context_text}\n\nQuestion:\n{prompt}"},
+        ]
+
+        async for token in llm_service.stream_complete(messages):
+            yield f"data: {json.dumps({'type': 'token', 'value': token})}\n\n"
+
+        done_payload = {
+            "type": "done",
+            "context_materials": [
+                {"id": m.id, "title": m.title, "type": m.type, "topic_id": m.topic_id} for m in materials
+            ],
+            "context_mcqs": [
+                {"id": q.id, "question": q.question, "correct_answer": q.correct_answer, "topic_id": q.topic_id}
+                for q in mcqs
+            ],
+            "web_results": web_results,
+        }
+        yield f"data: {json.dumps(done_payload)}\n\n"

@@ -210,3 +210,16 @@ class PastPaperRead(BaseModel):
     subject_id: int
     chapter_id: int | None
     created_at: datetime
+
+
+# ── UserNote schemas ──────────────────────────────────────────────────────────
+
+class UserNoteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    file_path: str
+    subject_id: int
+    user_id: str
+    created_at: datetime

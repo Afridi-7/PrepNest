@@ -185,3 +185,19 @@ class PastPaper(Base):
 
     subject: Mapped["Subject"] = relationship()
     chapter: Mapped["Topic | None"] = relationship()
+
+
+class UserNote(Base):
+    """User-uploaded PDF notes scoped to a subject. View-only (no download)."""
+
+    __tablename__ = "user_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    file_path: Mapped[str] = mapped_column(Text)
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    subject: Mapped["Subject"] = relationship()
+    user: Mapped["User"] = relationship()

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -40,3 +41,47 @@ async def ai_solve(
     service = AILearningService(db)
     prompt = f"Solve this in {payload.mode} mode, step-by-step, and verify final answer: {payload.prompt}"
     return await service.run(prompt=prompt, mode=payload.mode, include_web=payload.include_web)
+
+
+# ── Streaming variants ────────────────────────────────────────────────────────
+
+
+@router.post("/chat/stream")
+async def ai_chat_stream(
+    payload: AIChatRequest,
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> StreamingResponse:
+    service = AILearningService(db)
+    return StreamingResponse(
+        service.stream_run(prompt=payload.question, mode="chat", include_web=payload.include_web),
+        media_type="text/event-stream",
+    )
+
+
+@router.post("/explain/stream")
+async def ai_explain_stream(
+    payload: AIExplainRequest,
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> StreamingResponse:
+    service = AILearningService(db)
+    prompt = f"Explain this topic in depth with examples: {payload.topic}."
+    return StreamingResponse(
+        service.stream_run(prompt=prompt, mode="explain", include_web=payload.include_web),
+        media_type="text/event-stream",
+    )
+
+
+@router.post("/solve/stream")
+async def ai_solve_stream(
+    payload: AISolveRequest,
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> StreamingResponse:
+    service = AILearningService(db)
+    prompt = f"Solve this in {payload.mode} mode, step-by-step, and verify final answer: {payload.prompt}"
+    return StreamingResponse(
+        service.stream_run(prompt=prompt, mode=payload.mode, include_web=payload.include_web),
+        media_type="text/event-stream",
+    )

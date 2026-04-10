@@ -1,46 +1,34 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
-import { CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings, Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings,
+  Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut, Loader2, ChevronDown,
+} from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { apiClient } from "@/services/api";
+import { apiClient, MCQ, type Subject, type USATCategory } from "@/services/api";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 
-const allQuestions = [
-  { question: "Which of the following is the correct meaning of 'Ubiquitous'?", options: ["Rare", "Present everywhere", "Ancient", "Mysterious"], correct: 1, subject: "English" },
-  { question: "If 3x + 7 = 22, what is the value of x?", options: ["3", "5", "7", "15"], correct: 1, subject: "Mathematics" },
-  { question: "Newton's Third Law states that:", options: ["F = ma", "Every action has an equal and opposite reaction", "Energy is conserved", "Objects at rest stay at rest"], correct: 1, subject: "Physics" },
-  { question: "What is the chemical formula for water?", options: ["CO₂", "H₂O", "NaCl", "O₂"], correct: 1, subject: "Chemistry" },
-  { question: "The powerhouse of the cell is:", options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi Body"], correct: 2, subject: "Biology" },
-  { question: "Choose the correct sentence:", options: ["He don't know nothing.", "He doesn't know anything.", "He don't know anything.", "He doesn't knows anything."], correct: 1, subject: "English" },
-  { question: "What is 15% of 200?", options: ["25", "30", "35", "40"], correct: 1, subject: "Mathematics" },
-  { question: "The SI unit of force is:", options: ["Joule", "Watt", "Newton", "Pascal"], correct: 2, subject: "Physics" },
-  { question: "Which gas is most abundant in Earth's atmosphere?", options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], correct: 1, subject: "Chemistry" },
-  { question: "DNA stands for:", options: ["Deoxyribonucleic Acid", "Dinitro Acid", "Deoxyribo Nuclear Acid", "None"], correct: 0, subject: "Biology" },
-  { question: "The synonym of 'Eloquent' is:", options: ["Silent", "Articulate", "Rude", "Slow"], correct: 1, subject: "English" },
-  { question: "Solve: 2² + 3² = ?", options: ["10", "13", "12", "25"], correct: 1, subject: "Mathematics" },
-  { question: "Speed of light is approximately:", options: ["3×10⁶ m/s", "3×10⁸ m/s", "3×10¹⁰ m/s", "3×10⁴ m/s"], correct: 1, subject: "Physics" },
-  { question: "The pH of pure water is:", options: ["0", "7", "14", "1"], correct: 1, subject: "Chemistry" },
-  { question: "Photosynthesis occurs in:", options: ["Mitochondria", "Chloroplast", "Nucleus", "Ribosome"], correct: 1, subject: "Biology" },
-  { question: "Antonym of 'Benevolent':", options: ["Kind", "Generous", "Malevolent", "Gentle"], correct: 2, subject: "English" },
-  { question: "If x² = 49, then x = ?", options: ["±7", "7", "49", "±49"], correct: 0, subject: "Mathematics" },
-  { question: "Which planet is closest to the Sun?", options: ["Venus", "Earth", "Mercury", "Mars"], correct: 2, subject: "Physics" },
-  { question: "Common salt is:", options: ["KCl", "NaCl", "CaCl₂", "MgCl₂"], correct: 1, subject: "Chemistry" },
-  { question: "The basic unit of life is:", options: ["Atom", "Molecule", "Cell", "Organ"], correct: 2, subject: "Biology" },
-];
+/* ── Map DB MCQ → quiz-friendly shape ── */
+interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correct: number; // 0-3
+  subject: string;
+  explanation: string;
+}
 
-const buildExplanation = (correctOption: string, subject: string) => {
-  const templates: Record<string, string> = {
-    English: `In English, meaning and context are key. The correct choice is "${correctOption}" because it best matches the grammar or vocabulary usage in the question.`,
-    Mathematics: `Use the core math rule in the question and simplify step by step. This leads to "${correctOption}" as the correct result.`,
-    Physics: `Apply the relevant physics concept or law directly. With the standard definition, "${correctOption}" is correct.`,
-    Chemistry: `Using standard chemical facts and notation, the correct answer is "${correctOption}".`,
-    Biology: `From basic biology definitions and functions, "${correctOption}" is the correct option.`,
-  };
-  return templates[subject] || `For this question, the correct answer is "${correctOption}" based on the core concept being tested.`;
-};
+const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
 
-const subjectOptions = ["All Subjects", "English", "Mathematics", "Physics", "Chemistry", "Biology"];
+const toQuizQuestion = (mcq: MCQ, subjectName: string): QuizQuestion => ({
+  id: mcq.id,
+  question: mcq.question,
+  options: [mcq.option_a, mcq.option_b, mcq.option_c, mcq.option_d],
+  correct: letterToIndex[mcq.correct_answer] ?? 0,
+  subject: subjectName,
+  explanation: mcq.explanation || `The correct answer is "${mcq[`option_${mcq.correct_answer.toLowerCase()}` as keyof MCQ]}".`,
+});
+
 const mcqCountOptions = [5, 10, 15, 20];
 const timeOptions = [
   { label: "No Timer", value: 0 },
@@ -61,32 +49,92 @@ const SUBJECT_PILLS: Record<string, string> = {
 
 const Practice = () => {
   const [phase, setPhase] = useState<"config" | "quiz" | "result">("config");
-  const [subject, setSubject] = useState("All Subjects");
+
+  /* ── Categories & Subjects from DB ── */
+  const [categories, setCategories] = useState<USATCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<USATCategory | null>(null);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [selectedSubjectName, setSelectedSubjectName] = useState("All Subjects");
+
   const [mcqCount, setMcqCount] = useState(10);
   const [timeLimit, setTimeLimit] = useState(10);
-  const [questions, setQuestions] = useState<typeof allQuestions>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [timeUp, setTimeUp] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [fetchingMCQs, setFetchingMCQs] = useState(false);
 
-  const startQuiz = () => {
+  /* ── Fetch categories on mount ── */
+  useEffect(() => {
+    apiClient.listUSATCategories().then(setCategories).catch(() => {});
+  }, []);
+
+  /* ── When category changes, load its subjects ── */
+  useEffect(() => {
+    if (!selectedCategory) { setDbSubjects([]); return; }
+    setLoadingSubjects(true);
+    setSelectedSubjectId(null);
+    setSelectedSubjectName("All Subjects");
+    apiClient.listUSATCategorySubjects(selectedCategory.code)
+      .then(setDbSubjects)
+      .catch(() => setDbSubjects([]))
+      .finally(() => setLoadingSubjects(false));
+  }, [selectedCategory]);
+
+  const startQuiz = async () => {
     if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
-    let pool = subject === "All Subjects" ? [...allQuestions] : allQuestions.filter(q => q.subject === subject);
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+
+    setFetchingMCQs(true);
+    try {
+      let tagged: { mcq: MCQ; subjectName: string }[] = [];
+
+      if (selectedSubjectId) {
+        const subjectName = dbSubjects.find((s) => s.id === selectedSubjectId)?.name ?? "Unknown";
+        const mcqs = await apiClient.listSubjectPracticeMCQs(selectedSubjectId, mcqCount);
+        tagged = mcqs.map((mcq) => ({ mcq, subjectName }));
+      } else {
+        // "All Subjects" — fetch from every subject and shuffle
+        const perSubject = Math.ceil(mcqCount / Math.max(dbSubjects.length, 1));
+        const fetchPromises = dbSubjects.map(async (s) => {
+          const mcqs = await apiClient.listSubjectPracticeMCQs(s.id, perSubject);
+          return mcqs.map((mcq) => ({ mcq, subjectName: s.name }));
+        });
+        const results = await Promise.all(fetchPromises);
+        tagged = results.flat();
+        // Shuffle
+        for (let i = tagged.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
+        }
+      }
+
+      const quizQuestions = tagged.slice(0, mcqCount).map(({ mcq, subjectName }) =>
+        toQuizQuestion(mcq, subjectName)
+      );
+
+      if (quizQuestions.length === 0) {
+        alert("No MCQs found for the selected subject. Please add MCQs first.");
+        return;
+      }
+
+      setQuestions(quizQuestions);
+      setAnswers(new Array(quizQuestions.length).fill(null));
+      setCurrentQ(0);
+      setScore(0);
+      setTimeUp(false);
+      setTimeLeft(timeLimit * 60);
+      setPhase("quiz");
+    } catch (err: any) {
+      alert(err.message || "Failed to load MCQs");
+    } finally {
+      setFetchingMCQs(false);
     }
-    const quizSelection = pool.slice(0, Math.min(mcqCount, pool.length));
-    setQuestions(quizSelection);
-    setAnswers(new Array(quizSelection.length).fill(null));
-    setCurrentQ(0);
-    setScore(0);
-    setTimeUp(false);
-    setTimeLeft(timeLimit * 60);
-    setPhase("quiz");
   };
 
   const finishQuiz = useCallback(() => {
@@ -128,16 +176,12 @@ const Practice = () => {
   return (
     <>
       <Navbar />
-      <AuthRequiredDialog
-        open={authDialogOpen}
-        onOpenChange={setAuthDialogOpen}
-        message="Please log in first to start a practice test."
-      />
+      <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}
+        message="Please log in first to start a practice test." />
 
-      {/* same bg as rest of app */}
       <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
 
-        {/* ambient blobs — identical to other pages */}
+        {/* ambient blobs */}
         <motion.div aria-hidden animate={{ x: [0, 22, 0], y: [0, -18, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
           className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl" />
         <motion.div aria-hidden animate={{ x: [0, -18, 0], y: [0, 16, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
@@ -151,7 +195,7 @@ const Practice = () => {
           {phase === "config" && (
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
 
-              {/* hero — same violet gradient as all other pages */}
+              {/* hero */}
               <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30">
                 <motion.div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
                   animate={{ x: [0, 16, 0], y: [0, -14, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
@@ -174,21 +218,69 @@ const Practice = () => {
               {/* white config card */}
               <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 space-y-8">
 
+                {/* Category Dropdown */}
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Subject</label>
-                  <div className="flex flex-wrap gap-2">
-                    {subjectOptions.map(s => (
-                      <button key={s} onClick={() => setSubject(s)}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
-                          subject === s
-                            ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                        }`}>
-                        {s}
-                      </button>
-                    ))}
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Category</label>
+                  <div className="relative sm:max-w-xs">
+                    <button type="button" onClick={() => setCategoryOpen(!categoryOpen)}
+                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                        selectedCategory
+                          ? "border-violet-300 bg-violet-50 text-violet-700"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
+                      }`}>
+                      {selectedCategory ? `${selectedCategory.code} — ${selectedCategory.title}` : "Select a category…"}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {categoryOpen && (
+                      <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                        {categories.map((cat) => (
+                          <button key={cat.code} type="button"
+                            onClick={() => { setSelectedCategory(cat); setCategoryOpen(false); }}
+                            className={`flex w-full flex-col px-4 py-2.5 text-left transition hover:bg-violet-50 ${
+                              selectedCategory?.code === cat.code ? "bg-violet-50" : ""
+                            }`}>
+                            <span className="text-sm font-bold text-slate-800">{cat.code} — {cat.title}</span>
+                            <span className="text-[11px] text-slate-400">{cat.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Subject Pills (only appear after category is selected) */}
+                {selectedCategory && (
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Subject</label>
+                    {loadingSubjects ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading subjects…
+                      </div>
+                    ) : dbSubjects.length === 0 ? (
+                      <p className="text-sm text-slate-400">No subjects found for this category.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {["All Subjects", ...dbSubjects.map((s) => s.name)].map((s) => {
+                          const isAll = s === "All Subjects";
+                          const isActive = isAll ? selectedSubjectId === null : dbSubjects.find((ds) => ds.name === s)?.id === selectedSubjectId;
+                          return (
+                            <button key={s} onClick={() => {
+                              if (isAll) { setSelectedSubjectId(null); setSelectedSubjectName("All Subjects"); }
+                              else { const found = dbSubjects.find((ds) => ds.name === s); setSelectedSubjectId(found?.id ?? null); setSelectedSubjectName(s); }
+                            }}
+                              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                                isActive
+                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
+                                  : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                              }`}>
+                              {s}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Number of Questions</label>
@@ -224,9 +316,17 @@ const Practice = () => {
 
                 {/* summary */}
                 <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-5 py-4">
+                  {selectedCategory && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold text-slate-700">{selectedCategory.code}</span>
+                      </div>
+                      <div className="h-4 w-px bg-violet-200" />
+                    </>
+                  )}
                   <div className="flex items-center gap-2 text-sm">
                     <BookOpen className="h-4 w-4 text-violet-400" />
-                    <span className="font-semibold text-slate-700">{subject}</span>
+                    <span className="font-semibold text-slate-700">{selectedSubjectName}</span>
                   </div>
                   <div className="h-4 w-px bg-violet-200" />
                   <div className="flex items-center gap-2 text-sm">
@@ -240,9 +340,9 @@ const Practice = () => {
                   </div>
                 </div>
 
-                <button onClick={startQuiz}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 active:scale-[0.99]">
-                  <Play className="h-5 w-5" /> Start Test
+                <button onClick={startQuiz} disabled={fetchingMCQs || !selectedCategory}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-60">
+                  {fetchingMCQs ? <><Loader2 className="h-5 w-5 animate-spin" /> Loading MCQs…</> : <><Play className="h-5 w-5" /> Start Test</>}
                 </button>
               </div>
             </motion.div>
@@ -291,8 +391,18 @@ const Practice = () => {
                       transition={{ duration: 0.3 }} />
                   </div>
 
-                  {/* question card — white */}
-                  <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 mb-5">
+                  {/* question card */}
+                  <AnimatePresence mode="wait">
+                  <motion.div key={currentQ}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.25 }}
+                    className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 mb-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xs font-bold uppercase tracking-widest text-violet-400">Question {currentQ + 1}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${SUBJECT_PILLS[q.subject] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>{q.subject}</span>
+                    </div>
                     <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed mb-8">{q.question}</p>
                     <div className="space-y-3">
                       {q.options.map((opt, i) => {
@@ -319,7 +429,8 @@ const Practice = () => {
                         );
                       })}
                     </div>
-                  </div>
+                  </motion.div>
+                  </AnimatePresence>
                 </div>
 
                 {/* sidebar */}
@@ -392,30 +503,52 @@ const Practice = () => {
                 </div>
               )}
 
-              {/* score hero — same violet gradient */}
+              {/* score hero */}
               <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 sm:p-12 text-center mb-6 shadow-2xl shadow-violet-400/30">
                 <motion.div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
                   animate={{ x: [0, 16, 0], y: [0, -14, 0] }} transition={{ duration: 10, repeat: Infinity }} />
                 <motion.div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl"
                   animate={{ x: [0, -12, 0], y: [0, 12, 0] }} transition={{ duration: 12, repeat: Infinity }} />
                 <div className="relative z-10">
-                  <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-white/20 backdrop-blur-sm shadow-xl mb-5">
-                    <CheckCircle2 className="h-10 w-10 text-white" />
+                  {/* circular gauge */}
+                  <div className="mx-auto mb-6 relative h-44 w-44 sm:h-52 sm:w-52">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="10" />
+                      <motion.circle cx="60" cy="60" r="52" fill="none" stroke="white" strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 52}
+                        initial={{ strokeDashoffset: 2 * Math.PI * 52 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 52 * (1 - pct / 100) }}
+                        transition={{ duration: 1.2, ease: "easeOut", delay: 0.3 }} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <motion.span className="text-5xl sm:text-6xl font-black text-white drop-shadow-lg"
+                        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.6 }}>
+                        {pct}%
+                      </motion.span>
+                      <span className="text-xs text-violet-200 mt-1">{score}/{questions.length}</span>
+                    </div>
                   </div>
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-1">Test Complete!</h2>
-                  <p className="text-violet-200 text-sm mb-4">You scored {score} out of {questions.length}</p>
-                  <div className="text-6xl sm:text-7xl font-black text-white drop-shadow-lg mb-8">{pct}%</div>
+
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-1">
+                    {pct >= 80 ? "Excellent!" : pct >= 60 ? "Good Job!" : pct >= 40 ? "Keep Practicing!" : "Don't Give Up!"}
+                  </h2>
+                  <p className="text-violet-200 text-sm mb-6">You answered {score} out of {questions.length} correctly</p>
 
                   <div className="flex flex-wrap justify-center gap-3 mb-8">
-                    {[
-                      { label: "Correct", value: score },
-                      { label: "Wrong",   value: answers.filter((a, i) => a !== null && a !== questions[i]?.correct).length },
-                      { label: "Skipped", value: answers.filter(a => a === null).length },
-                    ].map(stat => (
-                      <div key={stat.label} className="rounded-2xl border border-white/20 bg-white/15 backdrop-blur-sm px-6 py-3">
-                        <div className="text-2xl font-black text-white">{stat.value}</div>
+                    {([
+                      { label: "Correct", value: score, color: "text-emerald-300", bg: "bg-emerald-400/15 border-emerald-400/25" },
+                      { label: "Wrong",   value: answers.filter((a, i) => a !== null && a !== questions[i]?.correct).length, color: "text-rose-300", bg: "bg-rose-400/15 border-rose-400/25" },
+                      { label: "Skipped", value: answers.filter(a => a === null).length, color: "text-amber-300", bg: "bg-amber-400/15 border-amber-400/25" },
+                    ] as const).map((stat, idx) => (
+                      <motion.div key={stat.label}
+                        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35, delay: 0.8 + idx * 0.1 }}
+                        className={`rounded-2xl border backdrop-blur-sm px-6 py-3 min-w-[100px] ${stat.bg}`}>
+                        <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
                         <div className="text-xs text-violet-200 mt-0.5">{stat.label}</div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
 
@@ -432,7 +565,7 @@ const Practice = () => {
                 </div>
               </div>
 
-              {/* answer review — white card */}
+              {/* answer review */}
               <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/20">
                 <h3 className="text-lg font-bold text-slate-900 mb-5">Answer Review</h3>
                 <div className="space-y-3">
@@ -440,7 +573,6 @@ const Practice = () => {
                     const userAns = answers[i];
                     const isCorrect = userAns === q.correct;
                     const isSkipped = userAns === null;
-                    const explanation = buildExplanation(q.options[q.correct], q.subject);
                     return (
                       <div key={i} className={`rounded-2xl border p-4 sm:p-5 ${
                         isCorrect ? "border-emerald-200 bg-emerald-50/60"
@@ -468,7 +600,7 @@ const Practice = () => {
                               {!isCorrect && <> · Correct: <span className="text-emerald-600 font-semibold">{q.options[q.correct]}</span></>}
                             </p>
                             <div className="mt-2.5 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2.5 text-xs text-slate-600 leading-relaxed">
-                              <span className="font-bold text-violet-600">Explanation: </span>{explanation}
+                              <span className="font-bold text-violet-600">Explanation: </span>{q.explanation}
                             </div>
                           </div>
                         </div>

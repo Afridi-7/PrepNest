@@ -70,7 +70,7 @@ const normalizeApiBaseUrl = (rawValue?: string): string => {
 };
 
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL);
-const API_ORIGIN = (() => {
+export const API_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL, typeof window !== "undefined" ? window.location.origin : undefined).origin;
   } catch {
@@ -190,6 +190,15 @@ export interface PastPaper {
   created_at: string;
 }
 
+export interface UserNote {
+  id: number;
+  title: string;
+  file_path: string;
+  subject_id: number;
+  user_id: string;
+  created_at: string;
+}
+
 export interface AIResponse {
   answer: string;
   context_materials: Array<Record<string, unknown>>;
@@ -199,6 +208,7 @@ export interface AIResponse {
 
 class ApiClient {
   private token: string | null = null;
+  private _adminCache: boolean | null = null;
 
   constructor() {
     this.token = localStorage.getItem("access_token");
@@ -206,12 +216,27 @@ class ApiClient {
 
   setToken(token: string) {
     this.token = token;
+    this._adminCache = null;
     localStorage.setItem("access_token", token);
   }
 
   clearToken() {
     this.token = null;
+    this._adminCache = null;
     localStorage.removeItem("access_token");
+  }
+
+  /** Cached admin check – avoids repeated /users/me calls */
+  async checkIsAdmin(): Promise<boolean> {
+    if (!this.isAuthenticated()) return false;
+    if (this._adminCache !== null) return this._adminCache;
+    try {
+      const profile = await this.getCurrentUser();
+      this._adminCache = profile.is_admin;
+      return this._adminCache;
+    } catch {
+      return false;
+    }
   }
 
   private isTokenExpired(token: string): boolean {
@@ -298,6 +323,9 @@ class ApiClient {
             : undefined;
       throw new Error(detailMessage || errorPayload?.message || `API error: ${response.status}`);
     }
+
+    // 204 No Content — nothing to parse
+    if (response.status === 204) return undefined as unknown as T;
 
     return response.json();
   }
@@ -436,10 +464,46 @@ class ApiClient {
     return this.request<PastPaper[]>(`/usat/subjects/${subjectId}/papers`);
   }
 
+  // ── User Notes (user-uploaded PDFs, view-only) ───────────────────────────
+
+  async listUserNotes(subjectId: number): Promise<UserNote[]> {
+    return this.request<UserNote[]>(`/usat/subjects/${subjectId}/user-notes`);
+  }
+
+  async uploadUserNote(subjectId: number, title: string, file: File): Promise<UserNote> {
+    const apiUrl = `${API_BASE_URL}/usat/subjects/${subjectId}/user-notes`;
+    const form = new FormData();
+    form.append("title", title);
+    form.append("file", file);
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async deleteUserNote(noteId: number): Promise<void> {
+    await this.request<void>(`/usat/user-notes/${noteId}`, "DELETE");
+  }
+
+  getUserNoteViewUrl(noteId: number): string {
+    return `${API_BASE_URL}/usat/user-notes/${noteId}/view`;
+  }
+
   async listChapterMCQsPaginated(chapterId: number, limit = 30, offset = 0): Promise<MCQ[]> {
     return this.request<MCQ[]>(
       `/usat/chapters/${chapterId}/mcqs?limit=${limit}&offset=${offset}`
     );
+  }
+
+  async listSubjectPracticeMCQs(subjectId: number, limit = 20): Promise<MCQ[]> {
+    return this.request<MCQ[]>(`/usat/subjects/${subjectId}/practice-mcqs?limit=${limit}`);
   }
 
   // ── Resource admin ───────────────────────────────────────────────────────
@@ -611,6 +675,10 @@ class ApiClient {
     return this.request<Tip>("/admin/tips", "POST", payload);
   }
 
+  async deleteTip(tipId: number): Promise<void> {
+    await this.request<void>(`/admin/tips/${tipId}`, "DELETE");
+  }
+
   async updateMaterial(
     materialId: number,
     payload: Partial<{ title: string; content: string; type: "notes" | "past_paper"; topic_id: number }>
@@ -714,6 +782,35 @@ class ApiClient {
     includeWeb: boolean = true
   ): Promise<AIResponse> {
     return this.request<AIResponse>("/ai/solve", "POST", { prompt, mode, include_web: includeWeb });
+  }
+
+  /** Streaming variants – return a ReadableStream of SSE events */
+  async aiChatStream(question: string, includeWeb: boolean = true): Promise<ReadableStream<Uint8Array>> {
+    return this._aiStream("/ai/chat/stream", { question, include_web: includeWeb });
+  }
+
+  async aiExplainStream(topic: string, includeWeb: boolean = true): Promise<ReadableStream<Uint8Array>> {
+    return this._aiStream("/ai/explain/stream", { topic, include_web: includeWeb });
+  }
+
+  async aiSolveStream(prompt: string, mode: "mcq" | "math" | "essay" = "mcq", includeWeb: boolean = true): Promise<ReadableStream<Uint8Array>> {
+    return this._aiStream("/ai/solve/stream", { prompt, mode, include_web: includeWeb });
+  }
+
+  private async _aiStream(path: string, body: Record<string, unknown>): Promise<ReadableStream<Uint8Array>> {
+    const url = `${API_BASE_URL}${path}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getHeaders(),
+      mode: "cors",
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(error.message || `API error: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body;
   }
 
   getToken(): string | null {

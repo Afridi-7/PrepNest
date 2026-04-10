@@ -463,6 +463,19 @@ async def create_tip(
     return TipRead.model_validate(tip)
 
 
+@router.delete("/tips/{tip_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tip(
+    tip_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    tip = await db.get(Tip, tip_id)
+    if not tip:
+        raise HTTPException(status_code=404, detail="Tip not found")
+    await db.delete(tip)
+    await db.commit()
+
+
 @router.patch("/materials/{material_id}", response_model=MaterialRead)
 async def update_material(
     material_id: int,
