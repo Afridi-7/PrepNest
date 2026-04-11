@@ -2,11 +2,11 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, ChevronDown, Download, Eye, FileText, Flame, Layers,
-  Lightbulb, ListChecks, Loader2, Plus, Trash2, Upload, X,
+  ArrowLeft, ChevronDown, Download, Eye, FileText, Flame, Globe, Layers,
+  Lightbulb, Link2, ListChecks, Loader2, Plus, Trash2, Upload, X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { apiClient, MCQ, Note, PastPaper, Resource, Subject, Tip, Topic, UserNote, API_ORIGIN } from "@/services/api";
+import { apiClient, MCQ, PastPaper, Subject, SubjectResource, Tip, Topic, UserNote, API_ORIGIN } from "@/services/api";
 
 const slugify = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -78,7 +78,6 @@ const USATSubjectChapters = () => {
   const { category = "", subject = "" } = useParams();
   const [subjectInfo, setSubjectInfo] = useState<Subject | null>(null);
   const [chapters, setChapters] = useState<Topic[]>([]);
-  const [subjectNotes, setSubjectNotes] = useState<Note[]>([]);
   const [subjectPapers, setSubjectPapers] = useState<PastPaper[]>([]);
   const [subjectTips, setSubjectTips] = useState<Tip[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,7 +95,6 @@ const USATSubjectChapters = () => {
   const [expandedChapterId, setExpandedChapterId] = useState<number | null>(null);
 
   // Per-chapter lazy-loaded data
-  const [chapterResourcesById, setChapterResourcesById] = useState<Record<number, Resource[]>>({});
   const [chapterMcqsById, setChapterMcqsById] = useState<Record<number, MCQ[]>>({});
   const [chapterMcqOffsets, setChapterMcqOffsets] = useState<Record<number, number>>({});
   const [chapterMcqHasMore, setChapterMcqHasMore] = useState<Record<number, boolean>>({});
@@ -106,9 +104,6 @@ const USATSubjectChapters = () => {
   // Admin inline form toggles
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [addChapterTitle, setAddChapterTitle] = useState("");
-  const [showAddResourceFor, setShowAddResourceFor] = useState<number | null>(null);
-  const [addResTitle, setAddResTitle] = useState("");
-  const [addResUrl, setAddResUrl] = useState("");
   const [showAddMCQFor, setShowAddMCQFor] = useState<number | null>(null);
   const [mcqQ, setMcqQ] = useState("");
   const [mcqA, setMcqA] = useState("");
@@ -117,9 +112,6 @@ const USATSubjectChapters = () => {
   const [mcqD, setMcqD] = useState("");
   const [mcqCorrect, setMcqCorrect] = useState<"A"|"B"|"C"|"D">("A");
   const [mcqExpl, setMcqExpl] = useState("");
-  const [showAddSubjNote, setShowAddSubjNote] = useState(false);
-  const [subjNoteTitle, setSubjNoteTitle] = useState("");
-  const [subjNoteContent, setSubjNoteContent] = useState("");
   const [showAddPaper, setShowAddPaper] = useState(false);
   const [paperTitle, setPaperTitle] = useState("");
   const [paperUrl, setPaperUrl] = useState("");
@@ -130,6 +122,12 @@ const USATSubjectChapters = () => {
   const [busy, setBusy] = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
+
+  // Subject-level resources
+  const [subjectResources, setSubjectResources] = useState<SubjectResource[]>([]);
+  const [showAddSubjRes, setShowAddSubjRes] = useState(false);
+  const [subjResTitle, setSubjResTitle] = useState("");
+  const [subjResUrl, setSubjResUrl] = useState("");
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -143,41 +141,37 @@ const USATSubjectChapters = () => {
       const fetchedSubjects = await apiClient.listUSATCategorySubjects(category);
       const matched = fetchedSubjects.find((item) => slugify(item.name) === subject) || null;
       setSubjectInfo(matched);
-      if (!matched) { setChapters([]); setSubjectNotes([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); setExpandedChapterId(null); return; }
-      const [fetchedChapters, notes, papers, tips] = await Promise.all([
+      if (!matched) { setChapters([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); setSubjectResources([]); setExpandedChapterId(null); return; }
+      const [fetchedChapters, papers, tips, sResources] = await Promise.all([
         apiClient.listTopics(matched.id),
-        apiClient.listSubjectNotes(matched.id),
         apiClient.listSubjectPapers(matched.id),
         apiClient.listSubjectTips(matched.id),
+        apiClient.listSubjectResources(matched.id),
       ]);
       setChapters(fetchedChapters);
-      setSubjectNotes(notes);
       setSubjectPapers(papers);
       setSubjectTips(tips);
+      setSubjectResources(sResources);
       // Load user notes separately (requires auth, may fail for guests)
       apiClient.listUserNotes(matched.id).then(setUserNotes).catch(() => setUserNotes([]));
     })()
-      .catch(() => { setSubjectInfo(null); setChapters([]); setSubjectNotes([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); })
+      .catch(() => { setSubjectInfo(null); setChapters([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); setSubjectResources([]); })
       .finally(() => setLoading(false));
   }, [category, subject]);
 
   const loadChapterData = useCallback(async (chapterId: number) => {
     if (chapterLoadingById[chapterId]) return;
-    if (chapterResourcesById[chapterId] !== undefined) return;
+    if (chapterMcqsById[chapterId] !== undefined) return;
     setChapterLoadingById((prev) => ({ ...prev, [chapterId]: true }));
     try {
-      const [resources, mcqs] = await Promise.all([
-        apiClient.listChapterResources(chapterId),
-        apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, 0),
-      ]);
-      setChapterResourcesById((prev) => ({ ...prev, [chapterId]: resources }));
+      const mcqs = await apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, 0);
       setChapterMcqsById((prev) => ({ ...prev, [chapterId]: mcqs }));
       setChapterMcqOffsets((prev) => ({ ...prev, [chapterId]: MCQ_PAGE_SIZE }));
       setChapterMcqHasMore((prev) => ({ ...prev, [chapterId]: mcqs.length === MCQ_PAGE_SIZE }));
     } finally {
       setChapterLoadingById((prev) => ({ ...prev, [chapterId]: false }));
     }
-  }, [chapterLoadingById, chapterResourcesById]);
+  }, [chapterLoadingById, chapterMcqsById]);
 
   const toggleChapter = useCallback((chapterId: number) => {
     if (expandedChapterId === chapterId) { setExpandedChapterId(null); return; }
@@ -219,25 +213,6 @@ const USATSubjectChapters = () => {
     catch (err: any) { alert(err.message); }
   };
 
-  const addResource = async (e: FormEvent, chapterId: number) => {
-    e.preventDefault();
-    if (!addResTitle.trim() || !addResUrl.trim() || busy) return;
-    setBusy(true);
-    try {
-      const created = await apiClient.createResource({ title: addResTitle.trim(), url: addResUrl.trim(), chapter_id: chapterId });
-      setChapterResourcesById((prev) => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), created] }));
-      setAddResTitle(""); setAddResUrl(""); setShowAddResourceFor(null);
-    } catch (err: any) { alert(err.message); }
-    finally { setBusy(false); }
-  };
-
-  const deleteResource = async (resourceId: number, chapterId: number) => {
-    try {
-      await apiClient.deleteResource(resourceId);
-      setChapterResourcesById((prev) => ({ ...prev, [chapterId]: (prev[chapterId] || []).filter((r) => r.id !== resourceId) }));
-    } catch (err: any) { alert(err.message); }
-  };
-
   const addMCQ = async (e: FormEvent, chapterId: number) => {
     e.preventDefault();
     if (!mcqQ.trim() || !mcqA.trim() || !mcqB.trim() || !mcqC.trim() || !mcqD.trim() || busy) return;
@@ -262,13 +237,6 @@ const USATSubjectChapters = () => {
     } catch (err: any) { alert(err.message); }
   };
 
-  const deleteNote = async (noteId: number) => {
-    try {
-      await apiClient.deleteNote(noteId);
-      setSubjectNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch (err: any) { alert(err.message); }
-  };
-
   const handleCSVUpload = async (chapterId: number, file: File) => {
     setBusy(true);
     try {
@@ -280,18 +248,6 @@ const USATSubjectChapters = () => {
       setChapterMcqHasMore((prev) => ({ ...prev, [chapterId]: mcqs.length === MCQ_PAGE_SIZE }));
     } catch (err: any) { alert(err.message); }
     finally { setBusy(false); if (csvRef.current) csvRef.current.value = ""; }
-  };
-
-  const addSubjectNote = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!subjNoteTitle.trim() || !subjectInfo || busy) return;
-    setBusy(true);
-    try {
-      const created = await apiClient.createNote({ title: subjNoteTitle.trim(), content: subjNoteContent, subject_id: subjectInfo.id });
-      setSubjectNotes((prev) => [...prev, created]);
-      setSubjNoteTitle(""); setSubjNoteContent(""); setShowAddSubjNote(false);
-    } catch (err: any) { alert(err.message); }
-    finally { setBusy(false); }
   };
 
   const addPaper = async (e: FormEvent) => {
@@ -325,6 +281,23 @@ const USATSubjectChapters = () => {
 
   const deleteTip = async (id: number) => {
     try { await apiClient.deleteTip(id); setSubjectTips((prev) => prev.filter((t) => t.id !== id)); }
+    catch (err: any) { alert(err.message); }
+  };
+
+  const addSubjectResource = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!subjResTitle.trim() || !subjResUrl.trim() || !subjectInfo || busy) return;
+    setBusy(true);
+    try {
+      const created = await apiClient.createSubjectResource({ title: subjResTitle.trim(), url: subjResUrl.trim(), subject_id: subjectInfo.id });
+      setSubjectResources((prev) => [created, ...prev]);
+      setSubjResTitle(""); setSubjResUrl(""); setShowAddSubjRes(false);
+    } catch (err: any) { alert(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const deleteSubjectResource = async (id: number) => {
+    try { await apiClient.deleteSubjectResource(id); setSubjectResources((prev) => prev.filter((r) => r.id !== id)); }
     catch (err: any) { alert(err.message); }
   };
 
@@ -382,7 +355,7 @@ const USATSubjectChapters = () => {
             <div className="mt-6 flex flex-wrap gap-3">
               {[
                 { label: "Chapters", value: chapters.length, color: "bg-white/20 text-white" },
-                { label: "Subject Notes", value: subjectNotes.length, color: "bg-cyan-400/30 text-cyan-100" },
+                { label: "Subject Notes", value: userNotes.length, color: "bg-cyan-400/30 text-cyan-100" },
                 { label: "Past Papers", value: subjectPapers.length, color: "bg-fuchsia-400/30 text-fuchsia-100" },
               ].map((stat) => (
                 <div key={stat.label}
@@ -417,29 +390,40 @@ const USATSubjectChapters = () => {
                     <p className="text-sm text-slate-400">No chapters available yet.</p>
                   ) : (
                     <div className="space-y-2">
-                      {chapters.map((chapter, index) => {
+                      {(() => {
+                        const chapterColors = [
+                          { bg: "bg-violet-50", border: "border-violet-200", expandBg: "bg-gradient-to-r from-violet-50 to-purple-50", expandBorder: "border-violet-300 shadow-violet-100", label: "text-violet-500", title: "text-violet-900", hoverBg: "hover:bg-violet-50/50" },
+                          { bg: "bg-sky-50", border: "border-sky-200", expandBg: "bg-gradient-to-r from-sky-50 to-blue-50", expandBorder: "border-sky-300 shadow-sky-100", label: "text-sky-500", title: "text-sky-900", hoverBg: "hover:bg-sky-50/50" },
+                          { bg: "bg-emerald-50", border: "border-emerald-200", expandBg: "bg-gradient-to-r from-emerald-50 to-teal-50", expandBorder: "border-emerald-300 shadow-emerald-100", label: "text-emerald-500", title: "text-emerald-900", hoverBg: "hover:bg-emerald-50/50" },
+                          { bg: "bg-amber-50", border: "border-amber-200", expandBg: "bg-gradient-to-r from-amber-50 to-yellow-50", expandBorder: "border-amber-300 shadow-amber-100", label: "text-amber-500", title: "text-amber-900", hoverBg: "hover:bg-amber-50/50" },
+                          { bg: "bg-rose-50", border: "border-rose-200", expandBg: "bg-gradient-to-r from-rose-50 to-pink-50", expandBorder: "border-rose-300 shadow-rose-100", label: "text-rose-500", title: "text-rose-900", hoverBg: "hover:bg-rose-50/50" },
+                          { bg: "bg-cyan-50", border: "border-cyan-200", expandBg: "bg-gradient-to-r from-cyan-50 to-teal-50", expandBorder: "border-cyan-300 shadow-cyan-100", label: "text-cyan-500", title: "text-cyan-900", hoverBg: "hover:bg-cyan-50/50" },
+                          { bg: "bg-fuchsia-50", border: "border-fuchsia-200", expandBg: "bg-gradient-to-r from-fuchsia-50 to-pink-50", expandBorder: "border-fuchsia-300 shadow-fuchsia-100", label: "text-fuchsia-500", title: "text-fuchsia-900", hoverBg: "hover:bg-fuchsia-50/50" },
+                          { bg: "bg-indigo-50", border: "border-indigo-200", expandBg: "bg-gradient-to-r from-indigo-50 to-blue-50", expandBorder: "border-indigo-300 shadow-indigo-100", label: "text-indigo-500", title: "text-indigo-900", hoverBg: "hover:bg-indigo-50/50" },
+                        ];
+                        return chapters.map((chapter, index) => {
                         const isExpanded = expandedChapterId === chapter.id;
-                        const resources = chapterResourcesById[chapter.id] ?? [];
                         const mcqs = chapterMcqsById[chapter.id] ?? [];
                         const isLoading = !!chapterLoadingById[chapter.id];
                         const isMcqLoading = !!chapterMcqLoadingById[chapter.id];
                         const hasMoreMcqs = !!chapterMcqHasMore[chapter.id];
+                        const color = chapterColors[index % chapterColors.length];
 
                         return (
                           <div key={chapter.id}
                             className={`overflow-hidden rounded-xl border transition-all duration-200 ${
-                              isExpanded ? "border-violet-300 shadow-md shadow-violet-100" : "border-slate-100"
+                              isExpanded ? `${color.expandBorder} shadow-md` : color.border
                             }`}>
                             {/* Chapter header */}
                             <button type="button" onClick={() => toggleChapter(chapter.id)}
                               className={`flex w-full items-center justify-between p-3 text-left transition-colors duration-200 ${
-                                isExpanded ? "bg-gradient-to-r from-violet-50 to-fuchsia-50" : "bg-slate-50/70 hover:bg-violet-50/50"
+                                isExpanded ? color.expandBg : `${color.bg} ${color.hoverBg}`
                               }`}>
                               <div className="flex-1">
-                                <span className={`text-[10px] font-bold uppercase tracking-widest ${isExpanded ? "text-violet-500" : "text-slate-400"}`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest ${isExpanded ? color.label : "text-slate-400"}`}>
                                   Ch {String(index + 1).padStart(2, "0")}
                                 </span>
-                                <p className={`mt-0.5 text-sm font-semibold leading-snug ${isExpanded ? "text-violet-900" : "text-slate-700"}`}>
+                                <p className={`mt-0.5 text-sm font-semibold leading-snug ${isExpanded ? color.title : "text-slate-700"}`}>
                                   {chapter.title}
                                 </p>
                               </div>
@@ -468,52 +452,6 @@ const USATSubjectChapters = () => {
                                       </div>
                                     ) : (
                                       <>
-                                        {/* -- Resources -- */}
-                                        <div>
-                                          <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-cyan-700">
-                                            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-cyan-100">
-                                              <FileText className="h-3 w-3 text-cyan-600" />
-                                            </span>
-                                            Resources
-                                            <span className="ml-auto rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-700">{resources.length}</span>
-                                          </h4>
-                                          {resources.length === 0 ? (
-                                            <p className="text-xs text-slate-400">No resources added yet.</p>
-                                          ) : (
-                                            <div className="space-y-1.5">
-                                              {resources.map((resource) => {
-                                                const href = resolveLink(resource.url);
-                                                return (
-                                                  <div key={resource.id} className="flex items-start gap-2 rounded-lg border border-cyan-50 bg-gradient-to-r from-cyan-50/60 to-sky-50/60 p-2">
-                                                    <div className="flex-1">
-                                                      <p className="text-xs font-semibold text-slate-800">{resource.title}</p>
-                                                      {href ? (
-                                                        <a className="mt-1 inline-flex items-center gap-1 rounded-full bg-cyan-600 px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-cyan-700"
-                                                          href={href} target="_blank" rel="noreferrer">
-                                                          Open <Download className="h-2.5 w-2.5" />
-                                                        </a>
-                                                      ) : (
-                                                        <p className="mt-1 text-xs text-slate-500 line-clamp-2">{resource.url}</p>
-                                                      )}
-                                                    </div>
-                                                    {isAdmin && <DelBtn onClick={() => deleteResource(resource.id, chapter.id)} />}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                          {isAdmin && (
-                                            <InlineForm label="Add Resource" show={showAddResourceFor === chapter.id}
-                                              onToggle={() => { setShowAddResourceFor(showAddResourceFor === chapter.id ? null : chapter.id); setAddResTitle(""); setAddResUrl(""); }}
-                                              onSubmit={(e) => addResource(e, chapter.id)} busy={busy}>
-                                              <SmallInput placeholder="Title" value={addResTitle} onChange={(e) => setAddResTitle(e.target.value)} />
-                                              <SmallInput placeholder="URL" value={addResUrl} onChange={(e) => setAddResUrl(e.target.value)} />
-                                            </InlineForm>
-                                          )}
-                                        </div>
-
-
-
                                         {/* -- MCQs -- */}
                                         <div>
                                           <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
@@ -599,7 +537,8 @@ const USATSubjectChapters = () => {
                             </AnimatePresence>
                           </div>
                         );
-                      })}
+                      });
+                      })()}
                     </div>
                   )}
 
@@ -624,27 +563,6 @@ const USATSubjectChapters = () => {
                       <h3 className="flex items-center gap-2 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Subject Notes</h3>
                     </div>
                     <div className="p-4 space-y-3">
-                      {/* Admin notes */}
-                      {subjectNotes.length > 0 && (
-                        <div className="space-y-2">
-                          {subjectNotes.slice(0, 6).map((note, i) => (
-                            <div key={note.id} className="flex items-center gap-2.5 rounded-xl border border-violet-50 bg-violet-50/60 p-2.5 transition hover:bg-violet-100/50">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-200 text-[10px] font-black text-violet-700">{i + 1}</span>
-                              <p className="flex-1 text-xs font-semibold text-slate-800">{note.title}</p>
-                              {isAdmin && <DelBtn onClick={() => deleteNote(note.id)} />}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {isAdmin && (
-                        <InlineForm label="Add Subject Note" show={showAddSubjNote}
-                          onToggle={() => { setShowAddSubjNote(!showAddSubjNote); setSubjNoteTitle(""); setSubjNoteContent(""); }}
-                          onSubmit={addSubjectNote} busy={busy}>
-                          <SmallInput placeholder="Title" value={subjNoteTitle} onChange={(e) => setSubjNoteTitle(e.target.value)} />
-                          <SmallTextarea placeholder="Content (optional)" value={subjNoteContent} onChange={(e) => setSubjNoteContent(e.target.value)} />
-                        </InlineForm>
-                      )}
-
                       {/* Admin uploaded PDFs */}
                       {isAdmin && userNotes.length > 0 && (
                         <>
@@ -730,8 +648,8 @@ const USATSubjectChapters = () => {
                         </>
                       )}
 
-                      {subjectNotes.length === 0 && userNotes.length === 0 && (
-                        <p className="text-xs text-slate-400">No notes yet.</p>
+                      {userNotes.length === 0 && (
+                        <p className="text-xs text-slate-400">No PDF notes yet.</p>
                       )}
                     </div>
                   </div>
@@ -777,6 +695,51 @@ const USATSubjectChapters = () => {
                         <SmallInput placeholder="URL (optional if uploading file)" value={paperUrl} onChange={(e) => setPaperUrl(e.target.value)} />
                         <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setPaperFile(e.target.files?.[0] ?? null)}
                           className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-orange-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-orange-700 hover:file:bg-orange-200" />
+                      </InlineForm>
+                    )}
+                  </div>
+                </div>
+
+                {/* Resources */}
+                <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-lg shadow-sky-100/30">
+                  <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-5 py-3">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Globe className="h-4 w-4" /> Resources</h3>
+                  </div>
+                  <div className="p-4">
+                    {subjectResources.length === 0 && !isAdmin ? (
+                      <p className="text-xs text-slate-400">No resources yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {subjectResources.map((res) => {
+                          const href = resolveLink(res.url);
+                          return (
+                            <div key={res.id} className="flex items-start gap-2 rounded-xl border border-sky-50 bg-gradient-to-r from-sky-50/60 to-blue-50/60 p-2.5">
+                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-100">
+                                <Link2 className="h-3 w-3 text-sky-600" />
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-slate-800">{res.title}</p>
+                                {href ? (
+                                  <a className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-600 px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-sky-700"
+                                    href={href} target="_blank" rel="noreferrer">
+                                    Open <Download className="h-2.5 w-2.5" />
+                                  </a>
+                                ) : (
+                                  <p className="mt-1 text-xs text-slate-500 truncate">{res.url}</p>
+                                )}
+                              </div>
+                              {isAdmin && <DelBtn onClick={() => deleteSubjectResource(res.id)} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <InlineForm label="Add Resource Link" show={showAddSubjRes}
+                        onToggle={() => { setShowAddSubjRes(!showAddSubjRes); setSubjResTitle(""); setSubjResUrl(""); }}
+                        onSubmit={addSubjectResource} busy={busy}>
+                        <SmallInput placeholder="Title (e.g. Khan Academy - Physics)" value={subjResTitle} onChange={(e) => setSubjResTitle(e.target.value)} />
+                        <SmallInput placeholder="URL (https://...)" value={subjResUrl} onChange={(e) => setSubjResUrl(e.target.value)} />
                       </InlineForm>
                     )}
                   </div>

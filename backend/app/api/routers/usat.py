@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
-from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, Tip, Topic, UserNote
+from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
 from app.models import User
 from app.schemas.content import (
@@ -18,6 +18,7 @@ from app.schemas.content import (
     PastPaperRead,
     ResourceRead,
     SubjectRead,
+    SubjectResourceRead,
     TipRead,
     TopicRead,
     USATCategoryRead,
@@ -167,6 +168,20 @@ async def list_chapter_resources(
         select(Resource).where(Resource.chapter_id == chapter_id).order_by(Resource.created_at.desc())
     )
     return [ResourceRead.model_validate(r) for r in result.scalars().all()]
+
+
+@router.get("/subjects/{subject_id}/resources", response_model=list[SubjectResourceRead])
+async def list_subject_resources(
+    subject_id: int, db: AsyncSession = Depends(get_db_session)
+) -> list[SubjectResourceRead]:
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    result = await db.execute(
+        select(SubjectResource).where(SubjectResource.subject_id == subject_id).order_by(SubjectResource.created_at.desc())
+    )
+    return [SubjectResourceRead.model_validate(r) for r in result.scalars().all()]
 
 
 @router.get("/subjects/{subject_id}/notes", response_model=list[NoteRead])

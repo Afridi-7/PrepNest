@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
-from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, Tip, Topic, User
+from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
     MCQCreate,
@@ -27,6 +27,8 @@ from app.schemas.content import (
     ResourceUpdate,
     SubjectCreate,
     SubjectRead,
+    SubjectResourceCreate,
+    SubjectResourceRead,
     SubjectUpdate,
     TipCreate,
     TipRead,
@@ -757,6 +759,38 @@ async def delete_resource(
     resource = await db.get(Resource, resource_id)
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
+    await db.delete(resource)
+    await db.commit()
+
+
+# ── Subject Resource CRUD ─────────────────────────────────────────────────────
+
+@router.post("/subject-resources", response_model=SubjectResourceRead, status_code=status.HTTP_201_CREATED)
+async def create_subject_resource(
+    payload: SubjectResourceCreate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> SubjectResourceRead:
+    subject = await db.get(Subject, payload.subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    resource = SubjectResource(title=payload.title, url=payload.url, subject_id=payload.subject_id)
+    db.add(resource)
+    await db.commit()
+    await db.refresh(resource)
+    return SubjectResourceRead.model_validate(resource)
+
+
+@router.delete("/subject-resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_subject_resource(
+    resource_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    resource = await db.get(SubjectResource, resource_id)
+    if not resource:
+        raise HTTPException(status_code=404, detail="Subject resource not found")
     await db.delete(resource)
     await db.commit()
 

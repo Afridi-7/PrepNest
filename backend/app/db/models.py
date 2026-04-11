@@ -200,6 +200,20 @@ class UserNote(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class SubjectResource(Base):
+    """Subject-level resource links (URLs, docs, external references, etc.)."""
+
+    __tablename__ = "subject_resources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
+    url: Mapped[str] = mapped_column(Text)
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    subject: Mapped["Subject"] = relationship()
+
+
 class ContactInfo(Base):
     """Singleton row holding public contact / social links (admin-editable)."""
 

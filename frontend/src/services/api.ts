@@ -172,6 +172,14 @@ export interface Resource {
   created_at: string;
 }
 
+export interface SubjectResource {
+  id: number;
+  title: string;
+  url: string;
+  subject_id: number;
+  created_at: string;
+}
+
 export interface Note {
   id: number;
   title: string;
@@ -562,6 +570,20 @@ class ApiClient {
 
   async deleteResource(resourceId: number): Promise<void> {
     await this.request<void>(`/admin/resources/${resourceId}`, "DELETE");
+  }
+
+  // ── Subject Resource ─────────────────────────────────────────────────────
+
+  async listSubjectResources(subjectId: number): Promise<SubjectResource[]> {
+    return this.request<SubjectResource[]>(`/usat/subjects/${subjectId}/resources`);
+  }
+
+  async createSubjectResource(payload: { title: string; url: string; subject_id: number }): Promise<SubjectResource> {
+    return this.request<SubjectResource>("/admin/subject-resources", "POST", payload);
+  }
+
+  async deleteSubjectResource(resourceId: number): Promise<void> {
+    await this.request<void>(`/admin/subject-resources/${resourceId}`, "DELETE");
   }
 
   // ── Note admin ───────────────────────────────────────────────────────────

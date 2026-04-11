@@ -179,6 +179,24 @@ class ResourceRead(BaseModel):
     created_at: datetime
 
 
+# ── Subject-level Resource schemas ──────────────────────────────────────────
+
+class SubjectResourceCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    url: str = Field(min_length=1, max_length=2048)
+    subject_id: int
+
+
+class SubjectResourceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    url: str
+    subject_id: int
+    created_at: datetime
+
+
 # ── Note schemas ─────────────────────────────────────────────────────────────
 
 class NoteCreate(BaseModel):
