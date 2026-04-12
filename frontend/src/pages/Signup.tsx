@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, Mail, Lock, Eye, EyeOff, User, Loader2, Sparkles, Rocket, Target, ArrowLeft } from "lucide-react";
+import { GraduationCap, Mail, Lock, Eye, EyeOff, User, Loader2, Sparkles, Rocket, Target, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
+  const [resending, setResending] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -40,9 +42,8 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      const response = await apiClient.signup(email, password, name);
-      toast({ title: "Success", description: response.message || "Account created successfully. Please log in." });
-      navigate("/login", { replace: true });
+      await apiClient.signup(email, password, name);
+      setSignupDone(true);
     } catch (error: any) {
       toast({ 
         title: "Sign Up Failed", 
@@ -51,6 +52,18 @@ const Signup = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await apiClient.resendVerification(email);
+      toast({ title: "Sent", description: "Verification email resent. Check your inbox." });
+    } catch {
+      toast({ title: "Error", description: "Could not resend verification email.", variant: "destructive" });
+    } finally {
+      setResending(false);
     }
   };
 
@@ -95,6 +108,26 @@ const Signup = () => {
 
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10">
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md bg-white/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-white/70 shadow-2xl">
+          {signupDone ? (
+            <div className="text-center py-4">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" as const, stiffness: 200, damping: 15 }}>
+                <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
+              </motion.div>
+              <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Check Your Email</h2>
+              <p className="text-muted-foreground text-sm mb-6">
+                We've sent a verification link to <strong>{email}</strong>. Please click the link to verify your account before logging in.
+              </p>
+              <div className="space-y-3">
+                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold" disabled={resending} onClick={handleResend}>
+                  {resending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resending...</> : "Resend Verification Email"}
+                </Button>
+                <Link to="/login">
+                  <Button variant="gradient" className="w-full h-11 rounded-xl font-semibold">Go to Login</Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="mb-8">
             <button
               type="button"
@@ -179,6 +212,8 @@ const Signup = () => {
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account? <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link>
           </p>
+          </>
+          )}
         </motion.div>
       </div>
     </div>

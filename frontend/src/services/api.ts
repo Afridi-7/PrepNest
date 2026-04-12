@@ -110,6 +110,7 @@ export interface UserProfile {
   email: string;
   full_name?: string | null;
   is_admin: boolean;
+  is_verified: boolean;
   preferences: Record<string, unknown>;
   created_at: string;
 }
@@ -398,6 +399,18 @@ class ApiClient {
       full_name: fullName,
     });
     return response;
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/auth/resend-verification", "POST", { email });
+  }
+
+  async googleAuth(credential: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/auth/google", "POST", { credential });
   }
 
   async getHealth() {

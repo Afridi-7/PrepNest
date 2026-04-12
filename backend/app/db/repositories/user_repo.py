@@ -16,9 +16,40 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def create(self, *, email: str, password_hash: str, full_name: str | None = None) -> User:
+    async def get_by_google_id(self, google_id: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.google_id == google_id))
+        return result.scalar_one_or_none()
+
+    async def create(self, *, email: str, password_hash: str | None = None, full_name: str | None = None) -> User:
         user = User(email=email, password_hash=password_hash, full_name=full_name)
         self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def create_google_user(self, *, email: str, full_name: str | None, google_id: str) -> User:
+        user = User(email=email, full_name=full_name, google_id=google_id, is_verified=True)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def set_verified(self, user: User) -> User:
+        user.is_verified = True
+        user.verification_token = None
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def set_verification_token(self, user: User, token: str) -> User:
+        user.verification_token = token
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def link_google_id(self, user: User, google_id: str) -> User:
+        user.google_id = google_id
+        user.is_verified = True
         await self.db.commit()
         await self.db.refresh(user)
         return user

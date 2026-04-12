@@ -89,6 +89,22 @@ async def on_startup() -> None:
                     "ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT"
                 )
             )
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
+            )
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE")
+            )
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)")
+            )
+            await conn.execute(
+                text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
+            )
+            # One-time: mark all pre-existing users as verified
+            await conn.execute(
+                text("UPDATE users SET is_verified = TRUE WHERE is_verified = FALSE AND verification_token IS NULL")
+            )
     except Exception as exc:
         logging.warning("Database schema init skipped during startup: %s", exc)
 

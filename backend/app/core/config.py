@@ -27,6 +27,22 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_exp_minutes: int = 60 * 24
 
+    # SMTP / Email verification
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
+
+    # Resend (email API)
+    resend_api_key: str = ""
+    resend_from_email: str = ""
+
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
     frontend_url: str = Field(
         default="http://localhost:8080",
         validation_alias=AliasChoices("FRONTEND_URL", "FRONTEND_BASE_URL"),

@@ -32,3 +32,23 @@ def decode_access_token(token: str) -> str | None:
         return payload.get("sub")
     except JWTError:
         return None
+
+
+def create_verification_token(user_id: str) -> str:
+    """Create a short-lived JWT for email verification (24 h)."""
+    settings = get_settings()
+    expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    payload = {"sub": user_id, "purpose": "email-verify", "exp": expires}
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_verification_token(token: str) -> str | None:
+    """Decode a verification token and return user_id if valid."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        if payload.get("purpose") != "email-verify":
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None

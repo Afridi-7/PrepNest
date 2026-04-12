@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
+import VerifyEmail from "./pages/VerifyEmail.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import USAT from "./pages/USAT.tsx";
 import USATSubjects from "./pages/USATSubjects.tsx";
@@ -16,6 +17,8 @@ import Practice from "./pages/Practice.tsx";
 import AITutor from "./pages/AITutor.tsx";
 import AdminContent from "./pages/AdminContent.tsx";
 import Contact from "./pages/Contact.tsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
+import TermsOfService from "./pages/TermsOfService.tsx";
 import { apiClient } from "./services/api";
 
 const queryClient = new QueryClient();
@@ -49,6 +52,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/usat" element={<USAT />} />
           <Route path="/usat/:category" element={<USATSubjects />} />
@@ -57,6 +61,8 @@ const App = () => (
           <Route path="/ai-tutor" element={<AITutor />} />
           <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

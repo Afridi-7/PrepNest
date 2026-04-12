@@ -223,6 +223,20 @@ const Landing = () => (
       </div>
     </section>
 
+    {/* Footer */}
+    <footer className="py-10 bg-white border-t border-border">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PrepNest. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <Link to="/privacy" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Terms of Service</Link>
+            <Link to="/contact" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Contact</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+
   </div>
 );
 
