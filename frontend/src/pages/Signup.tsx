@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, User, Loader2, Sparkles, Rocket, Target, ArrowLeft, CheckCircle2 } from "lucide-react";
@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/services/api";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 const Signup = () => {
   const [showPass, setShowPass] = useState(false);
@@ -18,6 +20,50 @@ const Signup = () => {
   const [resending, setResending] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+
+  const handleGoogleCallback = useCallback(async (response: any) => {
+    if (!response.credential) return;
+    setLoading(true);
+    try {
+      const auth = await apiClient.googleAuth(response.credential);
+      apiClient.setToken(auth.access_token);
+      toast({ title: "Success", description: "Signed in with Google!" });
+      navigate("/dashboard", { replace: true });
+    } catch (error: any) {
+      if (mountedRef.current) {
+        toast({ title: "Google Sign-In Failed", description: error.message || "Could not authenticate with Google", variant: "destructive" });
+      }
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [navigate, toast]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    const google = (window as any).google;
+    if (!google?.accounts?.id || !googleBtnRef.current) return;
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCallback,
+    });
+    google.accounts.id.renderButton(googleBtnRef.current, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      width: googleBtnRef.current.offsetWidth,
+      text: "signup_with",
+      shape: "pill",
+      logo_alignment: "left",
+    });
+  }, [handleGoogleCallback]);
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -212,6 +258,15 @@ const Signup = () => {
               )}
             </Button>
           </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border/60" />
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">or</span>
+            <div className="flex-1 h-px bg-border/60" />
+          </div>
+
+          {/* Google sign-in button rendered by Google Identity Services */}
+          <div ref={googleBtnRef} className="w-full flex justify-center [&>div]:!w-full" />
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account? <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link>
