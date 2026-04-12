@@ -1,25 +1,26 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import Login from "./pages/Login.tsx";
-import Signup from "./pages/Signup.tsx";
-import VerifyEmail from "./pages/VerifyEmail.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import USAT from "./pages/USAT.tsx";
-import USATSubjects from "./pages/USATSubjects.tsx";
-import USATSubjectChapters from "./pages/USATSubjectChapters.tsx";
-import Practice from "./pages/Practice.tsx";
-import AITutor from "./pages/AITutor.tsx";
-import AdminContent from "./pages/AdminContent.tsx";
-import Contact from "./pages/Contact.tsx";
-import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
-import TermsOfService from "./pages/TermsOfService.tsx";
 import { apiClient } from "./services/api";
+
+const Index = lazy(() => import("./pages/Index.tsx"));
+const Login = lazy(() => import("./pages/Login.tsx"));
+const Signup = lazy(() => import("./pages/Signup.tsx"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail.tsx"));
+const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const USAT = lazy(() => import("./pages/USAT.tsx"));
+const USATSubjects = lazy(() => import("./pages/USATSubjects.tsx"));
+const USATSubjectChapters = lazy(() => import("./pages/USATSubjectChapters.tsx"));
+const Practice = lazy(() => import("./pages/Practice.tsx"));
+const AITutor = lazy(() => import("./pages/AITutor.tsx"));
+const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
+const Contact = lazy(() => import("./pages/Contact.tsx"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" /></div>}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -65,6 +67,7 @@ const App = () => (
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
