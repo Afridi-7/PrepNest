@@ -64,13 +64,30 @@ def ensure_bucket_exists() -> None:
         resp = httpx.post(
             f"{_storage_api()}/bucket",
             headers={**_auth_headers(), "Content-Type": "application/json"},
-            json={"id": bucket, "name": bucket, "public": True},
+            json={
+                "id": bucket,
+                "name": bucket,
+                "public": True,
+                "file_size_limit": 104857600,  # 100 MB
+                "allowed_mime_types": None,     # allow all
+            },
             timeout=_TIMEOUT,
         )
         if resp.status_code in (200, 201):
             logger.info("Supabase bucket '%s' created", bucket)
         elif resp.status_code == 409 or "already exists" in resp.text.lower():
-            logger.debug("Supabase bucket '%s' already exists", bucket)
+            logger.debug("Supabase bucket '%s' already exists — updating config", bucket)
+            # Update existing bucket config
+            httpx.put(
+                f"{_storage_api()}/bucket/{bucket}",
+                headers={**_auth_headers(), "Content-Type": "application/json"},
+                json={
+                    "public": True,
+                    "file_size_limit": 104857600,
+                    "allowed_mime_types": None,
+                },
+                timeout=_TIMEOUT,
+            )
         else:
             logger.warning("Bucket create response %s: %s", resp.status_code, resp.text)
     except Exception as exc:
@@ -149,8 +166,10 @@ async def _async_upload_supabase(data: bytes, path: str, mime: str, settings) ->
             content=data,
         )
     if resp.status_code not in (200, 201):
-        logger.error("Supabase upload failed %s: %s", resp.status_code, resp.text)
-        raise RuntimeError(f"Supabase upload failed ({resp.status_code})")
+        body = resp.text[:500]
+        logger.error("Supabase upload failed %s: %s (url=%s, size=%d, mime=%s)",
+                      resp.status_code, body, url, len(data), mime)
+        raise RuntimeError(f"Supabase upload failed ({resp.status_code}): {body}")
 
     public_url = f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
     logger.info("Uploaded to Supabase: %s", public_url)
