@@ -338,6 +338,7 @@ async def view_user_note_pdf(
 ):
     """Serve the PDF inline (view-only). Auth via ?token= query param so iframes work."""
     from app.core.security import decode_access_token
+    from fastapi.responses import RedirectResponse
 
     user_id = decode_access_token(token)
     if not user_id:
@@ -346,6 +347,10 @@ async def view_user_note_pdf(
     note = await db.get(UserNote, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+
+    # If stored as a Supabase/external URL, redirect to it
+    if note.file_path.startswith("http://") or note.file_path.startswith("https://"):
+        return RedirectResponse(url=note.file_path)
 
     # Resolve absolute path from stored relative path
     relative = note.file_path.lstrip("/")
