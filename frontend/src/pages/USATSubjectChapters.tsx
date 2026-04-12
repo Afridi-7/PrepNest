@@ -240,7 +240,7 @@ const USATSubjectChapters = () => {
   const handleCSVUpload = async (chapterId: number, file: File) => {
     setBusy(true);
     try {
-      const result = await apiClient.uploadMCQCSV(chapterId, file);
+      const result = await apiClient.uploadMCQCSV(file, category.toUpperCase());
       alert(`Uploaded: ${result.created} created, ${result.skipped} skipped`);
       const mcqs = await apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, 0);
       setChapterMcqsById((prev) => ({ ...prev, [chapterId]: mcqs }));

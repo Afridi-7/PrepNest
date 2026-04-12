@@ -652,12 +652,12 @@ class ApiClient {
   // ── MCQ CSV upload ───────────────────────────────────────────────────────
 
   async uploadMCQCSV(
-    topicId: number,
-    file: File
-  ): Promise<{ created: number; skipped: number; total_rows: number; chapter_id: number }> {
+    file: File,
+    examType = "USAT-E"
+  ): Promise<{ created: number; skipped: number; total_rows: number }> {
     const apiUrl = `${API_BASE_URL}/admin/mcqs/upload-csv`;
     const form = new FormData();
-    form.append("topic_id", String(topicId));
+    form.append("exam_type", examType);
     form.append("file", file);
 
     const response = await fetch(apiUrl, {

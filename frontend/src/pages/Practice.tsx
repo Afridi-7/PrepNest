@@ -29,7 +29,7 @@ const toQuizQuestion = (mcq: MCQ, subjectName: string): QuizQuestion => ({
   explanation: mcq.explanation || `The correct answer is "${mcq[`option_${mcq.correct_answer.toLowerCase()}` as keyof MCQ]}".`,
 });
 
-const mcqCountOptions = [5, 10, 15, 20];
+const mcqCountOptions = [5, 10, 15, 20, 30, 50, 75];
 const timeOptions = [
   { label: "No Timer", value: 0 },
   { label: "5 min", value: 5 },
@@ -37,6 +37,9 @@ const timeOptions = [
   { label: "15 min", value: 15 },
   { label: "20 min", value: 20 },
   { label: "30 min", value: 30 },
+  { label: "45 min", value: 45 },
+  { label: "60 min", value: 60 },
+  { label: "80 min", value: 80 },
 ];
 
 const SUBJECT_PILLS: Record<string, string> = {
@@ -98,6 +101,11 @@ const Practice = () => {
         const subjectName = dbSubjects.find((s) => s.id === selectedSubjectId)?.name ?? "Unknown";
         const mcqs = await apiClient.listSubjectPracticeMCQs(selectedSubjectId, mcqCount);
         tagged = mcqs.map((mcq) => ({ mcq, subjectName }));
+        // Shuffle single-subject MCQs so every test is different
+        for (let i = tagged.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
+        }
       } else {
         // "All Subjects" — fetch from every subject and shuffle
         const perSubject = Math.ceil(mcqCount / Math.max(dbSubjects.length, 1));

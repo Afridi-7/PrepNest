@@ -69,7 +69,7 @@ const AdminContent = () => {
   const [noteChapterId, setNoteChapterId] = useState<number | "">("");
 
   // MCQ CSV upload form
-  const [csvTopicId, setCsvTopicId] = useState<number | "">("");
+  const [csvExamType, setCsvExamType] = useState("USAT-E");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Past paper (new table) form
@@ -391,9 +391,9 @@ const AdminContent = () => {
 
   const onUploadMCQCSV = async (e: FormEvent) => {
     e.preventDefault();
-    if (!csvTopicId || !csvFile) return;
+    if (!csvFile) return;
     try {
-      const result = await apiClient.uploadMCQCSV(csvTopicId, csvFile);
+      const result = await apiClient.uploadMCQCSV(csvFile, csvExamType);
       setCsvFile(null);
       toast({
         description: `MCQ CSV imported: ${result.created} created, ${result.skipped} skipped (${result.total_rows} total rows)`,
@@ -751,14 +751,15 @@ const AdminContent = () => {
             <form onSubmit={onUploadMCQCSV} className="rounded-2xl border bg-white p-5 space-y-3 md:col-span-2">
               <h2 className="font-semibold flex items-center gap-2"><Upload className="h-4 w-4" /> Bulk Upload MCQs via CSV</h2>
               <p className="text-xs text-muted-foreground">
-                CSV must have columns: <code className="bg-slate-100 px-1 rounded text-[11px]">question, option_a, option_b, option_c, option_d, correct_answer</code> (and optional <code className="bg-slate-100 px-1 rounded text-[11px]">explanation</code>).
-                Correct answer must be A, B, C, or D. Thousands of rows supported.
+                CSV must have columns: <code className="bg-slate-100 px-1 rounded text-[11px]">question, option1, option2, option3, option4, correct_answer, subject, chapter</code> (and optional <code className="bg-slate-100 px-1 rounded text-[11px]">explanation</code>).
+                Correct answer must be A, B, C, or D. Subjects and chapters are auto-created if they don't exist.
               </p>
-              <select className="w-full border rounded-lg px-3 py-2" value={csvTopicId} onChange={(e) => setCsvTopicId(Number(e.target.value))} required>
-                <option value="">Select chapter</option>
-                {sortedTopics.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
-                ))}
+              <select className="w-full border rounded-lg px-3 py-2" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
+                <option value="USAT-E">USAT-E (Pre-Engineering)</option>
+                <option value="USAT-M">USAT-M (Pre-Medical)</option>
+                <option value="USAT-CS">USAT-CS (Computer Science)</option>
+                <option value="USAT-GS">USAT-GS (General Science)</option>
+                <option value="USAT-A">USAT-A (Arts & Humanities)</option>
               </select>
               <input
                 className="w-full border rounded-lg px-3 py-2"
@@ -768,7 +769,7 @@ const AdminContent = () => {
                 required
               />
               {csvFile && <p className="text-sm text-muted-foreground">{csvFile.name}</p>}
-              <Button type="submit" className="w-full" disabled={!csvTopicId || !csvFile}>Upload MCQ CSV</Button>
+              <Button type="submit" className="w-full" disabled={!csvFile}>Upload MCQ CSV</Button>
             </form>
 
             {/* ── Past Papers (new dedicated table) ── */}

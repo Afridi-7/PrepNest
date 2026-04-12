@@ -902,26 +902,24 @@ async def delete_paper(
 
 # ── MCQ CSV Bulk Upload ───────────────────────────────────────────────────────
 
-MCQ_CSV_REQUIRED_COLUMNS = {"question", "option_a", "option_b", "option_c", "option_d", "correct_answer"}
+MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option4", "correct_answer", "subject", "chapter"}
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
 
 
 @router.post("/mcqs/upload-csv", status_code=status.HTTP_200_OK)
 async def upload_mcq_csv(
-    topic_id: int = Form(...),
     file: UploadFile = File(...),
+    exam_type: str = Form("USAT-E"),
     _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Bulk-upload MCQs from a CSV file.
 
     Expected CSV columns (case-insensitive):
-        question, option_a, option_b, option_c, option_d, correct_answer, explanation (optional)
-    """
-    chapter = await db.get(Topic, topic_id)
-    if not chapter:
-        raise HTTPException(status_code=404, detail="Chapter not found")
+        question, option1, option2, option3, option4, correct_answer, subject, chapter, explanation (optional)
 
+    Subjects and chapters are auto-resolved (created if they don't exist).
+    """
     filename = file.filename or "mcqs.csv"
     is_csv = filename.lower().endswith(".csv") or (file.content_type or "").lower() in (
         "text/csv",
@@ -932,9 +930,9 @@ async def upload_mcq_csv(
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
 
     raw_bytes = await file.read()
-    max_bytes = 10 * 1024 * 1024  # 10 MB max for CSV
+    max_bytes = 100 * 1024 * 1024  # 100 MB max for CSV
     if len(raw_bytes) > max_bytes:
-        raise HTTPException(status_code=400, detail="CSV file too large (max 10 MB)")
+        raise HTTPException(status_code=400, detail="CSV file too large (max 100 MB)")
 
     try:
         text_content = raw_bytes.decode("utf-8-sig")  # handle BOM
@@ -953,6 +951,45 @@ async def upload_mcq_csv(
             detail=f"CSV missing required columns: {', '.join(sorted(missing_cols))}",
         )
 
+    # Cache resolved subjects & chapters to avoid repeated DB lookups
+    subject_cache: dict[str, Subject] = {}  # subject_name -> Subject
+    topic_cache: dict[tuple[int, str], Topic] = {}  # (subject_id, chapter_title) -> Topic
+
+    async def resolve_topic(subject_name: str, chapter_title: str) -> int:
+        """Return topic_id, creating subject/topic if needed."""
+        s_key = subject_name.lower()
+        if s_key not in subject_cache:
+            result = await db.execute(
+                select(Subject).where(
+                    Subject.name.ilike(subject_name),
+                    Subject.exam_type == exam_type.strip().upper(),
+                )
+            )
+            subject = result.scalars().first()
+            if not subject:
+                subject = Subject(name=subject_name.strip(), exam_type=exam_type.strip().upper())
+                db.add(subject)
+                await db.flush()  # get id
+            subject_cache[s_key] = subject
+
+        subj = subject_cache[s_key]
+        t_key = (subj.id, chapter_title.lower())
+        if t_key not in topic_cache:
+            result = await db.execute(
+                select(Topic).where(
+                    Topic.subject_id == subj.id,
+                    Topic.title.ilike(chapter_title),
+                )
+            )
+            topic = result.scalars().first()
+            if not topic:
+                topic = Topic(title=chapter_title.strip(), subject_id=subj.id)
+                db.add(topic)
+                await db.flush()
+            topic_cache[t_key] = topic
+
+        return topic_cache[t_key].id
+
     mcqs_to_insert: list[MCQ] = []
     skipped = 0
     row_num = 1
@@ -963,14 +1000,16 @@ async def upload_mcq_csv(
         normalized_row = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
 
         question = normalized_row.get("question", "")
-        option_a = normalized_row.get("option_a", "")
-        option_b = normalized_row.get("option_b", "")
-        option_c = normalized_row.get("option_c", "")
-        option_d = normalized_row.get("option_d", "")
+        option1 = normalized_row.get("option1", "")
+        option2 = normalized_row.get("option2", "")
+        option3 = normalized_row.get("option3", "")
+        option4 = normalized_row.get("option4", "")
         correct_answer = normalized_row.get("correct_answer", "").upper()
+        subject_name = normalized_row.get("subject", "")
+        chapter_title = normalized_row.get("chapter", "")
         explanation = normalized_row.get("explanation", "") or "See answer above."
 
-        if not all([question, option_a, option_b, option_c, option_d]):
+        if not all([question, option1, option2, option3, option4, subject_name, chapter_title]):
             skipped += 1
             continue
 
@@ -978,13 +1017,15 @@ async def upload_mcq_csv(
             skipped += 1
             continue
 
+        topic_id = await resolve_topic(subject_name, chapter_title)
+
         mcqs_to_insert.append(
             MCQ(
                 question=question,
-                option_a=option_a,
-                option_b=option_b,
-                option_c=option_c,
-                option_d=option_d,
+                option_a=option1,
+                option_b=option2,
+                option_c=option3,
+                option_d=option4,
                 correct_answer=correct_answer,
                 explanation=explanation,
                 topic_id=topic_id,
@@ -1001,5 +1042,4 @@ async def upload_mcq_csv(
         "created": len(mcqs_to_insert),
         "skipped": skipped,
         "total_rows": row_num - 1,
-        "chapter_id": topic_id,
     }
