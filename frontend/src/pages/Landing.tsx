@@ -62,10 +62,10 @@ const Landing = () => (
             AI-Powered Test Preparation
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6">
-            Ace Your <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">USAT & HAT</span> with PrepNest
+            Ace Your <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">USAT & HAT</span> with PrepNest AI
           </h1>
           <p className="text-base sm:text-lg text-gray-700 mb-8 max-w-2xl mx-auto font-medium">
-            The next-generation platform combining smart learning, past papers, mock tests, AI tutoring, and adaptive practice — everything you need in one place.
+            PrepNest AI is an AI-powered test preparation platform for Pakistani students. It combines smart learning, past papers, mock tests, AI tutoring, and adaptive practice — everything you need to ace your USAT & HAT exams in one place.
           </p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none mx-auto">
             <Link to="/usat" className="w-full sm:w-auto">
@@ -227,9 +227,9 @@ const Landing = () => (
     <footer className="py-10 bg-white border-t border-border">
       <div className="container mx-auto px-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PrepNest. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PrepNest AI. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <Link to="/privacy" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Privacy Policy</Link>
+            <Link to="/privacy" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors font-medium">Privacy Policy</Link>
             <Link to="/terms" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Terms of Service</Link>
             <Link to="/contact" className="text-sm text-muted-foreground hover:text-violet-600 transition-colors">Contact</Link>
           </div>

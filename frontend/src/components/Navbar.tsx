@@ -36,9 +36,9 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to="/" className="flex items-center gap-2 group">
           <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40 group-hover:scale-110 transition-transform duration-300">
-            <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
+            <img src="/logo.png" alt="PrepNest AI" className="h-full w-full rounded-lg object-contain" />
           </div>
-          <span className="font-heading font-bold text-xl text-foreground">PrepNest</span>
+          <span className="font-heading font-bold text-xl text-foreground">PrepNest AI</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
