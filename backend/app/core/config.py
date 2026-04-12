@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     local_upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 100
 
+    # Supabase Storage
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_storage_bucket: str = "uploads"
+
     s3_endpoint: str | None = None
     s3_bucket: str | None = None
     s3_access_key_id: str | None = None

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
+from app.services.supabase_storage import upload_bytes, make_key
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
@@ -425,12 +426,8 @@ async def create_past_paper(
                 detail=f"File too large. Max size is {settings.max_upload_size_mb} MB",
             )
 
-        target_dir = settings.upload_dir_path / "past_papers" / str(payload.subject_id)
-        target_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
-        destination = target_dir / safe_name
-        destination.write_bytes(file_bytes)
-        final_content = f"/uploads/past_papers/{payload.subject_id}/{safe_name}"
+        key = make_key(f"past_papers/{payload.subject_id}", filename)
+        final_content = upload_bytes(file_bytes, key, file.content_type)
 
     if not final_content:
         raise HTTPException(status_code=400, detail="Either content or file is required")
@@ -590,9 +587,6 @@ async def upload_material_pdfs(
         raise HTTPException(status_code=400, detail="No files provided")
 
     created_materials: list[Material] = []
-    target_dir = settings.upload_dir_path / "content" / str(topic_id)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
 
     for file in files:
@@ -608,11 +602,8 @@ async def upload_material_pdfs(
                 detail=f"File too large ({filename}). Max size is {settings.max_upload_size_mb} MB",
             )
 
-        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
-        destination = target_dir / safe_name
-        destination.write_bytes(content)
-
-        public_path = f"/uploads/content/{topic_id}/{safe_name}"
+        key = make_key(f"content/{topic_id}", filename)
+        public_path = upload_bytes(content, key, file.content_type)
         material = Material(
             title=Path(filename).stem,
             content=public_path,
@@ -878,12 +869,8 @@ async def create_paper(
                 detail=f"File too large. Max size is {settings.max_upload_size_mb} MB",
             )
 
-        target_dir = settings.upload_dir_path / "papers" / str(subject_id)
-        target_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
-        destination = target_dir / safe_name
-        destination.write_bytes(file_bytes)
-        file_path = f"/uploads/papers/{subject_id}/{safe_name}"
+        key = make_key(f"papers/{subject_id}", filename)
+        file_path = upload_bytes(file_bytes, key, file.content_type)
 
     if not file_path:
         raise HTTPException(status_code=400, detail="Either a PDF file or a URL is required")

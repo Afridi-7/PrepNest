@@ -8,6 +8,7 @@ from app.api.deps import get_current_admin, get_current_user
 from app.core.config import get_settings
 from app.db.models import MCQ, ContactInfo, Subject, Topic, User
 from app.db.session import get_db_session
+from app.services.supabase_storage import upload_bytes, make_key
 from app.schemas.content import (
     ContactInfoRead,
     ContactInfoUpdate,
@@ -103,17 +104,13 @@ async def upload_contact_image(
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are allowed.")
-    settings = get_settings()
-    visuals_dir = settings.upload_dir_path / "visuals"
-    visuals_dir.mkdir(parents=True, exist_ok=True)
-    ext = (file.filename or "img.png").rsplit(".", 1)[-1]
-    safe_name = f"contact_{uuid.uuid4().hex[:12]}.{ext}"
-    dest = visuals_dir / safe_name
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image must be under 5 MB.")
-    dest.write_bytes(content)
-    image_url = f"/uploads/visuals/{safe_name}"
+    ext = (file.filename or "img.png").rsplit(".", 1)[-1]
+    safe_name = f"contact_{uuid.uuid4().hex[:12]}.{ext}"
+    key = f"visuals/{safe_name}"
+    image_url = upload_bytes(content, key, file.content_type)
     row = await _get_or_create_contact(db)
     row.image_url = image_url
     await db.commit()

@@ -16,6 +16,8 @@ from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
 from app.db.session import SessionLocal, database_url, engine
 from app.services.cache_service import cache_service
 
+from app.services.supabase_storage import ensure_bucket_exists
+
 settings = get_settings()
 configure_logging(logging.DEBUG if settings.app_debug else logging.INFO)
 
@@ -116,6 +118,8 @@ async def on_startup() -> None:
         logging.info("Application startup - SQLAlchemy and PostgreSQL connections verified")
     except Exception as exc:
         logging.warning("PostgreSQL pool unavailable during startup; continuing without it: %s", exc)
+
+    ensure_bucket_exists()
 
 
 @app.on_event("shutdown")

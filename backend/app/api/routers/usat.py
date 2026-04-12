@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
 from app.models import User
+from app.services.supabase_storage import upload_bytes, make_key
 from app.schemas.content import (
     MCQRead,
     MaterialRead,
@@ -282,13 +283,8 @@ async def upload_user_note(
     if len(file_bytes) > max_bytes:
         raise HTTPException(status_code=400, detail=f"File too large. Max {settings.max_upload_size_mb} MB")
 
-    target_dir = settings.upload_dir_path / "user_notes" / current_user.id / str(subject_id)
-    target_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = f"{uuid.uuid4()}_{Path(filename).name}"
-    destination = target_dir / safe_name
-    destination.write_bytes(file_bytes)
-
-    stored_path = f"/uploads/user_notes/{current_user.id}/{subject_id}/{safe_name}"
+    key = make_key(f"user_notes/{current_user.id}/{subject_id}", filename)
+    stored_path = upload_bytes(file_bytes, key, file.content_type)
 
     user_note = UserNote(
         title=title,
