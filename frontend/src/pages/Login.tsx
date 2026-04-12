@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ShieldCheck, Zap, ArrowLeft, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles, ShieldCheck, Zap, ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -132,7 +132,9 @@ const Login = () => {
             animate={{ rotate: [0, 5, -5, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           >
-            <GraduationCap className="h-20 w-20 text-white mx-auto mb-6 drop-shadow-2xl" />
+            <div className="h-32 w-32 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-violet-600/90 to-fuchsia-600/90 p-3 shadow-2xl shadow-violet-400/50">
+              <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
+            </div>
           </motion.div>
           <h2 className="font-heading text-4xl font-bold text-white mb-4 drop-shadow-lg">Welcome Back</h2>
           <p className="text-white/90 max-w-sm mx-auto text-lg">Continue your USAT & HAT preparation journey with AI-powered learning.</p>
@@ -155,7 +157,9 @@ const Login = () => {
               <ArrowLeft className="h-4 w-4" /> Go back
             </button>
             <Link to="/" className="flex items-center gap-2 mb-8">
-              <div className="gradient-primary rounded-lg p-1.5 shadow-md"><GraduationCap className="h-5 w-5 text-primary-foreground" /></div>
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
+                <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
+              </div>
               <span className="font-heading font-bold text-lg">PrepNest</span>
             </Link>
             {loginState?.reason === "auth-required" && (

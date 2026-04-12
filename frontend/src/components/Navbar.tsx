@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, GraduationCap } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
@@ -35,8 +35,8 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass-strong border-b border-border/40 shadow-lg">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="gradient-primary rounded-xl p-2 group-hover:scale-110 transition-transform duration-300 shadow-md">
-            <GraduationCap className="h-5 w-5 text-white" />
+          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40 group-hover:scale-110 transition-transform duration-300">
+            <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
           </div>
           <span className="font-heading font-bold text-xl text-foreground">PrepNest</span>
         </Link>

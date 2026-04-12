@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GraduationCap, CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
@@ -45,8 +45,8 @@ const VerifyEmail = () => {
         className="relative z-10 w-full max-w-md bg-white/85 backdrop-blur-xl rounded-3xl p-8 border border-white/70 shadow-2xl text-center"
       >
         <Link to="/" className="inline-flex items-center gap-2 mb-6">
-          <div className="gradient-primary rounded-lg p-1.5 shadow-md">
-            <GraduationCap className="h-5 w-5 text-primary-foreground" />
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
+            <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
           </div>
           <span className="font-heading font-bold text-lg">PrepNest</span>
         </Link>
