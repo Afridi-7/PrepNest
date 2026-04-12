@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from app.core.config import get_settings
-from app.services.supabase_storage import upload_bytes, make_key
+from app.services.supabase_storage import async_upload_bytes, make_key
 
 
 class StorageService:
@@ -20,7 +20,7 @@ class StorageService:
 
         filename = file.filename or "upload.bin"
         key = make_key(f"{user_id}/{conversation_id}", filename)
-        return upload_bytes(content, key, file.content_type)
+        return await async_upload_bytes(content, key, file.content_type)
 
     def detect_content_type(self, path: str, fallback: str | None = None) -> str | None:
         guessed, _ = mimetypes.guess_type(path)

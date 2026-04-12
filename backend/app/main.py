@@ -80,6 +80,13 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
     return JSONResponse(status_code=400, content={"detail": message})
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc: Exception):
+    """Catch unhandled exceptions so the response still gets CORS headers."""
+    logging.getLogger(__name__).error("Unhandled error: %s", exc, exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     try:

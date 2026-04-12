@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
-from app.services.supabase_storage import upload_bytes, make_key
+from app.services.supabase_storage import async_upload_bytes, make_key
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User
 from app.db.session import get_db_session
 from app.schemas.content import (
@@ -427,7 +427,10 @@ async def create_past_paper(
             )
 
         key = make_key(f"past_papers/{payload.subject_id}", filename)
-        final_content = upload_bytes(file_bytes, key, file.content_type)
+        try:
+            final_content = await async_upload_bytes(file_bytes, key, file.content_type)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"File upload failed: {exc}")
 
     if not final_content:
         raise HTTPException(status_code=400, detail="Either content or file is required")
@@ -603,7 +606,10 @@ async def upload_material_pdfs(
             )
 
         key = make_key(f"content/{topic_id}", filename)
-        public_path = upload_bytes(content, key, file.content_type)
+        try:
+            public_path = await async_upload_bytes(content, key, file.content_type)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"File upload failed ({filename}): {exc}")
         material = Material(
             title=Path(filename).stem,
             content=public_path,
@@ -870,7 +876,10 @@ async def create_paper(
             )
 
         key = make_key(f"papers/{subject_id}", filename)
-        file_path = upload_bytes(file_bytes, key, file.content_type)
+        try:
+            file_path = await async_upload_bytes(file_bytes, key, file.content_type)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"File upload failed: {exc}")
 
     if not file_path:
         raise HTTPException(status_code=400, detail="Either a PDF file or a URL is required")

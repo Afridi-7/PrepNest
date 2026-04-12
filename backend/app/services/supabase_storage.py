@@ -5,6 +5,7 @@ uploads files to Supabase Storage and returns a public URL.  Otherwise it
 falls back to local-disk storage so development doesn't require Supabase.
 """
 
+import asyncio
 import logging
 import mimetypes
 import uuid
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
-_TIMEOUT = 30  # seconds
+_TIMEOUT = 60  # seconds
 
 
 def _settings():
@@ -82,7 +83,7 @@ def ensure_bucket_exists() -> None:
 
 
 def upload_bytes(data: bytes, path: str, content_type: str | None = None) -> str:
-    """Upload *data* to *path* inside the configured bucket.
+    """Upload *data* to *path* inside the configured bucket (sync version).
 
     Returns the **public URL** of the uploaded object.
     Falls back to local-disk write when Supabase is not configured.
@@ -94,6 +95,17 @@ def upload_bytes(data: bytes, path: str, content_type: str | None = None) -> str
         return _upload_supabase(data, path, mime, settings)
 
     return _save_local(data, path, settings)
+
+
+async def async_upload_bytes(data: bytes, path: str, content_type: str | None = None) -> str:
+    """Async version of upload_bytes — won't block the event loop."""
+    settings = _settings()
+    mime = content_type or _guess_mime(path)
+
+    if _is_supabase_configured():
+        return await _async_upload_supabase(data, path, mime, settings)
+
+    return await asyncio.to_thread(_save_local, data, path, settings)
 
 
 # -- Supabase path ---------------------------------------------------------
@@ -113,6 +125,29 @@ def _upload_supabase(data: bytes, path: str, mime: str, settings) -> str:
         content=data,
         timeout=_TIMEOUT,
     )
+    if resp.status_code not in (200, 201):
+        logger.error("Supabase upload failed %s: %s", resp.status_code, resp.text)
+        raise RuntimeError(f"Supabase upload failed ({resp.status_code})")
+
+    public_url = f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
+    logger.info("Uploaded to Supabase: %s", public_url)
+    return public_url
+
+
+async def _async_upload_supabase(data: bytes, path: str, mime: str, settings) -> str:
+    bucket = settings.supabase_storage_bucket
+    url = f"{_storage_api()}/object/{bucket}/{path}"
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(
+            url,
+            headers={
+                **_auth_headers(),
+                "Content-Type": mime,
+                "x-upsert": "true",
+            },
+            content=data,
+        )
     if resp.status_code not in (200, 201):
         logger.error("Supabase upload failed %s: %s", resp.status_code, resp.text)
         raise RuntimeError(f"Supabase upload failed ({resp.status_code})")

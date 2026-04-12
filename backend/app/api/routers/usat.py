@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
 from app.models import User
-from app.services.supabase_storage import upload_bytes, make_key
+from app.services.supabase_storage import async_upload_bytes, make_key
 from app.schemas.content import (
     MCQRead,
     MaterialRead,
@@ -284,7 +284,10 @@ async def upload_user_note(
         raise HTTPException(status_code=400, detail=f"File too large. Max {settings.max_upload_size_mb} MB")
 
     key = make_key(f"user_notes/{current_user.id}/{subject_id}", filename)
-    stored_path = upload_bytes(file_bytes, key, file.content_type)
+    try:
+        stored_path = await async_upload_bytes(file_bytes, key, file.content_type)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"File upload failed: {exc}")
 
     user_note = UserNote(
         title=title,

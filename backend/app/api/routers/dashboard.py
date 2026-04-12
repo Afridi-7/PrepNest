@@ -8,7 +8,7 @@ from app.api.deps import get_current_admin, get_current_user
 from app.core.config import get_settings
 from app.db.models import MCQ, ContactInfo, Subject, Topic, User
 from app.db.session import get_db_session
-from app.services.supabase_storage import upload_bytes, make_key
+from app.services.supabase_storage import async_upload_bytes, make_key
 from app.schemas.content import (
     ContactInfoRead,
     ContactInfoUpdate,
@@ -110,7 +110,7 @@ async def upload_contact_image(
     ext = (file.filename or "img.png").rsplit(".", 1)[-1]
     safe_name = f"contact_{uuid.uuid4().hex[:12]}.{ext}"
     key = f"visuals/{safe_name}"
-    image_url = upload_bytes(content, key, file.content_type)
+    image_url = await async_upload_bytes(content, key, file.content_type)
     row = await _get_or_create_contact(db)
     row.image_url = image_url
     await db.commit()
