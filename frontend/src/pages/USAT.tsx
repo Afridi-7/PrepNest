@@ -53,13 +53,10 @@ const USAT = () => {
 
       <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
 
-        {/* ── ambient blobs ── */}
-        <motion.div aria-hidden animate={{ x: [0, 22, 0], y: [0, -18, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl" />
-        <motion.div aria-hidden animate={{ x: [0, -18, 0], y: [0, 16, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl" />
-        <motion.div aria-hidden animate={{ x: [0, 10, 0], y: [0, -12, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" />
+        {/* ── ambient blobs (CSS-only for performance) ── */}
+        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
+        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl blob-float-2" />
+        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl blob-float-3" />
 
         <div className="container relative z-10 mx-auto px-4">
 
@@ -70,11 +67,9 @@ const USAT = () => {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30 md:p-10"
           >
-            {/* inner glow orbs */}
-            <motion.div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
-              animate={{ x: [0, 18, 0], y: [0, -16, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
-            <motion.div aria-hidden className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-2xl"
-              animate={{ x: [0, -14, 0], y: [0, 14, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
+            {/* inner glow orbs (CSS-only) */}
+            <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
 
             <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
 
@@ -177,9 +172,10 @@ const USAT = () => {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.06, duration: 0.42, ease: "easeOut" }}
+                      whileHover={{ y: -4, boxShadow: "0 16px 48px -12px rgba(0,0,0,0.12), 0 6px 16px -4px rgba(0,0,0,0.06)", transition: { duration: 0 } }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => navigate(`/usat/${encodeURIComponent(category.code)}`)}
-                      className={`card-hover group relative overflow-hidden rounded-2xl border-2 bg-gradient-to-br p-5 text-left shadow-lg transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
+                      className={`group relative overflow-hidden rounded-2xl border-2 bg-gradient-to-br p-5 text-left shadow-lg transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
                     >
                       {/* top accent bar */}
                       <div className={`absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r ${style.bar}`} />

@@ -245,4 +245,56 @@
 
   /* ── GPU-accelerated transforms ── */
   .gpu { transform: translateZ(0); will-change: transform; }
+
+  /* ── CSS-only ambient blob floating (replaces JS framer-motion infinite loops) ── */
+  .blob-float-1 {
+    animation: blobFloat1 14s ease-in-out infinite;
+    will-change: transform;
+  }
+  .blob-float-2 {
+    animation: blobFloat2 16s ease-in-out infinite;
+    will-change: transform;
+  }
+  .blob-float-3 {
+    animation: blobFloat3 18s ease-in-out infinite;
+    will-change: transform;
+  }
+  .blob-glow-1 {
+    animation: blobGlow1 10s ease-in-out infinite;
+    will-change: transform;
+  }
+  .blob-glow-2 {
+    animation: blobGlow2 12s ease-in-out infinite;
+    will-change: transform;
+  }
+}
+
+@keyframes blobFloat1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(22px, -18px); }
+}
+@keyframes blobFloat2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-18px, 16px); }
+}
+@keyframes blobFloat3 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(10px, -12px); }
+}
+@keyframes blobGlow1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(16px, -14px); }
+}
+@keyframes blobGlow2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-14px, 14px); }
+}
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes gentle-rock {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  75% { transform: rotate(-5deg); }
 }

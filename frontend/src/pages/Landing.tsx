@@ -53,11 +53,9 @@ const Landing = () => (
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_60%_at_80%_50%,hsl(280_85%_65%/0.1),transparent)]" />
       <div className="absolute inset-0 pattern-dots opacity-20" />
 
-      {/* floating ambient orbs */}
-      <motion.div aria-hidden animate={{ x: [0, 30, 0], y: [0, -20, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute -left-32 -top-20 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl" />
-      <motion.div aria-hidden animate={{ x: [0, -25, 0], y: [0, 18, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute -right-28 top-32 h-80 w-80 rounded-full bg-fuchsia-300/15 blur-3xl" />
+      {/* floating ambient orbs (CSS-only for performance) */}
+      <div aria-hidden className="pointer-events-none absolute -left-32 -top-20 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
+      <div aria-hidden className="pointer-events-none absolute -right-28 top-32 h-80 w-80 rounded-full bg-fuchsia-300/15 blur-3xl blob-float-2" />
 
       <div className="container mx-auto px-4 relative">
         <motion.div

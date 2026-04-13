@@ -174,13 +174,10 @@ const Contact = () => {
     <>
       <Navbar />
       <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-20 pb-16">
-        {/* ambient blobs */}
-        <motion.div aria-hidden animate={{ x: [0, 30, 0], y: [0, -20, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -left-32 -top-16 h-[500px] w-[500px] rounded-full bg-violet-300/20 blur-3xl" />
-        <motion.div aria-hidden animate={{ x: [0, -25, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -right-24 top-32 h-96 w-96 rounded-full bg-fuchsia-300/15 blur-3xl" />
-        <motion.div aria-hidden animate={{ x: [0, 15, 0], y: [0, -15, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute bottom-20 left-1/3 h-72 w-72 rounded-full bg-cyan-200/10 blur-3xl" />
+        {/* ambient blobs (CSS-only for performance) */}
+        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-[500px] w-[500px] rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
+        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-96 w-96 rounded-full bg-fuchsia-300/15 blur-3xl blob-float-2" />
+        <div aria-hidden className="pointer-events-none absolute bottom-20 left-1/3 h-72 w-72 rounded-full bg-cyan-200/10 blur-3xl blob-float-3" />
 
         {loading ? <SkeletonPage /> : error ? <ErrorState onRetry={fetchData} /> : (
           <motion.div variants={stagger} initial="hidden" animate="show"
@@ -191,10 +188,8 @@ const Contact = () => {
               className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 shadow-2xl shadow-violet-400/30">
               {/* decorative */}
               <div className="absolute inset-0 pointer-events-none">
-                <motion.div aria-hidden className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl"
-                  animate={{ x: [0, 20, 0], y: [0, -18, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} />
-                <motion.div aria-hidden className="absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl"
-                  animate={{ x: [0, -15, 0], y: [0, 15, 0] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
+                <div aria-hidden className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
+                <div aria-hidden className="absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 {/* grid pattern overlay */}
@@ -463,10 +458,8 @@ const Contact = () => {
             <motion.div variants={fadeUp}
               className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-md mb-6">
               <div className="relative bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 px-6 sm:px-8 py-8">
-                {/* shine sweep */}
-                <motion.div aria-hidden className="pointer-events-none absolute inset-0 opacity-20"
-                  animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                {/* shine sweep (CSS-only) */}
+                <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20 animate-[shimmer_8s_linear_infinite]"
                   style={{ backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)", backgroundSize: "200% 100%" }} />
                 <div aria-hidden className="pointer-events-none absolute -top-8 -right-8 h-32 w-32 rounded-full bg-white/10 blur-xl" />
                 <div aria-hidden className="pointer-events-none absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-indigo-300/20 blur-xl" />

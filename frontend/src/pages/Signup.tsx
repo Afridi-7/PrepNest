@@ -137,14 +137,11 @@ const Signup = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 border border-white/40 text-white text-sm font-semibold mb-6 backdrop-blur">
             <Sparkles className="h-4 w-4" /> Start strong, stay consistent
           </div>
-          <motion.div
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          >
+          <div className="animate-[gentle-rock_6s_ease-in-out_infinite]">
             <div className="h-32 w-32 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-violet-600/90 to-fuchsia-600/90 p-3 shadow-2xl shadow-violet-400/50">
               <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
             </div>
-          </motion.div>
+          </div>
           <h2 className="font-heading text-4xl font-bold text-white mb-4 drop-shadow-lg">Join PrepNest</h2>
           <p className="text-white/90 max-w-sm mx-auto text-lg">Start your journey to ace the USAT & HAT exams with personalized AI assistance.</p>
           <div className="mt-8 grid grid-cols-3 gap-2 text-xs text-white/95">
