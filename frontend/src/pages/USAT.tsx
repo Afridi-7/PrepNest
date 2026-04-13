@@ -6,26 +6,26 @@ import Navbar from "@/components/Navbar";
 import { apiClient, USATCategory } from "@/services/api";
 
 const CATEGORY_CARD_STYLES: Record<string, {
-  gradient: string; border: string; code: string; bar: string; hover: string;
+  gradient: string; border: string; code: string; bar: string; hover: string; iconBg: string;
 }> = {
-  "USAT-E":  { gradient: "from-violet-50 to-purple-100",  border: "border-violet-200",  code: "bg-violet-100 text-violet-700",  bar: "from-violet-400 to-purple-500",  hover: "hover:border-violet-300 hover:shadow-violet-100" },
-  "USAT-M":  { gradient: "from-emerald-50 to-teal-100",   border: "border-emerald-200", code: "bg-emerald-100 text-emerald-700", bar: "from-emerald-400 to-teal-500",   hover: "hover:border-emerald-300 hover:shadow-emerald-100" },
-  "USAT-CS": { gradient: "from-cyan-50 to-sky-100",       border: "border-cyan-200",    code: "bg-cyan-100 text-cyan-700",     bar: "from-cyan-400 to-sky-500",      hover: "hover:border-cyan-300 hover:shadow-cyan-100" },
-  "USAT-GS": { gradient: "from-amber-50 to-orange-100",   border: "border-amber-200",   code: "bg-amber-100 text-amber-700",   bar: "from-amber-400 to-orange-500",   hover: "hover:border-amber-300 hover:shadow-amber-100" },
-  "USAT-A":  { gradient: "from-rose-50 to-pink-100",      border: "border-rose-200",    code: "bg-rose-100 text-rose-700",     bar: "from-rose-400 to-pink-500",      hover: "hover:border-rose-300 hover:shadow-rose-100" },
+  "USAT-E":  { gradient: "from-violet-100 to-purple-200",  border: "border-violet-300",  code: "bg-violet-200 text-violet-800",  bar: "from-violet-500 to-purple-600",  hover: "hover:border-violet-400 hover:shadow-violet-200/60", iconBg: "bg-violet-500" },
+  "USAT-M":  { gradient: "from-emerald-100 to-teal-200",   border: "border-emerald-300", code: "bg-emerald-200 text-emerald-800", bar: "from-emerald-500 to-teal-600",   hover: "hover:border-emerald-400 hover:shadow-emerald-200/60", iconBg: "bg-emerald-500" },
+  "USAT-CS": { gradient: "from-cyan-100 to-sky-200",       border: "border-cyan-300",    code: "bg-cyan-200 text-cyan-800",     bar: "from-cyan-500 to-sky-600",      hover: "hover:border-cyan-400 hover:shadow-cyan-200/60", iconBg: "bg-cyan-500" },
+  "USAT-GS": { gradient: "from-amber-100 to-orange-200",   border: "border-amber-300",   code: "bg-amber-200 text-amber-800",   bar: "from-amber-500 to-orange-600",   hover: "hover:border-amber-400 hover:shadow-amber-200/60", iconBg: "bg-amber-500" },
+  "USAT-A":  { gradient: "from-rose-100 to-pink-200",      border: "border-rose-300",    code: "bg-rose-200 text-rose-800",     bar: "from-rose-500 to-pink-600",      hover: "hover:border-rose-400 hover:shadow-rose-200/60", iconBg: "bg-rose-500" },
 };
 
 const FALLBACK_STYLE = {
-  gradient: "from-indigo-50 to-blue-100", border: "border-indigo-200",
-  code: "bg-indigo-100 text-indigo-700",  bar: "from-indigo-400 to-blue-500",
-  hover: "hover:border-indigo-300 hover:shadow-indigo-100",
+  gradient: "from-indigo-100 to-blue-200", border: "border-indigo-300",
+  code: "bg-indigo-200 text-indigo-800",  bar: "from-indigo-500 to-blue-600",
+  hover: "hover:border-indigo-400 hover:shadow-indigo-200/60", iconBg: "bg-indigo-500",
 };
 
 const examInfo = [
-  { label: "Verbal Reasoning",       marks: "20", cardBg: "bg-white/95", border: "border-violet-200", bar: "from-violet-400 to-purple-400", marksColor: "text-violet-600", labelColor: "text-violet-400" },
-  { label: "Quantitative Reasoning", marks: "25", cardBg: "bg-white/95", border: "border-cyan-200",   bar: "from-cyan-400 to-sky-400",     marksColor: "text-cyan-600",   labelColor: "text-cyan-400" },
-  { label: "Subject Knowledge",      marks: "30", cardBg: "bg-white/95", border: "border-emerald-200",bar: "from-emerald-400 to-teal-400", marksColor: "text-emerald-600",labelColor: "text-emerald-400" },
-  { label: "Essay Writing",          marks: "25", cardBg: "bg-white/95", border: "border-amber-200",  bar: "from-amber-400 to-orange-400", marksColor: "text-amber-600",  labelColor: "text-amber-400" },
+  { label: "Verbal Reasoning",       marks: "20", cardBg: "bg-white/95", border: "border-violet-300", bar: "from-violet-500 to-purple-500", marksColor: "text-violet-700", labelColor: "text-violet-500" },
+  { label: "Quantitative Reasoning", marks: "25", cardBg: "bg-white/95", border: "border-cyan-300",   bar: "from-cyan-500 to-sky-500",     marksColor: "text-cyan-700",   labelColor: "text-cyan-500" },
+  { label: "Subject Knowledge",      marks: "30", cardBg: "bg-white/95", border: "border-emerald-300",bar: "from-emerald-500 to-teal-500", marksColor: "text-emerald-700",labelColor: "text-emerald-500" },
+  { label: "Essay Writing",          marks: "25", cardBg: "bg-white/95", border: "border-amber-300",  bar: "from-amber-500 to-orange-500", marksColor: "text-amber-700",  labelColor: "text-amber-500" },
 ];
 
 const USAT = () => {
@@ -177,13 +177,12 @@ const USAT = () => {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.06, duration: 0.42, ease: "easeOut" }}
-                      whileHover={{ y: -5, transition: { type: "spring", stiffness: 320, damping: 22 } }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => navigate(`/usat/${encodeURIComponent(category.code)}`)}
-                      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 text-left shadow-md transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
+                      className={`card-hover group relative overflow-hidden rounded-2xl border-2 bg-gradient-to-br p-5 text-left shadow-lg transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
                     >
                       {/* top accent bar */}
-                      <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${style.bar}`} />
+                      <div className={`absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r ${style.bar}`} />
 
                       {/* top row: code badge + arrow */}
                       <div className="flex items-start justify-between">

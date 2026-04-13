@@ -331,8 +331,7 @@ const Contact = () => {
             <div className="grid md:grid-cols-2 gap-5 mb-6">
               {/* EMAIL */}
               <motion.div variants={fadeUp}
-                whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
-                className="group relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-violet-100 hover:shadow-xl hover:shadow-violet-100/40 hover:border-violet-200 transition-all">
+                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-violet-100 hover:shadow-xl hover:shadow-violet-100/40 hover:border-violet-200 transition-all">
                 <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-violet-400 to-fuchsia-400 rounded-t-2xl" />
                 <div className="flex items-center gap-3 mb-4 mt-1">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md shadow-violet-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
@@ -370,8 +369,7 @@ const Contact = () => {
 
               {/* AVAILABILITY */}
               <motion.div variants={fadeUp}
-                whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
-                className="group relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-emerald-100 hover:shadow-xl hover:shadow-emerald-100/40 hover:border-emerald-200 transition-all">
+                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-emerald-100 hover:shadow-xl hover:shadow-emerald-100/40 hover:border-emerald-200 transition-all">
                 <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-t-2xl" />
                 <div className="flex items-center gap-3 mb-4 mt-1">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md shadow-emerald-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
@@ -431,8 +429,7 @@ const Contact = () => {
                         ) : value ? (
                           <motion.a key={`${link.key}-view`} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
                             href={value} target="_blank" rel="noopener noreferrer"
-                            whileHover={{ y: -3, transition: { type: "spring", stiffness: 320, damping: 22 } }}
-                            className={`group/link relative overflow-hidden flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-white transition-all shadow-sm hover:shadow-md ${link.hoverColor}`}>
+                            className={`card-hover group/link relative overflow-hidden flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-white transition-all shadow-sm hover:shadow-md ${link.hoverColor}`}>
                             <div className={`absolute top-0 left-0 h-0.5 w-0 bg-gradient-to-r ${link.accentBar} group-hover/link:w-full transition-all duration-300`} />
                             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${link.iconBg} transition-transform group-hover/link:scale-110`}>
                               <link.icon className={`h-4 w-4 ${link.iconColor}`} />

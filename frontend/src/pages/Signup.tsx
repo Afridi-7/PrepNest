@@ -115,8 +115,9 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40">
-      <div className="absolute -top-24 -right-20 w-72 h-72 rounded-full bg-purple-300/25 blur-3xl" />
-      <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-sky-300/25 blur-3xl" />
+      <div className="absolute -top-24 -right-20 w-72 h-72 rounded-full bg-purple-300/20 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-sky-300/20 blur-3xl animate-pulse" style={{ animationDuration: '10s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-violet-200/15 blur-3xl" />
 
       <div className="hidden lg:flex lg:w-1/2 gradient-primary relative items-center justify-center p-12 overflow-hidden">
         <div className="absolute inset-0 pattern-dots opacity-20" />
@@ -155,7 +156,8 @@ const Signup = () => {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10">
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md bg-white/85 backdrop-blur-xl rounded-3xl p-6 sm:p-7 border border-white/70 shadow-2xl">
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md bg-white/95 rounded-3xl p-6 sm:p-7 border-2 border-violet-200 shadow-2xl shadow-violet-200/30 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
           {signupDone ? (
             <div className="text-center py-4">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" as const, stiffness: 200, damping: 15 }}>
@@ -191,7 +193,7 @@ const Signup = () => {
               <span className="font-heading font-bold text-lg">PrepNest</span>
             </Link>
             <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Create Account</h1>
-            <p className="text-muted-foreground text-sm">Join PrepNest and begin your exam prep journey</p>
+            <p className="text-slate-400 text-sm">Join PrepNest and begin your exam prep journey</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -202,7 +204,7 @@ const Signup = () => {
                 <Input 
                   id="name" 
                   placeholder="Enter your full name" 
-                  className="pl-10 h-11 rounded-xl border-border/70 focus-visible:ring-primary/50"
+                  className="pl-10 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-violet-400/50 focus-visible:border-violet-300 transition-colors"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={loading}
@@ -217,7 +219,7 @@ const Signup = () => {
                   id="email" 
                   type="email" 
                   placeholder="student@prepnest.app" 
-                  className="pl-10 h-11 rounded-xl border-border/70 focus-visible:ring-primary/50"
+                  className="pl-10 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-violet-400/50 focus-visible:border-violet-300 transition-colors"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
@@ -232,7 +234,7 @@ const Signup = () => {
                   id="password" 
                   type={showPass ? "text" : "password"} 
                   placeholder="••••••••" 
-                  className="pl-10 pr-10 h-11 rounded-xl border-border/70 focus-visible:ring-primary/50"
+                  className="pl-10 pr-10 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-violet-400/50 focus-visible:border-violet-300 transition-colors"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
@@ -247,7 +249,7 @@ const Signup = () => {
                 </button>
               </div>
             </div>
-            <Button type="submit" variant="gradient" className="w-full h-11 rounded-xl font-semibold" disabled={loading}>
+            <Button type="submit" variant="gradient" className="w-full h-12 rounded-xl font-semibold shadow-lg shadow-violet-300/30 hover:shadow-xl hover:shadow-violet-300/40 transition-shadow" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -42,20 +42,20 @@ const timeOptions = [
   { label: "80 min",   value: 80 },
 ];
 
-/* ── Option letter colors — vivid so they POP ── */
+/* ── Option letter colors — vivid & bold so they POP ── */
 const OPTION_COLORS = [
-  { idle: "bg-violet-100 text-violet-700 border-violet-300",   active: "bg-violet-600 text-white border-violet-600",   ring: "border-violet-400 bg-violet-50/80 shadow-violet-100" },
-  { idle: "bg-sky-100 text-sky-700 border-sky-300",            active: "bg-sky-600 text-white border-sky-600",          ring: "border-sky-400 bg-sky-50/80 shadow-sky-100" },
-  { idle: "bg-emerald-100 text-emerald-700 border-emerald-300",active: "bg-emerald-600 text-white border-emerald-600",  ring: "border-emerald-400 bg-emerald-50/80 shadow-emerald-100" },
-  { idle: "bg-amber-100 text-amber-700 border-amber-300",      active: "bg-amber-500 text-white border-amber-500",      ring: "border-amber-400 bg-amber-50/80 shadow-amber-100" },
+  { idle: "bg-violet-200 text-violet-800 border-violet-400",   active: "bg-violet-600 text-white border-violet-600",   ring: "border-violet-500 bg-violet-50 shadow-violet-200" },
+  { idle: "bg-sky-200 text-sky-800 border-sky-400",            active: "bg-sky-600 text-white border-sky-600",          ring: "border-sky-500 bg-sky-50 shadow-sky-200" },
+  { idle: "bg-emerald-200 text-emerald-800 border-emerald-400",active: "bg-emerald-600 text-white border-emerald-600",  ring: "border-emerald-500 bg-emerald-50 shadow-emerald-200" },
+  { idle: "bg-amber-200 text-amber-800 border-amber-400",      active: "bg-amber-500 text-white border-amber-500",      ring: "border-amber-500 bg-amber-50 shadow-amber-200" },
 ];
 
 const SUBJECT_PILLS: Record<string, { pill: string; dot: string }> = {
-  English:     { pill: "bg-violet-100 text-violet-700 border-violet-200",  dot: "bg-violet-500" },
-  Mathematics: { pill: "bg-cyan-100 text-cyan-700 border-cyan-200",        dot: "bg-cyan-500" },
-  Physics:     { pill: "bg-amber-100 text-amber-700 border-amber-200",     dot: "bg-amber-500" },
-  Chemistry:   { pill: "bg-emerald-100 text-emerald-700 border-emerald-200",dot: "bg-emerald-500" },
-  Biology:     { pill: "bg-rose-100 text-rose-700 border-rose-200",        dot: "bg-rose-500" },
+  English:     { pill: "bg-violet-200 text-violet-800 border-violet-300",  dot: "bg-violet-500" },
+  Mathematics: { pill: "bg-cyan-200 text-cyan-800 border-cyan-300",        dot: "bg-cyan-500" },
+  Physics:     { pill: "bg-amber-200 text-amber-800 border-amber-300",     dot: "bg-amber-500" },
+  Chemistry:   { pill: "bg-emerald-200 text-emerald-800 border-emerald-300",dot: "bg-emerald-500" },
+  Biology:     { pill: "bg-rose-200 text-rose-800 border-rose-300",        dot: "bg-rose-500" },
 };
 
 const subjectPill = (s: string) => SUBJECT_PILLS[s]?.pill ?? "bg-slate-100 text-slate-600 border-slate-200";
@@ -340,7 +340,7 @@ const Practice = () => {
                 </div>
 
                 {/* Summary strip */}
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-violet-200 bg-violet-50 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-violet-300 bg-violet-100 px-5 py-4">
                   {selectedCategory && (
                     <>
                       <div className="flex items-center gap-2">
@@ -367,7 +367,7 @@ const Practice = () => {
                 </div>
 
                 <button onClick={startQuiz} disabled={fetchingMCQs || !selectedCategory}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-violet-400/50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-xl">
                   {fetchingMCQs ? <><Loader2 className="h-5 w-5 animate-spin" /> Loading MCQs…</> : <><Play className="h-5 w-5" /> Start Test</>}
                 </button>
               </div>
@@ -448,7 +448,7 @@ const Practice = () => {
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -30, scale: 0.98 }}
                       transition={{ duration: 0.22 }}
-                      className="rounded-3xl border-2 border-violet-100 bg-white p-6 sm:p-8 shadow-xl shadow-violet-100/40">
+                      className="rounded-3xl border-2 border-violet-200 bg-white p-6 sm:p-8 shadow-xl shadow-violet-200/40">
 
                       {/* question number badge */}
                       <div className="flex items-center gap-3 mb-5">
@@ -474,10 +474,9 @@ const Practice = () => {
                           const C = OPTION_COLORS[i];
                           return (
                             <motion.button key={i}
-                              whileHover={{ scale: 1.02, transition: { type: "spring", stiffness: 400, damping: 25 } }}
                               whileTap={{ scale: 0.97 }}
                               onClick={() => handleSelect(i)}
-                              className={`relative text-left p-4 rounded-2xl border-2 transition-all duration-200 flex items-start gap-3 group ${
+                              className={`card-hover relative text-left p-4 rounded-2xl border-2 transition-all duration-200 flex items-start gap-3 group ${
                                 isSelected ? `${C.ring} shadow-lg` : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md"
                               }`}>
                               {/* letter badge */}
@@ -527,7 +526,7 @@ const Practice = () => {
                 <aside className="lg:sticky lg:top-28 space-y-4">
 
                   {/* Navigator */}
-                  <div className="rounded-2xl border-2 border-violet-100 bg-white p-4 shadow-lg shadow-violet-100/20">
+                  <div className="rounded-2xl border-2 border-violet-200 bg-white p-4 shadow-lg shadow-violet-200/20">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-sm font-bold text-slate-800">Navigator</p>
                       <div className="flex items-center gap-1.5">

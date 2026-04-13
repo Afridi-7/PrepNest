@@ -5,61 +5,61 @@ import { ArrowLeft, BookOpen, ChevronRight, Plus, Sparkles, Trash2, Loader2 } fr
 import Navbar from "@/components/Navbar";
 import { apiClient, Subject } from "@/services/api";
 
-/* ── per-card accent palette: soft but distinct, not retina-burning ── */
+/* ── per-card accent palette: vivid & bold for maximum visibility ── */
 const CARD_STYLES = [
   {
-    gradient: "from-violet-50 to-purple-100",
-    border: "border-violet-200",
-    icon: "bg-violet-100 text-violet-600",
-    label: "text-violet-500",
-    pill: "bg-violet-100 text-violet-700",
-    bar: "bg-gradient-to-r from-violet-400 to-purple-400",
-    hover: "hover:border-violet-300 hover:shadow-violet-100",
+    gradient: "from-violet-100 to-purple-200",
+    border: "border-violet-300",
+    icon: "bg-violet-200 text-violet-700",
+    label: "text-violet-600",
+    pill: "bg-violet-200 text-violet-800",
+    bar: "bg-gradient-to-r from-violet-500 to-purple-500",
+    hover: "hover:border-violet-400 hover:shadow-violet-200/60",
   },
   {
-    gradient: "from-cyan-50 to-sky-100",
-    border: "border-cyan-200",
-    icon: "bg-cyan-100 text-cyan-600",
-    label: "text-cyan-500",
-    pill: "bg-cyan-100 text-cyan-700",
-    bar: "bg-gradient-to-r from-cyan-400 to-sky-400",
-    hover: "hover:border-cyan-300 hover:shadow-cyan-100",
+    gradient: "from-cyan-100 to-sky-200",
+    border: "border-cyan-300",
+    icon: "bg-cyan-200 text-cyan-700",
+    label: "text-cyan-600",
+    pill: "bg-cyan-200 text-cyan-800",
+    bar: "bg-gradient-to-r from-cyan-500 to-sky-500",
+    hover: "hover:border-cyan-400 hover:shadow-cyan-200/60",
   },
   {
-    gradient: "from-emerald-50 to-teal-100",
-    border: "border-emerald-200",
-    icon: "bg-emerald-100 text-emerald-600",
-    label: "text-emerald-500",
-    pill: "bg-emerald-100 text-emerald-700",
-    bar: "bg-gradient-to-r from-emerald-400 to-teal-400",
-    hover: "hover:border-emerald-300 hover:shadow-emerald-100",
+    gradient: "from-emerald-100 to-teal-200",
+    border: "border-emerald-300",
+    icon: "bg-emerald-200 text-emerald-700",
+    label: "text-emerald-600",
+    pill: "bg-emerald-200 text-emerald-800",
+    bar: "bg-gradient-to-r from-emerald-500 to-teal-500",
+    hover: "hover:border-emerald-400 hover:shadow-emerald-200/60",
   },
   {
-    gradient: "from-amber-50 to-orange-100",
-    border: "border-amber-200",
-    icon: "bg-amber-100 text-amber-600",
-    label: "text-amber-500",
-    pill: "bg-amber-100 text-amber-700",
-    bar: "bg-gradient-to-r from-amber-400 to-orange-400",
-    hover: "hover:border-amber-300 hover:shadow-amber-100",
+    gradient: "from-amber-100 to-orange-200",
+    border: "border-amber-300",
+    icon: "bg-amber-200 text-amber-700",
+    label: "text-amber-600",
+    pill: "bg-amber-200 text-amber-800",
+    bar: "bg-gradient-to-r from-amber-500 to-orange-500",
+    hover: "hover:border-amber-400 hover:shadow-amber-200/60",
   },
   {
-    gradient: "from-rose-50 to-pink-100",
-    border: "border-rose-200",
-    icon: "bg-rose-100 text-rose-600",
-    label: "text-rose-500",
-    pill: "bg-rose-100 text-rose-700",
-    bar: "bg-gradient-to-r from-rose-400 to-pink-400",
-    hover: "hover:border-rose-300 hover:shadow-rose-100",
+    gradient: "from-rose-100 to-pink-200",
+    border: "border-rose-300",
+    icon: "bg-rose-200 text-rose-700",
+    label: "text-rose-600",
+    pill: "bg-rose-200 text-rose-800",
+    bar: "bg-gradient-to-r from-rose-500 to-pink-500",
+    hover: "hover:border-rose-400 hover:shadow-rose-200/60",
   },
   {
-    gradient: "from-indigo-50 to-blue-100",
-    border: "border-indigo-200",
-    icon: "bg-indigo-100 text-indigo-600",
-    label: "text-indigo-500",
-    pill: "bg-indigo-100 text-indigo-700",
-    bar: "bg-gradient-to-r from-indigo-400 to-blue-400",
-    hover: "hover:border-indigo-300 hover:shadow-indigo-100",
+    gradient: "from-indigo-100 to-blue-200",
+    border: "border-indigo-300",
+    icon: "bg-indigo-200 text-indigo-700",
+    label: "text-indigo-600",
+    pill: "bg-indigo-200 text-indigo-800",
+    bar: "bg-gradient-to-r from-indigo-500 to-blue-500",
+    hover: "hover:border-indigo-400 hover:shadow-indigo-200/60",
   },
 ];
 
@@ -263,15 +263,14 @@ const USATSubjects = () => {
                       </button>
                     )}
                     <motion.button
-                      whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() =>
                         navigate(`/usat/${encodeURIComponent(category)}/${slugify(subject.name)}`)
                       }
-                      className={`group relative w-full overflow-hidden rounded-2xl border bg-gradient-to-br p-5 text-left shadow-md transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
+                      className={`card-hover group relative w-full overflow-hidden rounded-2xl border-2 bg-gradient-to-br p-5 text-left shadow-lg transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
                     >
                       {/* top accent bar */}
-                      <div className={`absolute top-0 left-0 h-1 w-full ${style.bar}`} />
+                      <div className={`absolute top-0 left-0 h-1.5 w-full ${style.bar}`} />
 
                       {/* card number badge */}
                       <div className="absolute top-4 right-4">

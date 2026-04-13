@@ -131,17 +131,16 @@ const Dashboard = () => {
             className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
           >
             {[
-              { label: "Subjects",    value: String(totalSubjects), icon: Flame,     bar: "from-violet-400 to-purple-500",  bg: "bg-violet-50",  text: "text-violet-600",  border: "border-violet-100" },
-              { label: "Topics",      value: String(totalTopics),   icon: Target,    bar: "from-fuchsia-400 to-pink-500",   bg: "bg-fuchsia-50", text: "text-fuchsia-600", border: "border-fuchsia-100" },
-              { label: "Total MCQs",  value: String(totalMcqs),     icon: TrendingUp,bar: "from-cyan-400 to-sky-500",       bg: "bg-cyan-50",    text: "text-cyan-600",    border: "border-cyan-100" },
+              { label: "Subjects",    value: String(totalSubjects), icon: Flame,     bar: "from-violet-500 to-purple-600",  bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-200" },
+              { label: "Topics",      value: String(totalTopics),   icon: Target,    bar: "from-fuchsia-500 to-pink-600",   bg: "bg-fuchsia-100", text: "text-fuchsia-700", border: "border-fuchsia-200" },
+              { label: "Total MCQs",  value: String(totalMcqs),     icon: TrendingUp,bar: "from-cyan-500 to-sky-600",       bg: "bg-cyan-100",    text: "text-cyan-700",    border: "border-cyan-200" },
             ].map((stat, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.06 }}
-                whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
-                className={`bg-white rounded-2xl p-5 shadow-md border ${stat.border} hover:shadow-lg transition-shadow duration-300 cursor-pointer group overflow-hidden relative`}
+                className={`card-hover bg-white rounded-2xl p-5 shadow-lg border-2 ${stat.border} hover:shadow-xl transition-shadow duration-300 cursor-pointer group overflow-hidden relative`}
               >
                 {/* top accent bar */}
                 <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${stat.bar}`} />
@@ -168,16 +167,19 @@ const Dashboard = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white rounded-2xl p-6 shadow-md border border-violet-100"
+                className="bg-white rounded-2xl p-6 shadow-lg border-2 border-violet-200"
               >
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-base">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
-                      <BarChart3 className="h-4 w-4 text-violet-600" />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-200">
+                      <BarChart3 className="h-4 w-4 text-violet-700" />
                     </span>
                     Content by Subject
                   </h2>
-                  <span className="text-xs text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full font-semibold">MCQs</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Performance</span>
+                    <span className="text-xs text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full font-semibold">MCQs</span>
+                  </div>
                 </div>
                 <div className="flex items-end gap-2 sm:gap-3 h-44">
                   {uniqueSubjects.slice(0, 7).map((s, i) => {
@@ -204,12 +206,12 @@ const Dashboard = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-2xl p-6 shadow-md border border-violet-100"
+                className="bg-white rounded-2xl p-6 shadow-lg border-2 border-violet-200"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="font-semibold text-slate-800 flex items-center gap-2 text-base">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
-                      <BookOpen className="h-4 w-4 text-violet-600" />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-200">
+                      <BookOpen className="h-4 w-4 text-violet-700" />
                     </span>
                     Subject Progress
                   </h2>
@@ -242,11 +244,11 @@ const Dashboard = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="bg-white rounded-2xl p-6 shadow-md border border-amber-100"
+                className="bg-white rounded-2xl p-6 shadow-lg border-2 border-amber-200"
               >
                 <h2 className="font-semibold text-slate-800 mb-5 flex items-center gap-2 text-base">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
                   </span>
                   Needs Attention
                 </h2>
@@ -280,7 +282,7 @@ const Dashboard = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-md"
+                className="overflow-hidden rounded-2xl border-2 border-violet-200 bg-white shadow-lg"
               >
                 <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3.5">
                   <h2 className="font-bold text-sm text-white flex items-center gap-2">
@@ -314,7 +316,7 @@ const Dashboard = () => {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="overflow-hidden rounded-2xl border border-fuchsia-100 bg-white shadow-md"
+                className="overflow-hidden rounded-2xl border-2 border-fuchsia-200 bg-white shadow-lg"
               >
                 <div className="bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3.5">
                   <h2 className="font-bold text-sm text-white flex items-center gap-2">

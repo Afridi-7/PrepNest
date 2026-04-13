@@ -45,8 +45,9 @@ const VerifyEmail = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md bg-white/85 backdrop-blur-xl rounded-3xl p-8 border border-white/70 shadow-2xl text-center"
+        className="relative z-10 w-full max-w-md bg-white/90 rounded-3xl p-8 border border-violet-100/50 shadow-2xl shadow-violet-200/20 text-center overflow-hidden"
       >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
         <Link to="/" className="inline-flex items-center gap-2 mb-6">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
             <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />

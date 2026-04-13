@@ -462,9 +462,9 @@ const AITutor = () => {
           className="w-[272px] flex flex-col overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40"
           style={{ background: "white", borderRight: "0.5px solid #e2e0f0", boxShadow: "2px 0 12px rgba(139,92,246,0.06)" }}
         >
-          <div className="p-4 border-b border-violet-100">
+          <div className="p-4 border-b border-violet-100 bg-gradient-to-b from-violet-50/50 to-white">
             <button onClick={newConversation}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-300/40 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5">
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-300/40 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 hover:shadow-xl">
               <Sparkles className="h-4 w-4" /> New Chat
             </button>
           </div>
@@ -632,10 +632,9 @@ const AITutor = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {quickPrompts.map((qp, i) => (
                   <motion.button key={i}
-                    whileHover={{ y: -3, transition: { type: "spring", stiffness: 320, damping: 22 } }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => sendMessage(qp.prompt)}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white border transition-all text-left shadow-sm hover:shadow-md ${qp.color}`}>
+                    className={`card-hover flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white border transition-all text-left shadow-sm hover:shadow-md ${qp.color}`}>
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${qp.iconBg}`}>
                       <qp.icon className="h-4 w-4" />
                     </span>
