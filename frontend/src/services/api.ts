@@ -558,6 +558,14 @@ class ApiClient {
     return `${API_BASE_URL}/usat/user-notes/${noteId}/view`;
   }
 
+  async getUserNoteDirectUrl(noteId: number): Promise<string> {
+    const token = this.getToken();
+    const res = await this.request<{ url: string }>(
+      `/usat/user-notes/${noteId}/url?token=${encodeURIComponent(token || "")}`
+    );
+    return res.url;
+  }
+
   async listChapterMCQsPaginated(chapterId: number, limit = 30, offset = 0): Promise<MCQ[]> {
     return this.request<MCQ[]>(
       `/usat/chapters/${chapterId}/mcqs?limit=${limit}&offset=${offset}`

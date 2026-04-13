@@ -326,11 +326,17 @@ const USATSubjectChapters = () => {
     catch (err: any) { alert(err.message); }
   };
 
-  const viewUserNotePdf = (noteId: number) => {
-    const token = apiClient.getToken?.();
-    const url = apiClient.getUserNoteViewUrl(noteId);
-    // We'll set the PDF viewer URL with auth token as query param
-    setUserNotePdfUrl(`${url}?token=${encodeURIComponent(token || "")}`);
+  const viewUserNotePdf = async (noteId: number) => {
+    try {
+      // Fetch the direct Supabase URL (skips the 307 redirect)
+      const directUrl = await apiClient.getUserNoteDirectUrl(noteId);
+      setUserNotePdfUrl(directUrl);
+    } catch {
+      // Fallback to the old redirect-based flow
+      const token = apiClient.getToken?.();
+      const url = apiClient.getUserNoteViewUrl(noteId);
+      setUserNotePdfUrl(`${url}?token=${encodeURIComponent(token || "")}`);
+    }
   };
 
   return (

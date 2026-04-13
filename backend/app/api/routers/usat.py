@@ -369,3 +369,31 @@ async def view_user_note_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": "inline"},
     )
+
+
+@router.get("/user-notes/{note_id}/url")
+async def get_user_note_url(
+    note_id: int,
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Return the direct PDF URL as JSON so the frontend can skip the 307 redirect.
+
+    Auth is still enforced via ?token= query param — identical to /view.
+    """
+    from app.core.security import decode_access_token
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    note = await db.get(UserNote, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # External (Supabase) URL — return directly
+    if note.file_path.startswith("http://") or note.file_path.startswith("https://"):
+        return {"url": note.file_path}
+
+    # Local file — fall back to the /view redirect endpoint
+    return {"url": f"/api/usat/user-notes/{note_id}/view?token={token}"}
