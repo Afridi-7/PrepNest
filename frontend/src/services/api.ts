@@ -480,6 +480,17 @@ class ApiClient {
     return this.request<USATCategory[]>("/usat/categories");
   }
 
+  async getSubjectBulkData(category: string, slug: string): Promise<{
+    subject: Subject;
+    chapters: Topic[];
+    papers: PastPaper[];
+    tips: Tip[];
+    resources: SubjectResource[];
+    user_notes: UserNote[];
+  }> {
+    return this.request(`/usat/${encodeURIComponent(category)}/subject-by-slug/${encodeURIComponent(slug)}/bulk`);
+  }
+
   async listUSATCategorySubjects(category: string): Promise<Subject[]> {
     return this.request<Subject[]>(`/usat/${encodeURIComponent(category)}/subjects`);
   }

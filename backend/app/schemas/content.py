@@ -243,6 +243,17 @@ class UserNoteRead(BaseModel):
     created_at: datetime
 
 
+# ── Bulk subject data (single-request fetch for chapters page) ────────────────
+
+class SubjectBulkData(BaseModel):
+    subject: SubjectRead
+    chapters: list[TopicRead]
+    papers: list[PastPaperRead]
+    tips: list[TipRead]
+    resources: list[SubjectResourceRead]
+    user_notes: list[UserNoteRead]
+
+
 # ── ContactInfo schemas ───────────────────────────────────────────────────────
 
 class ContactInfoRead(BaseModel):

@@ -18,6 +18,7 @@ from app.schemas.content import (
     NoteRead,
     PastPaperRead,
     ResourceRead,
+    SubjectBulkData,
     SubjectRead,
     SubjectResourceRead,
     TipRead,
@@ -43,6 +44,54 @@ async def list_usat_categories() -> list[USATCategoryRead]:
         USATCategoryRead(code=code, title=meta["title"], description=meta["description"])
         for code, meta in USAT_CATEGORIES.items()
     ]
+
+
+import asyncio
+import re
+
+
+def _slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+@router.get("/{category}/subject-by-slug/{slug}/bulk", response_model=SubjectBulkData)
+async def get_subject_bulk_data(
+    category: str,
+    slug: str,
+    db: AsyncSession = Depends(get_db_session),
+) -> SubjectBulkData:
+    """Return subject + chapters + papers + tips + resources + user-notes in ONE request.
+
+    Eliminates the waterfall: frontend no longer needs to fetch subjects list first,
+    then fire 5 parallel calls.
+    """
+    normalized_category = category.strip().upper()
+    result = await db.execute(
+        select(Subject)
+        .where(Subject.exam_type.ilike(normalized_category))
+    )
+    subjects = result.scalars().all()
+    matched = next((s for s in subjects if _slugify(s.name) == slug), None)
+    if not matched:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    sid = matched.id
+    chapters_q, papers_q, tips_q, resources_q, notes_q = await asyncio.gather(
+        db.execute(select(Topic).where(Topic.subject_id == sid).order_by(Topic.created_at.desc())),
+        db.execute(select(PastPaper).where(PastPaper.subject_id == sid).order_by(PastPaper.created_at.desc())),
+        db.execute(select(Tip).where(Tip.subject_id == sid).order_by(Tip.created_at.desc())),
+        db.execute(select(SubjectResource).where(SubjectResource.subject_id == sid).order_by(SubjectResource.created_at.desc())),
+        db.execute(select(UserNote).where(UserNote.subject_id == sid).order_by(UserNote.created_at.desc())),
+    )
+
+    return SubjectBulkData(
+        subject=SubjectRead.model_validate(matched),
+        chapters=[TopicRead.model_validate(t) for t in chapters_q.scalars().all()],
+        papers=[PastPaperRead.model_validate(p) for p in papers_q.scalars().all()],
+        tips=[TipRead.model_validate(t) for t in tips_q.scalars().all()],
+        resources=[SubjectResourceRead.model_validate(r) for r in resources_q.scalars().all()],
+        user_notes=[UserNoteRead.model_validate(n) for n in notes_q.scalars().all()],
+    )
 
 
 @router.get("/{category}/subjects", response_model=list[SubjectRead])
@@ -240,14 +289,10 @@ async def list_subject_practice_mcqs(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    topic_ids_result = await db.execute(select(Topic.id).where(Topic.subject_id == subject_id))
-    topic_ids = [row[0] for row in topic_ids_result.fetchall()]
-    if not topic_ids:
-        return []
-
+    topic_subq = select(Topic.id).where(Topic.subject_id == subject_id).scalar_subquery()
     result = await db.execute(
         select(MCQ)
-        .where(MCQ.topic_id.in_(topic_ids))
+        .where(MCQ.topic_id.in_(topic_subq))
         .order_by(func.random())
         .limit(limit)
     )

@@ -262,21 +262,13 @@ const USATSubjectChapters = () => {
     (async () => {
       if (!category || !subject) return;
       setLoading(true);
-      const fetchedSubjects = await apiClient.listUSATCategorySubjects(category);
-      const matched = fetchedSubjects.find((item) => slugify(item.name) === subject) || null;
-      setSubjectInfo(matched);
-      if (!matched) { setChapters([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); setSubjectResources([]); setExpandedChapterId(null); return; }
-      const [fetchedChapters, papers, tips, sResources] = await Promise.all([
-        apiClient.listTopics(matched.id),
-        apiClient.listSubjectPapers(matched.id),
-        apiClient.listSubjectTips(matched.id),
-        apiClient.listSubjectResources(matched.id),
-      ]);
-      setChapters(fetchedChapters);
-      setSubjectPapers(papers);
-      setSubjectTips(tips);
-      setSubjectResources(sResources);
-      apiClient.listUserNotes(matched.id).then(setUserNotes).catch(() => setUserNotes([]));
+      const bulk = await apiClient.getSubjectBulkData(category, subject);
+      setSubjectInfo(bulk.subject);
+      setChapters(bulk.chapters);
+      setSubjectPapers(bulk.papers);
+      setSubjectTips(bulk.tips);
+      setSubjectResources(bulk.resources);
+      setUserNotes(bulk.user_notes);
     })()
       .catch(() => { setSubjectInfo(null); setChapters([]); setSubjectPapers([]); setSubjectTips([]); setUserNotes([]); setSubjectResources([]); })
       .finally(() => setLoading(false));

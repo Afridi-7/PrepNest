@@ -1,5 +1,4 @@
 import logging
-from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -21,53 +20,17 @@ from app.services.supabase_storage import ensure_bucket_exists
 settings = get_settings()
 configure_logging(logging.DEBUG if settings.app_debug else logging.INFO)
 
-
-def _build_allowed_origins() -> list[str]:
-    default_local_origins = [
-        "http://localhost:5173",
-        "http://localhost:8080",
-        "http://localhost:8081",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080",
-        "http://127.0.0.1:8081",
-    ]
-
-    configured_origins: list[str] = [settings.frontend_url]
-    if settings.cors_origins:
-        configured_origins.extend(origin.strip() for origin in settings.cors_origins.split(",") if origin.strip())
-
-    def _normalize_origin(value: str) -> str:
-        candidate = value.strip().rstrip("/")
-        if not candidate:
-            return ""
-
-        parsed = urlparse(candidate)
-        if parsed.scheme and parsed.netloc:
-            return f"{parsed.scheme}://{parsed.netloc}".lower()
-
-        return candidate.lower()
-
-    deduped_origins: list[str] = []
-    for origin in [*default_local_origins, *configured_origins]:
-        normalized_origin = _normalize_origin(origin)
-        if normalized_origin and normalized_origin not in deduped_origins:
-            deduped_origins.append(normalized_origin)
-
-    return deduped_origins
-
-
-allowed_origins = _build_allowed_origins()
-
 app = FastAPI(title=settings.app_name, version="1.0.0")
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_dir_path)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=settings.cors_origin_regex,
-    allow_credentials="*" not in allowed_origins,
+    allow_origins=[
+        "https://prepnestai.app",
+        "https://www.prepnestai.app",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -85,6 +48,37 @@ async def global_exception_handler(request, exc: Exception):
     """Catch unhandled exceptions so the response still gets CORS headers."""
     logging.getLogger(__name__).error("Unhandled error: %s", exc, exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    """Add Cache-Control headers to GET responses on cacheable API routes.
+
+    USAT content (categories, subjects, chapters, papers, tips, etc.) changes
+    rarely, so a short stale-while-revalidate allows CDN + browser caching
+    while still getting fresh data within seconds.
+    """
+
+    _CACHEABLE_PREFIXES = (
+        f"{settings.api_prefix}/usat/categories",
+        f"{settings.api_prefix}/usat/",
+    )
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        if (
+            request.method == "GET"
+            and response.status_code == 200
+            and any(request.url.path.startswith(p) for p in self._CACHEABLE_PREFIXES)
+        ):
+            response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+        return response
+
+
+app.add_middleware(CacheControlMiddleware)
 
 
 @app.on_event("startup")
