@@ -191,7 +191,18 @@ def _save_local(data: bytes, path: str, settings) -> str:
 # ---------------------------------------------------------------------------
 
 
+import re as _re
+
 def make_key(prefix: str, filename: str) -> str:
-    """Return ``<prefix>/<uuid>_<safe_filename>``."""
+    """Return ``<prefix>/<uuid>_<safe_filename>``.
+
+    Sanitises the filename so Supabase Storage doesn't reject the key
+    (it forbids parentheses, spaces, and most non-alphanumeric chars).
+    """
     safe = Path(filename).name  # strip directory components
-    return f"{prefix}/{uuid.uuid4()}_{safe}"
+    stem, suffix = Path(safe).stem, Path(safe).suffix
+    # Keep only alphanumerics, hyphens, underscores, and dots
+    stem = _re.sub(r"[^a-zA-Z0-9._-]", "_", stem)
+    # Collapse repeated underscores
+    stem = _re.sub(r"_+", "_", stem).strip("_")
+    return f"{prefix}/{uuid.uuid4()}_{stem}{suffix}"
