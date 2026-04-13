@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
@@ -10,8 +10,11 @@ const VerifyEmail = () => {
   const token = searchParams.get("token");
   const [status, setStatus] = useState<"loading" | "success" | "already" | "error">("loading");
   const [message, setMessage] = useState("");
+  const verifiedRef = useRef(false);
 
   useEffect(() => {
+    if (verifiedRef.current) return;
+    verifiedRef.current = true;
     if (!token) {
       setStatus("error");
       setMessage("No verification token provided.");

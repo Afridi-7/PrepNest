@@ -88,7 +88,11 @@ const USATSubjects = () => {
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
   }, []);
 
+  const lastCategoryRef = useRef("");
+
   useEffect(() => {
+    if (lastCategoryRef.current === category) return;
+    lastCategoryRef.current = category;
     (async () => {
       if (!category) return;
       setLoading(true);

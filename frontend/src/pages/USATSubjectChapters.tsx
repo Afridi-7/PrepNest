@@ -136,7 +136,12 @@ const USATSubjectChapters = () => {
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
   }, []);
 
+  const lastFetchKey = useRef("");
+
   useEffect(() => {
+    const key = `${category}|${subject}`;
+    if (lastFetchKey.current === key) return;
+    lastFetchKey.current = key;
     (async () => {
       if (!category || !subject) return;
       setLoading(true);
@@ -790,10 +795,10 @@ const USATSubjectChapters = () => {
       <AnimatePresence>
         {pdfViewerUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
             onClick={() => setPdfViewerUrl(null)}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+              className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl will-change-transform"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
                 <h3 className="text-sm font-bold text-slate-800">PDF Viewer</h3>
@@ -812,10 +817,10 @@ const USATSubjectChapters = () => {
       <AnimatePresence>
         {userNotePdfUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
             onClick={() => setUserNotePdfUrl(null)}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+              className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl will-change-transform"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-violet-100 bg-gradient-to-r from-violet-50 to-purple-50 px-5 py-3">
                 <h3 className="text-sm font-bold text-violet-800">My Note — View Only</h3>
