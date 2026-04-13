@@ -30,23 +30,32 @@ class MessageRepository:
         return message
 
     async def list_for_conversation(self, conversation_id: str, limit: int = 100) -> list[Message]:
-        result = await self.db.execute(
-            select(Message)
+        # Subquery grabs the N most recent rows; outer query re-sorts ASC (avoids Python .reverse())
+        sub = (
+            select(Message.id)
             .where(Message.conversation_id == conversation_id)
             .order_by(desc(Message.created_at))
             .limit(limit)
+            .subquery()
         )
-        messages = list(result.scalars().all())
-        messages.reverse()
-        return messages
+        result = await self.db.execute(
+            select(Message)
+            .where(Message.id.in_(select(sub.c.id)))
+            .order_by(asc(Message.created_at))
+        )
+        return list(result.scalars().all())
 
     async def list_recent_for_conversation(self, conversation_id: str, limit: int = 12) -> list[Message]:
-        result = await self.db.execute(
-            select(Message)
+        sub = (
+            select(Message.id)
             .where(Message.conversation_id == conversation_id)
             .order_by(desc(Message.created_at))
             .limit(limit)
+            .subquery()
         )
-        messages = list(result.scalars().all())
-        messages.reverse()
-        return messages
+        result = await self.db.execute(
+            select(Message)
+            .where(Message.id.in_(select(sub.c.id)))
+            .order_by(asc(Message.created_at))
+        )
+        return list(result.scalars().all())

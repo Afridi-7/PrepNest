@@ -22,7 +22,7 @@ from app.schemas.user import (
     UserLoginRequest,
     UserRegisterRequest,
 )
-from app.services.email_service import send_verification_email
+from app.services.email_service import async_send_verification_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ async def _send_verification(user, repo: UserRepository) -> None:
     token = create_verification_token(user.id)
     await repo.set_verification_token(user, token)
     try:
-        send_verification_email(user.email, _build_verification_url(token))
+        await async_send_verification_email(user.email, _build_verification_url(token))
     except Exception as exc:
         logger.error("Email send failed for %s: %s", user.email, exc)
 

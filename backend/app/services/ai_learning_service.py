@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import httpx
 from collections.abc import AsyncGenerator
@@ -132,10 +133,18 @@ class AILearningService:
         return await llm_service.complete(messages)
 
     async def run(self, prompt: str, mode: str, include_web: bool) -> AIResponse:
-        materials = await self._search_materials(prompt)
-        mcqs = await self._search_mcqs(prompt)
-        topics = await self._load_topic_context(prompt)
-        web_results = await self._web_search(prompt) if include_web else []
+        # Run independent DB searches concurrently
+        coros = [
+            self._search_materials(prompt),
+            self._search_mcqs(prompt),
+            self._load_topic_context(prompt),
+        ]
+        if include_web:
+            coros.append(self._web_search(prompt))
+
+        results = await asyncio.gather(*coros)
+        materials, mcqs, topics = results[0], results[1], results[2]
+        web_results = results[3] if include_web else []
 
         context_text = self._build_context_text(materials, mcqs, topics, web_results)
         answer = await self._generate_answer(prompt, context_text, mode)
@@ -159,10 +168,18 @@ class AILearningService:
 
     async def stream_run(self, prompt: str, mode: str, include_web: bool) -> AsyncGenerator[str, None]:
         """SSE streaming variant – yields `data: {...}\n\n` lines."""
-        materials = await self._search_materials(prompt)
-        mcqs = await self._search_mcqs(prompt)
-        topics = await self._load_topic_context(prompt)
-        web_results = await self._web_search(prompt) if include_web else []
+        # Run independent DB searches concurrently
+        coros = [
+            self._search_materials(prompt),
+            self._search_mcqs(prompt),
+            self._load_topic_context(prompt),
+        ]
+        if include_web:
+            coros.append(self._web_search(prompt))
+
+        results = await asyncio.gather(*coros)
+        materials, mcqs, topics = results[0], results[1], results[2]
+        web_results = results[3] if include_web else []
 
         context_text = self._build_context_text(materials, mcqs, topics, web_results)
 

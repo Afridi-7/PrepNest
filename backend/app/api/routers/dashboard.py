@@ -26,37 +26,47 @@ async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ):
-    subjects_result = await db.execute(select(Subject).order_by(Subject.name))
-    subjects_list = subjects_result.scalars().all()
+    # Single aggregation query instead of N+1 loop
+    topic_count_sq = (
+        select(Topic.subject_id, func.count(Topic.id).label("topic_count"))
+        .group_by(Topic.subject_id)
+        .subquery()
+    )
+    mcq_count_sq = (
+        select(Topic.subject_id, func.count(MCQ.id).label("mcq_count"))
+        .join(MCQ, MCQ.topic_id == Topic.id)
+        .group_by(Topic.subject_id)
+        .subquery()
+    )
+    stmt = (
+        select(
+            Subject.id,
+            Subject.name,
+            func.coalesce(topic_count_sq.c.topic_count, 0).label("topic_count"),
+            func.coalesce(mcq_count_sq.c.mcq_count, 0).label("mcq_count"),
+        )
+        .outerjoin(topic_count_sq, Subject.id == topic_count_sq.c.subject_id)
+        .outerjoin(mcq_count_sq, Subject.id == mcq_count_sq.c.subject_id)
+        .order_by(Subject.name)
+    )
+    rows = (await db.execute(stmt)).all()
 
     subject_stats: list[DashboardSubjectStat] = []
     total_topics = 0
     total_mcqs = 0
 
-    for subject in subjects_list:
-        topic_count = await db.scalar(
-            select(func.count()).select_from(Topic).where(Topic.subject_id == subject.id)
-        ) or 0
-        mcq_count = await db.scalar(
-            select(func.count())
-            .select_from(MCQ)
-            .join(Topic, MCQ.topic_id == Topic.id)
-            .where(Topic.subject_id == subject.id)
-        ) or 0
-        total_topics += topic_count
-        total_mcqs += mcq_count
+    for row in rows:
+        tc = row.topic_count
+        mc = row.mcq_count
+        total_topics += tc
+        total_mcqs += mc
         subject_stats.append(
-            DashboardSubjectStat(
-                id=subject.id,
-                name=subject.name,
-                topic_count=topic_count,
-                mcq_count=mcq_count,
-            )
+            DashboardSubjectStat(id=row.id, name=row.name, topic_count=tc, mcq_count=mc)
         )
 
     return DashboardStats(
         user_name=current_user.full_name or current_user.email.split("@")[0],
-        total_subjects=len(subjects_list),
+        total_subjects=len(rows),
         total_topics=total_topics,
         total_mcqs=total_mcqs,
         subjects=subject_stats,

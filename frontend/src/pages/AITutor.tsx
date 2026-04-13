@@ -250,8 +250,12 @@ const AITutor = () => {
     if (messages.length > 1 && loading) setTimeout(() => scrollToBottom("auto"), 10);
   }, [messages, loading, scrollToBottom]);
 
+  // Debounced localStorage write for current chat (avoids I/O thrashing during streaming)
   useEffect(() => {
-    try { localStorage.setItem(CURRENT_CHAT_KEY, JSON.stringify(messages)); } catch { /* */ }
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(CURRENT_CHAT_KEY, JSON.stringify(messages)); } catch { /* */ }
+    }, 500);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   useEffect(() => {
@@ -374,6 +378,23 @@ const AITutor = () => {
       let fullContent = "";
       let metadata: Record<string, unknown> = {};
 
+      // Batch token rendering: accumulate tokens and flush to React state periodically
+      let tokenBuffer = "";
+      let flushScheduled = false;
+
+      const flushTokens = () => {
+        if (!tokenBuffer) return;
+        const buffered = tokenBuffer;
+        tokenBuffer = "";
+        flushScheduled = false;
+        setMessages(prev => {
+          const updated = [...prev];
+          if (updated[assistantIdx]) updated[assistantIdx] = { ...updated[assistantIdx], content: fullContent, streaming: true };
+          return updated;
+        });
+        scrollToBottom("auto");
+      };
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -382,12 +403,11 @@ const AITutor = () => {
             value,
             (token) => {
               fullContent += token;
-              setMessages(prev => {
-                const updated = [...prev];
-                if (updated[assistantIdx]) updated[assistantIdx] = { ...updated[assistantIdx], content: fullContent, streaming: true };
-                return updated;
-              });
-              scrollToBottom("auto");
+              tokenBuffer += token;
+              if (!flushScheduled) {
+                flushScheduled = true;
+                setTimeout(flushTokens, 80);
+              }
             },
             (meta) => {
               metadata = meta;
@@ -395,6 +415,8 @@ const AITutor = () => {
             },
           );
         }
+        // Flush any remaining tokens
+        flushTokens();
       } finally { reader.releaseLock(); }
 
       setMessages(prev => {

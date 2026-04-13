@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Brain, Target, TrendingUp, Clock, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -30,7 +30,7 @@ const Dashboard = () => {
   const userName = stats?.user_name ?? "Student";
 
   // Deduplicate subjects by name (merge topic_count & mcq_count for duplicates)
-  const uniqueSubjects = (() => {
+  const uniqueSubjects = useMemo(() => {
     const map = new Map<string, { id: number; name: string; topic_count: number; mcq_count: number }>();
     for (const s of stats?.subjects ?? []) {
       const existing = map.get(s.name);
@@ -42,7 +42,7 @@ const Dashboard = () => {
       }
     }
     return Array.from(map.values());
-  })();
+  }, [stats?.subjects]);
 
   const totalSubjects = uniqueSubjects.length;
   const totalTopics = uniqueSubjects.reduce((sum, s) => sum + s.topic_count, 0);

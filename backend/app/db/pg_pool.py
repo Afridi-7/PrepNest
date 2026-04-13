@@ -1,9 +1,15 @@
+import os
+
 import asyncpg
 from sqlalchemy.engine import make_url
 
 from app.core.config import get_settings
 
 _pool: asyncpg.Pool | None = None
+
+# Scale pool to available CPU cores, with sensible floor/ceiling.
+_MIN_POOL = max(2, os.cpu_count() or 2)
+_MAX_POOL = max(20, min(50, (os.cpu_count() or 2) * 5))
 
 
 def _build_pool_dsn(database_url: str) -> str | None:
@@ -27,8 +33,8 @@ async def init_pg_pool() -> asyncpg.Pool:
         if dsn:
             _pool = await asyncpg.create_pool(
                 dsn=dsn,
-                min_size=1,
-                max_size=10,
+                min_size=_MIN_POOL,
+                max_size=_MAX_POOL,
             )
         else:
             _pool = await asyncpg.create_pool(
@@ -37,8 +43,8 @@ async def init_pg_pool() -> asyncpg.Pool:
                 database=settings.pg_database,
                 user=settings.pg_user,
                 password=settings.pg_password,
-                min_size=1,
-                max_size=10,
+                min_size=_MIN_POOL,
+                max_size=_MAX_POOL,
             )
     return _pool
 
