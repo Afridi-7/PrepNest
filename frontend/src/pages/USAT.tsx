@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ChevronRight, Clock3, Sparkles, Target } from "lucide-react";
@@ -33,11 +33,11 @@ const USAT = () => {
   const [categories, setCategories] = useState<USATCategory[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, []);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     (async () => {
       setLoading(true);
       const fetchedCategories = await apiClient.listUSATCategories();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings,
@@ -73,8 +73,12 @@ const Practice = () => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [fetchingMCQs, setFetchingMCQs] = useState(false);
 
+  const fetchedRef = useRef(false);
+
   /* ── Fetch categories on mount ── */
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     apiClient.listUSATCategories().then(setCategories).catch(() => {});
   }, []);
 

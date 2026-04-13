@@ -128,9 +128,11 @@ const USATSubjectChapters = () => {
   const [showAddSubjRes, setShowAddSubjRes] = useState(false);
   const [subjResTitle, setSubjResTitle] = useState("");
   const [subjResUrl, setSubjResUrl] = useState("");
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
   }, []);
 

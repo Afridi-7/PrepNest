@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Shield, PlusCircle, Trash2, Layers, FolderOpen, Pencil, Upload } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -104,7 +104,11 @@ const AdminContent = () => {
     setTopics(topicCollections.flat());
   };
 
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     (async () => {
       try {
         await loadData();

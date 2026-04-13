@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Brain, Target, TrendingUp, Clock, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -17,9 +17,11 @@ const SUBJECT_COLORS = [
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     apiClient
       .getDashboardStats()
       .then(setStats)

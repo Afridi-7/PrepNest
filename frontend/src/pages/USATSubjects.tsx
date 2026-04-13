@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, ChevronRight, Plus, Sparkles, Trash2, Loader2 } from "lucide-react";
@@ -80,9 +80,11 @@ const USATSubjects = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
   }, []);
 

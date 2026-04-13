@@ -96,6 +96,7 @@ const Contact = () => {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fetchedRef = useRef(false);
 
   const fetchData = () => {
     setLoading(true);
@@ -108,7 +109,8 @@ const Contact = () => {
   };
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchData();
   }, []);
 
