@@ -21,6 +21,7 @@ const Contact = lazy(() => import("./pages/Contact.tsx"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService.tsx"));
 const MockTest = lazy(() => import("./pages/MockTest.tsx"));
+const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>

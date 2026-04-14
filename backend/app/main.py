@@ -27,8 +27,7 @@ _default_origins = [
     "https://prepnestai.app",
     "https://www.prepnestai.app",
 ]
-if settings.app_env == "development":
-    _default_origins += ["http://localhost:5173", "http://localhost:8080", "http://localhost:8081"]
+_dev_origins = ["http://localhost:5173", "http://localhost:8080", "http://localhost:8081"]
 
 _cors_kwargs: dict = {
     "allow_credentials": True,
@@ -38,9 +37,12 @@ _cors_kwargs: dict = {
 if settings.cors_origin_regex:
     _cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
 if settings.cors_origins:
-    _cors_kwargs["allow_origins"] = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 else:
-    _cors_kwargs["allow_origins"] = _default_origins
+    _origins = _default_origins
+if settings.app_env == "development":
+    _origins = list(dict.fromkeys(_origins + _dev_origins))
+_cors_kwargs["allow_origins"] = _origins
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
