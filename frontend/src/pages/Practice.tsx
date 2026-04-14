@@ -367,8 +367,7 @@ const Practice = () => {
               </div>
 
               {/* ── Mock Test Card ── */}
-              {selectedCategory && (
-                <div className="mt-6 rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30">
+              <div className="mt-6 rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-violet-600 shadow-lg shadow-fuchsia-200/40">
                       <FileText className="h-6 w-6 text-white" />
@@ -378,14 +377,13 @@ const Practice = () => {
                       <p className="mt-1 text-sm text-slate-500">
                         75 MCQs + 2 Essays — timed, AI-evaluated, with detailed feedback and results.
                       </p>
-                      <button onClick={() => navigate(`/mock-test?category=${selectedCategory.code}`)}
+                      <button onClick={() => navigate(`/mock-test${selectedCategory ? `?category=${selectedCategory.code}` : ""}`)}
                         className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-300/30 transition-all duration-200 hover:from-fuchsia-500 hover:to-violet-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
                         <Play className="h-4 w-4" /> Take Interactive Test
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
             </motion.div>
           )}
 
