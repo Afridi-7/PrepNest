@@ -248,7 +248,7 @@ const Practice = () => {
                     <AnimatePresence>
                       {categoryOpen && (
                         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                          className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-violet-100/40">
+                          className="absolute z-20 mt-1.5 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-violet-100/40">
                           {categories.map((cat) => (
                             <button key={cat.code} type="button"
                               onClick={() => { setSelectedCategory(cat); setCategoryOpen(false); }}
