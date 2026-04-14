@@ -127,28 +127,25 @@ const Practice = () => {
 
   const startQuiz = async () => {
     if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
+    if (!selectedCategory) return;
     setFetchingMCQs(true);
     try {
       let tagged: { mcq: MCQ; subjectName: string }[] = [];
       if (selectedSubjectId) {
+        // Single subject — use the per-subject endpoint (already 1 request)
         const subjectName = dbSubjects.find((s) => s.id === selectedSubjectId)?.name ?? "Unknown";
         const mcqs = await apiClient.listSubjectPracticeMCQs(selectedSubjectId, mcqCount);
         tagged = mcqs.map((mcq) => ({ mcq, subjectName }));
-        for (let i = tagged.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
-        }
       } else {
-        // Fetch mcqCount from EACH subject to build a large pool, then shuffle & slice
-        const results = await Promise.all(dbSubjects.map(async (s) => {
-          const mcqs = await apiClient.listSubjectPracticeMCQs(s.id, mcqCount);
-          return mcqs.map((mcq) => ({ mcq, subjectName: s.name }));
-        }));
-        tagged = results.flat();
-        for (let i = tagged.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
-        }
+        // All subjects — single bulk request for the whole category
+        const subjectIds = dbSubjects.map((s) => s.id);
+        const mcqs = await apiClient.listCategoryPracticeMCQs(selectedCategory.code, mcqCount, subjectIds);
+        tagged = mcqs.map((mcq) => ({ mcq, subjectName: mcq.subject_name || "Unknown" }));
+      }
+      // Shuffle
+      for (let i = tagged.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tagged[i], tagged[j]] = [tagged[j], tagged[i]];
       }
       const quizQuestions = tagged.slice(0, mcqCount).map(({ mcq, subjectName }) => toQuizQuestion(mcq, subjectName));
       if (quizQuestions.length === 0) { alert("No MCQs found for the selected subject."); return; }

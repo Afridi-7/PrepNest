@@ -131,6 +131,7 @@ class MCQRead(BaseModel):
     explanation: str
     topic_id: int
     created_at: datetime
+    subject_name: str | None = None
 
 
 class AIChatRequest(BaseModel):

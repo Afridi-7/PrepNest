@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
+from app.api.deps import rate_limit
 from app.core.config import get_settings
 from app.core.security import (
     create_access_token,
@@ -73,6 +74,7 @@ async def create_user_signup(
 async def register_user(
     payload: UserRegisterRequest,
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(10, "auth_register")),
 ) -> SignupResponse:
     """Register user account."""
     return await create_user_signup(payload, db)
@@ -82,6 +84,7 @@ async def register_user(
 async def signup_user(
     payload: UserRegisterRequest,
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(10, "auth_register")),
 ) -> SignupResponse:
     """Alias for /register endpoint to match frontend expectations."""
     return await create_user_signup(payload, db)
@@ -115,6 +118,7 @@ async def verify_email(
 async def resend_verification(
     payload: ResendVerificationRequest,
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(5, "auth_resend")),
 ) -> SignupResponse:
     """Resend verification email."""
     repo = UserRepository(db)
@@ -134,7 +138,11 @@ async def resend_verification(
 # ─── Login ───────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_db_session)) -> TokenResponse:
+async def login_user(
+    payload: UserLoginRequest,
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(20, "auth_login")),
+) -> TokenResponse:
     """Authenticate user and return access token."""
     repo = UserRepository(db)
     user = await repo.get_by_email(payload.email)
@@ -160,6 +168,7 @@ async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_d
 async def google_auth(
     payload: GoogleAuthRequest,
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(20, "auth_google")),
 ) -> TokenResponse:
     """Authenticate or register a user via Google ID token."""
     settings = get_settings()

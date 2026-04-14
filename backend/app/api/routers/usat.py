@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, rate_limit
 from app.core.config import get_settings
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
@@ -54,18 +54,25 @@ def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
+_VALID_CATEGORIES = frozenset(USAT_CATEGORIES.keys())
+
+
+def _validate_category(category: str) -> str:
+    """Normalize and validate a USAT category code."""
+    normalized = category.strip().upper()
+    if normalized not in _VALID_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
+    return normalized
+
+
 @router.get("/{category}/subject-by-slug/{slug}/bulk", response_model=SubjectBulkData)
 async def get_subject_bulk_data(
     category: str,
     slug: str,
     db: AsyncSession = Depends(get_db_session),
 ) -> SubjectBulkData:
-    """Return subject + chapters + papers + tips + resources + user-notes in ONE request.
-
-    Eliminates the waterfall: frontend no longer needs to fetch subjects list first,
-    then fire 5 parallel calls.
-    """
-    normalized_category = category.strip().upper()
+    """Return subject + chapters + papers + tips + resources + user-notes in ONE request."""
+    normalized_category = _validate_category(category)
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.ilike(normalized_category))
@@ -99,7 +106,7 @@ async def list_usat_category_subjects(
     category: str,
     db: AsyncSession = Depends(get_db_session),
 ) -> list[SubjectRead]:
-    normalized_category = category.strip().upper()
+    normalized_category = _validate_category(category)
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.ilike(normalized_category))
@@ -278,11 +285,76 @@ async def list_subject_papers(
     return [PastPaperRead.model_validate(p) for p in result.scalars().all()]
 
 
+@router.get("/{category}/practice-mcqs", response_model=list[MCQRead])
+async def list_category_practice_mcqs(
+    category: str,
+    limit: int = Query(default=20, ge=1, le=75),
+    subject_ids: str | None = Query(default=None, description="Comma-separated subject IDs to filter"),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(120, "practice")),
+) -> list[MCQRead]:
+    """Return random MCQs for an entire category or specific subjects within it.
+
+    - If `subject_ids` is provided, only MCQs from those subjects are included.
+    - Otherwise, MCQs from ALL subjects in the category are returned.
+    One request replaces N per-subject calls from the frontend.
+    """
+    normalized_category = _validate_category(category)
+
+    # Resolve subject IDs to filter on
+    if subject_ids:
+        try:
+            ids = [int(s.strip()) for s in subject_ids.split(",") if s.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="subject_ids must be comma-separated integers")
+        # Verify they belong to the stated category
+        result = await db.execute(
+            select(Subject.id).where(Subject.exam_type == normalized_category, Subject.id.in_(ids))
+        )
+        valid_ids = [row[0] for row in result.all()]
+        if not valid_ids:
+            return []
+    else:
+        result = await db.execute(
+            select(Subject.id).where(Subject.exam_type == normalized_category)
+        )
+        valid_ids = [row[0] for row in result.all()]
+        if not valid_ids:
+            return []
+
+    # Build topic_id → subject_name map for response enrichment
+    subj_result = await db.execute(
+        select(Subject.id, Subject.name).where(Subject.id.in_(valid_ids))
+    )
+    subj_name_map: dict[int, str] = {row[0]: row[1] for row in subj_result.all()}
+
+    topic_result = await db.execute(
+        select(Topic.id, Topic.subject_id).where(Topic.subject_id.in_(valid_ids))
+    )
+    topic_subj_map: dict[int, int] = {row[0]: row[1] for row in topic_result.all()}
+
+    topic_subq = select(Topic.id).where(Topic.subject_id.in_(valid_ids)).scalar_subquery()
+    result = await db.execute(
+        select(MCQ)
+        .where(MCQ.topic_id.in_(topic_subq))
+        .order_by(func.random())
+        .limit(limit)
+    )
+    mcqs = []
+    for m in result.scalars().all():
+        mcq = MCQRead.model_validate(m)
+        sid = topic_subj_map.get(m.topic_id)
+        mcq.subject_name = subj_name_map.get(sid) if sid else None
+        mcqs.append(mcq)
+    return mcqs
+
+
 @router.get("/subjects/{subject_id}/practice-mcqs", response_model=list[MCQRead])
 async def list_subject_practice_mcqs(
     subject_id: int,
-    limit: int = Query(default=20, ge=1, le=200),
+    limit: int = Query(default=20, ge=1, le=75),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(120, "practice")),
 ) -> list[MCQRead]:
     """Return random MCQs across all chapters of a subject (for Practice mode)."""
     subject = await db.get(Subject, subject_id)
@@ -311,6 +383,7 @@ async def upload_user_note(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(30, "upload")),
 ) -> UserNoteRead:
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
@@ -369,11 +442,12 @@ async def delete_user_note(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin only")
     note = await db.get(UserNote, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+    # IDOR check: only the owner or an admin can delete
+    if note.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this note")
     await db.delete(note)
     await db.commit()
 
@@ -383,6 +457,7 @@ async def view_user_note_pdf(
     note_id: int,
     token: str = Query(...),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "pdf_view")),
 ):
     """Serve the PDF inline (view-only). Auth via ?token= query param so iframes work."""
     from app.core.security import decode_access_token
@@ -421,6 +496,7 @@ async def get_user_note_url(
     note_id: int,
     token: str = Query(...),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "pdf_url")),
 ):
     """Return the direct PDF URL as JSON so the frontend can skip the 307 redirect.
 

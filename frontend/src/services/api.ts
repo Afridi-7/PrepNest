@@ -155,6 +155,7 @@ export interface MCQ {
   explanation: string;
   topic_id: number;
   created_at: string;
+  subject_name?: string;
 }
 
 export interface Tip {
@@ -585,6 +586,18 @@ class ApiClient {
 
   async listSubjectPracticeMCQs(subjectId: number, limit = 20): Promise<MCQ[]> {
     return this.request<MCQ[]>(`/usat/subjects/${subjectId}/practice-mcqs?limit=${limit}`);
+  }
+
+  async listCategoryPracticeMCQs(
+    category: string,
+    limit = 20,
+    subjectIds?: number[],
+  ): Promise<MCQ[]> {
+    let url = `/usat/${encodeURIComponent(category)}/practice-mcqs?limit=${limit}`;
+    if (subjectIds && subjectIds.length > 0) {
+      url += `&subject_ids=${subjectIds.join(",")}`;
+    }
+    return this.request<MCQ[]>(url);
   }
 
   // ── Resource admin ───────────────────────────────────────────────────────

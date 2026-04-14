@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,10 +6,27 @@ from app.core.security import decode_access_token
 from app.models import User
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
+from app.services.cache_service import cache_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 DEV_MODE = False
+
+
+def rate_limit(limit_per_minute: int = 60, key_prefix: str = "global"):
+    """Return a FastAPI dependency that enforces per-IP rate limiting."""
+
+    async def _check(request: Request) -> None:
+        client_ip = request.client.host if request.client else "unknown"
+        bucket_key = f"{key_prefix}:{client_ip}"
+        allowed = await cache_service.check_rate_limit(bucket_key, limit_per_minute)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests. Please try again later.",
+            )
+
+    return _check
 
 
 async def get_current_user(

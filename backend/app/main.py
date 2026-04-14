@@ -122,6 +122,9 @@ async def on_startup() -> None:
 
     ensure_bucket_exists()
 
+    # Connect cache service (Redis) for rate limiting — falls back to in-memory if unavailable
+    await cache_service.connect()
+
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
