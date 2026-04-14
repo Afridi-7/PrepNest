@@ -1,44 +1,16 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_admin, get_current_user
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
 from app.models import User
-from app.schemas.user_crud import DeleteUserResponse, UserCreateRequest, UserPublic
+from app.schemas.user_crud import DeleteUserResponse, UserPublic
 from app.schemas.user import UserResponse
-from app.services.user_crud_service import UserCrudService, is_unique_violation
+from app.services.user_crud_service import UserCrudService
 
 router = APIRouter(prefix="/users", tags=["users"])
 service = UserCrudService()
-
-
-@router.post("", response_model=UserPublic, status_code=201)
-async def create_user(payload: dict = Body(...)) -> UserPublic:
-    try:
-        user_in = UserCreateRequest.model_validate(payload)
-    except ValidationError as error:
-        first_error = error.errors()[0]
-        message = first_error.get("msg", "Invalid request")
-        raise HTTPException(status_code=400, detail=message) from error
-
-    try:
-        created = await service.create_user(email=user_in.email, password=user_in.password)
-        return UserPublic.model_validate(created)
-    except Exception as error:
-        if is_unique_violation(error):
-            raise HTTPException(status_code=409, detail="Email already in use") from error
-        raise HTTPException(status_code=500, detail="Internal server error") from error
-
-
-@router.get("", response_model=list[UserPublic])
-async def get_users() -> list[UserPublic]:
-    try:
-        users = await service.list_users()
-        return [UserPublic.model_validate(user) for user in users]
-    except Exception as error:
-        raise HTTPException(status_code=500, detail="Internal server error") from error
 
 
 @router.get("/me", response_model=UserResponse)
@@ -72,7 +44,10 @@ async def update_preferences(
 
 
 @router.get("/{user_id}", response_model=UserPublic)
-async def get_user_by_id(user_id: int) -> UserPublic:
+async def get_user_by_id(
+    user_id: int,
+    _admin: User = Depends(get_current_admin),
+) -> UserPublic:
     try:
         user = await service.get_user_by_id(user_id=user_id)
         if user is None:
@@ -85,7 +60,10 @@ async def get_user_by_id(user_id: int) -> UserPublic:
 
 
 @router.delete("/{user_id}", response_model=DeleteUserResponse)
-async def delete_user(user_id: int) -> DeleteUserResponse:
+async def delete_user(
+    user_id: int,
+    _admin: User = Depends(get_current_admin),
+) -> DeleteUserResponse:
     try:
         deleted = await service.delete_user(user_id=user_id)
         if not deleted:

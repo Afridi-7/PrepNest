@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, usat, users
+from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, usat, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
@@ -23,17 +23,26 @@ configure_logging(logging.DEBUG if settings.app_debug else logging.INFO)
 app = FastAPI(title=settings.app_name, version="1.0.0")
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_dir_path)), name="uploads")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://prepnestai.app",
-        "https://www.prepnestai.app",
-        "http://localhost:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_default_origins = [
+    "https://prepnestai.app",
+    "https://www.prepnestai.app",
+]
+if settings.app_env == "development":
+    _default_origins += ["http://localhost:5173", "http://localhost:8080", "http://localhost:8081"]
+
+_cors_kwargs: dict = {
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.cors_origin_regex:
+    _cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+if settings.cors_origins:
+    _cors_kwargs["allow_origins"] = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+else:
+    _cors_kwargs["allow_origins"] = _default_origins
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 @app.exception_handler(RequestValidationError)
@@ -83,6 +92,8 @@ app.add_middleware(CacheControlMiddleware)
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    if settings.jwt_secret_key == "change-me-in-production":
+        logging.warning("JWT_SECRET_KEY is using the insecure default — set a strong secret in .env!")
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -176,6 +187,7 @@ app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(files.router, prefix=settings.api_prefix)
 app.include_router(conversations.router, prefix=settings.api_prefix)
 app.include_router(usat.router, prefix=settings.api_prefix)
+app.include_router(mock_tests.router, prefix=settings.api_prefix)
 app.include_router(admin_content.router, prefix=settings.api_prefix)
 app.include_router(ai_learning.router, prefix=settings.api_prefix)
 app.include_router(dashboard.router, prefix=settings.api_prefix)

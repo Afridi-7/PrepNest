@@ -257,6 +257,72 @@ export interface ContactInfoUpdate {
   whatsapp_url?: string | null;
 }
 
+// ── Mock Test types ──────────────────────────────────────────────────────────
+
+export interface MockTestMCQQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  subject: string;
+}
+
+export interface MockTestEssayQuestion {
+  id: number;
+  essay_type: string;
+  prompt_text: string;
+}
+
+export interface MockTestSection {
+  label: string;
+  type: "mcq" | "essay" | "empty";
+  questions: (MockTestMCQQuestion | MockTestEssayQuestion)[];
+}
+
+export interface MockTestGenerated {
+  mock_test_id: string;
+  category: string;
+  sections: MockTestSection[];
+  total_mcqs: number;
+  total_essays: number;
+  pdf_url?: string | null;
+}
+
+export interface MCQResultItem {
+  question_id: number;
+  question: string;
+  selected: string | null;
+  correct: string;
+  is_correct: boolean;
+  explanation: string;
+}
+
+export interface EssayResultItem {
+  question_id: number;
+  essay_type: string;
+  prompt: string;
+  user_answer: string;
+  score: number;
+  max_score: number;
+  feedback: string;
+}
+
+export interface MockTestResult {
+  mock_test_id: string;
+  category: string;
+  status: string;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  mcq_score: number;
+  mcq_total: number;
+  essay_score: number;
+  essay_total: number;
+  mcq_results: MCQResultItem[];
+  essay_results: EssayResultItem[];
+  created_at: string;
+  submitted_at: string | null;
+}
+
 class ApiClient {
   private token: string | null = null;
   private _adminCache: boolean | null = null;
@@ -600,6 +666,29 @@ class ApiClient {
     return this.request<MCQ[]>(url);
   }
 
+  // ── Interactive Mock Tests ───────────────────────────────────────────────
+
+  async generateMockTest(categoryCode: string): Promise<MockTestGenerated> {
+    return this.request<MockTestGenerated>("/mock-tests/generate", "POST", {
+      category_code: categoryCode,
+    });
+  }
+
+  async submitMockTest(
+    mockTestId: string,
+    mcqAnswers: Record<string, string>,
+    essayAnswers: Record<string, string>
+  ): Promise<MockTestResult> {
+    return this.request<MockTestResult>(`/mock-tests/${mockTestId}/submit`, "POST", {
+      mcq_answers: mcqAnswers,
+      essay_answers: essayAnswers,
+    });
+  }
+
+  async getMockTestResult(mockTestId: string): Promise<MockTestResult> {
+    return this.request<MockTestResult>(`/mock-tests/${mockTestId}/result`);
+  }
+
   // ── Resource admin ───────────────────────────────────────────────────────
 
   async createResource(payload: { title: string; url: string; chapter_id: number }): Promise<Resource> {
@@ -690,6 +779,27 @@ class ApiClient {
     const apiUrl = `${API_BASE_URL}/admin/mcqs/upload-csv`;
     const form = new FormData();
     form.append("exam_type", examType);
+    form.append("file", file);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async uploadEssayCSV(
+    file: File
+  ): Promise<{ created: number; skipped: number; total_rows: number }> {
+    const apiUrl = `${API_BASE_URL}/admin/essay-prompts/upload-csv`;
+    const form = new FormData();
     form.append("file", file);
 
     const response = await fetch(apiUrl, {

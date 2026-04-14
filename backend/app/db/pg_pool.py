@@ -21,7 +21,7 @@ def _build_pool_dsn(database_url: str) -> str | None:
     if "+" in url.drivername or url.drivername == "postgres":
         url = url.set(drivername="postgresql")
 
-    return url.render_as_string(hide_password=False)
+    return url.render_as_string(hide_password=True)
 
 
 async def init_pg_pool() -> asyncpg.Pool:

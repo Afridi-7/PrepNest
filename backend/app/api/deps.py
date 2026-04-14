@@ -10,8 +10,6 @@ from app.services.cache_service import cache_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-DEV_MODE = False
-
 
 def rate_limit(limit_per_minute: int = 60, key_prefix: str = "global"):
     """Return a FastAPI dependency that enforces per-IP rate limiting."""

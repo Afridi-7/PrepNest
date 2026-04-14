@@ -17,10 +17,10 @@ const USATSubjects = lazy(() => import("./pages/USATSubjects.tsx"));
 const USATSubjectChapters = lazy(() => import("./pages/USATSubjectChapters.tsx"));
 const Practice = lazy(() => import("./pages/Practice.tsx"));
 const AITutor = lazy(() => import("./pages/AITutor.tsx"));
-const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
 const Contact = lazy(() => import("./pages/Contact.tsx"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService.tsx"));
+const MockTest = lazy(() => import("./pages/MockTest.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -60,8 +60,8 @@ const App = () => (
           <Route path="/usat/:category" element={<USATSubjects />} />
           <Route path="/usat/:category/:subject" element={<USATSubjectChapters />} />
           <Route path="/practice" element={<Practice />} />
+          <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
           <Route path="/ai-tutor" element={<AITutor />} />
-          <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />

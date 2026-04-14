@@ -96,6 +96,7 @@ async def signup_user(
 async def verify_email(
     token: str = Query(...),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(10, "auth_verify")),
 ):
     """Verify user email via token from the verification link."""
     user_id = decode_verification_token(token)

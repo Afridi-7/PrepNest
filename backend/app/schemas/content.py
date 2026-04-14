@@ -300,3 +300,92 @@ class DashboardStats(BaseModel):
     total_topics: int
     total_mcqs: int
     subjects: list[DashboardSubjectStat]
+
+
+# ── EssayPrompt schemas ──────────────────────────────────────────────────────
+
+class EssayPromptCreate(BaseModel):
+    essay_type: Literal["argumentative", "narrative"]
+    prompt_text: str = Field(min_length=10)
+    exam_type: str | None = Field(default=None, max_length=64)
+
+
+class EssayPromptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    essay_type: str
+    prompt_text: str
+    exam_type: str | None
+    created_at: datetime
+
+
+# ── MockTest schemas ─────────────────────────────────────────────────────────
+
+class MockTestMCQQuestion(BaseModel):
+    id: int
+    question: str
+    options: list[str]  # [A, B, C, D]
+    subject: str
+
+
+class MockTestEssayQuestion(BaseModel):
+    id: int
+    essay_type: str
+    prompt_text: str
+
+
+class MockTestSection(BaseModel):
+    label: str
+    type: str  # "mcq" or "essay"
+    questions: list[MockTestMCQQuestion | MockTestEssayQuestion]
+
+
+class MockTestGenerated(BaseModel):
+    mock_test_id: str
+    category: str
+    sections: list[MockTestSection]
+    total_mcqs: int
+    total_essays: int
+    pdf_url: str | None = None
+
+
+class MockTestSubmit(BaseModel):
+    mcq_answers: dict[str, str]  # { "question_id": "A"|"B"|"C"|"D" }
+    essay_answers: dict[str, str]  # { "question_id": "essay text" }
+
+
+class MCQResult(BaseModel):
+    question_id: int
+    question: str
+    selected: str | None
+    correct: str
+    is_correct: bool
+    explanation: str
+
+
+class EssayResult(BaseModel):
+    question_id: int
+    essay_type: str
+    prompt: str
+    user_answer: str
+    score: float  # argumentative out of 15, narrative out of 10
+    max_score: float
+    feedback: str
+
+
+class MockTestResult(BaseModel):
+    mock_test_id: str
+    category: str
+    status: str
+    total_score: float
+    max_score: float
+    percentage: float
+    mcq_score: int
+    mcq_total: int
+    essay_score: float
+    essay_total: float
+    mcq_results: list[MCQResult]
+    essay_results: list[EssayResult]
+    created_at: str
+    submitted_at: str | None

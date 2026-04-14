@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin
 from app.core.config import get_settings
 from app.services.supabase_storage import async_upload_bytes, make_key
-from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User
+from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User, EssayPrompt
 from app.db.session import get_db_session
 from app.schemas.content import (
     MCQCreate,
@@ -36,15 +36,41 @@ from app.schemas.content import (
     TopicCreate,
     TopicRead,
     TopicUpdate,
+    EssayPromptCreate,
+    EssayPromptRead,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin-content"])
 settings = get_settings()
 
+# Subjects shared across every USAT category (for mock tests)
+_COMMON_SUBJECTS = [
+    {
+        "name": "Verbal Reasoning",
+        "topics": ["General"],
+        "tips": ["Read passages carefully and eliminate obviously wrong options first."],
+    },
+    {
+        "name": "Quantitative Reasoning",
+        "topics": ["General"],
+        "tips": ["Practice mental math shortcuts and estimation techniques."],
+    },
+    {
+        "name": "Argumentative Essay",
+        "topics": ["General"],
+        "tips": ["Structure your essay: clear thesis, supporting arguments, counter-argument, conclusion."],
+    },
+    {
+        "name": "Narrative Essay",
+        "topics": ["General"],
+        "tips": ["Use vivid descriptions and a clear story arc with beginning, middle, and end."],
+    },
+]
+
 USAT_SEED_BLUEPRINT = [
     {
         "exam_type": "USAT-E",
-        "subjects": [
+        "subjects": _COMMON_SUBJECTS + [
             {
                 "name": "Physics",
                 "topics": ["Mechanics", "Waves & Optics", "Thermodynamics"],
@@ -64,7 +90,7 @@ USAT_SEED_BLUEPRINT = [
     },
     {
         "exam_type": "USAT-M",
-        "subjects": [
+        "subjects": _COMMON_SUBJECTS + [
             {
                 "name": "Biology",
                 "topics": ["Cell Biology", "Genetics", "Human Physiology"],
@@ -84,7 +110,7 @@ USAT_SEED_BLUEPRINT = [
     },
     {
         "exam_type": "USAT-CS",
-        "subjects": [
+        "subjects": _COMMON_SUBJECTS + [
             {
                 "name": "Mathematics",
                 "topics": ["Functions", "Probability", "Discrete Basics"],
@@ -104,7 +130,7 @@ USAT_SEED_BLUEPRINT = [
     },
     {
         "exam_type": "USAT-GS",
-        "subjects": [
+        "subjects": _COMMON_SUBJECTS + [
             {
                 "name": "Mathematics",
                 "topics": ["Arithmetic", "Algebra", "Word Problems"],
@@ -124,7 +150,7 @@ USAT_SEED_BLUEPRINT = [
     },
     {
         "exam_type": "USAT-A",
-        "subjects": [
+        "subjects": _COMMON_SUBJECTS + [
             {
                 "name": "General Knowledge",
                 "topics": ["Current Affairs", "World Facts", "Pakistani Institutions"],
@@ -1052,3 +1078,118 @@ async def upload_mcq_csv(
         "skipped": skipped,
         "total_rows": row_num - 1,
     }
+
+
+# ── Essay Prompt CRUD ─────────────────────────────────────────────────────────
+
+ESSAY_CSV_REQUIRED_COLUMNS = {"essay_type", "prompt_text"}
+ESSAY_VALID_TYPES = {"argumentative", "narrative"}
+
+
+@router.post("/essay-prompts", response_model=EssayPromptRead, status_code=status.HTTP_201_CREATED)
+async def create_essay_prompt(
+    payload: EssayPromptCreate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> EssayPromptRead:
+    prompt = EssayPrompt(
+        essay_type=payload.essay_type,
+        prompt_text=payload.prompt_text,
+        exam_type=payload.exam_type.strip().upper() if payload.exam_type else None,
+    )
+    db.add(prompt)
+    await db.commit()
+    await db.refresh(prompt)
+    return EssayPromptRead.model_validate(prompt)
+
+
+@router.get("/essay-prompts", response_model=list[EssayPromptRead])
+async def list_essay_prompts(
+    essay_type: str | None = None,
+    exam_type: str | None = None,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[EssayPromptRead]:
+    q = select(EssayPrompt).order_by(EssayPrompt.created_at.desc())
+    if essay_type:
+        q = q.where(EssayPrompt.essay_type == essay_type.lower())
+    if exam_type:
+        q = q.where(
+            (EssayPrompt.exam_type == exam_type.strip().upper()) | (EssayPrompt.exam_type.is_(None))
+        )
+    result = await db.execute(q)
+    return [EssayPromptRead.model_validate(p) for p in result.scalars().all()]
+
+
+@router.delete("/essay-prompts/{prompt_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_essay_prompt(
+    prompt_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    prompt = await db.get(EssayPrompt, prompt_id)
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Essay prompt not found")
+    await db.delete(prompt)
+    await db.commit()
+
+
+@router.post("/essay-prompts/upload-csv", status_code=status.HTTP_200_OK)
+async def upload_essay_csv(
+    file: UploadFile = File(...),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Bulk-upload essay prompts from a CSV file.
+
+    Expected columns: essay_type, prompt_text, exam_type (optional — leave blank for shared)
+    """
+    filename = file.filename or "essays.csv"
+    is_csv = filename.lower().endswith(".csv") or (file.content_type or "").lower() in (
+        "text/csv", "application/csv", "text/plain",
+    )
+    if not is_csv:
+        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
+
+    raw_bytes = await file.read()
+    if len(raw_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="CSV too large (max 10 MB)")
+
+    try:
+        text_content = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text_content = raw_bytes.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text_content))
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=400, detail="CSV is empty or has no header row")
+
+    normalized_fields = {f.strip().lower() for f in reader.fieldnames}
+    missing = ESSAY_CSV_REQUIRED_COLUMNS - normalized_fields
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing columns: {', '.join(sorted(missing))}")
+
+    prompts: list[EssayPrompt] = []
+    skipped = 0
+    row_num = 0
+
+    for row in reader:
+        row_num += 1
+        nr = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
+
+        essay_type = nr.get("essay_type", "").lower()
+        prompt_text = nr.get("prompt_text", "")
+        exam_type = nr.get("exam_type", "").strip().upper() or None
+
+        if essay_type not in ESSAY_VALID_TYPES or len(prompt_text) < 10:
+            skipped += 1
+            continue
+
+        prompts.append(EssayPrompt(essay_type=essay_type, prompt_text=prompt_text, exam_type=exam_type))
+
+    if not prompts:
+        raise HTTPException(status_code=400, detail="No valid essay prompt rows found")
+
+    db.add_all(prompts)
+    await db.commit()
+    return {"created": len(prompts), "skipped": skipped, "total_rows": row_num}

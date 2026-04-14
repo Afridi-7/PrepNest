@@ -1,18 +1,20 @@
 import asyncpg
 
+from app.core.security import hash_password
 from app.db.pg_pool import get_pg_pool
 
 
 class UserCrudService:
     async def create_user(self, *, email: str, password: str) -> dict:
         pool = get_pg_pool()
+        hashed = hash_password(password)
         query = """
-            INSERT INTO users (email, password)
+            INSERT INTO users (email, password_hash)
             VALUES ($1, $2)
             RETURNING id, email
         """
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(query, email, password)
+            row = await conn.fetchrow(query, email, hashed)
         return dict(row)
 
     async def list_users(self) -> list[dict]:

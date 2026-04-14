@@ -444,6 +444,23 @@ const USATSubjectChapters = () => {
     }
   };
 
+  // Essay CSV upload (admin only, for essay-type subjects)
+  const isEssaySubject = subject.includes("essay");
+  const essayCsvRef = useRef<HTMLInputElement>(null);
+  const [essayUploadBusy, setEssayUploadBusy] = useState(false);
+  const handleEssayCsvUpload = async (file: File) => {
+    setEssayUploadBusy(true);
+    try {
+      const result = await apiClient.uploadEssayCSV(file);
+      alert(`Uploaded! ${result.created} created, ${result.skipped} skipped.`);
+    } catch (err: any) {
+      alert(err.message || "Upload failed");
+    } finally {
+      setEssayUploadBusy(false);
+      if (essayCsvRef.current) essayCsvRef.current.value = "";
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -696,6 +713,22 @@ const USATSubjectChapters = () => {
                       onSubmit={addChapter} busy={busy}>
                       <SmallInput placeholder="Chapter title" value={addChapterTitle} onChange={(e) => setAddChapterTitle(e.target.value)} autoFocus />
                     </InlineForm>
+                  )}
+
+                  {/* Admin: Essay CSV Upload (only on essay subjects) */}
+                  {isAdmin && isEssaySubject && (
+                    <div className="mt-4 rounded-xl border border-dashed border-violet-300 bg-violet-50/60 p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-violet-500 mb-2">Upload Essay Prompts CSV</p>
+                      <p className="text-[10px] text-slate-400 mb-2">CSV must have columns: <strong>essay_type</strong>, <strong>prompt_text</strong>, <strong>exam_type</strong> (optional)</p>
+                      <input ref={essayCsvRef} type="file" accept=".csv"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEssayCsvUpload(f); }}
+                        className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 hover:file:bg-violet-200" />
+                      {essayUploadBusy && (
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-violet-500">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </motion.div>
