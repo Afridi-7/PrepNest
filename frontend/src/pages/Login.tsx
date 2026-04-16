@@ -23,7 +23,7 @@ const Login = () => {
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
 
-  const loginState = location.state as { from?: string; reason?: string } | null;
+  const loginState = location.state as { from?: string; reason?: string; flashMessage?: string } | null;
   const redirectTo = loginState?.from || "/dashboard";
 
   const handleGoogleCallback = useCallback(async (response: any) => {
@@ -185,6 +185,11 @@ const Login = () => {
               </div>
               <span className="font-heading text-lg font-bold">PrepNest</span>
             </Link>
+            {loginState?.flashMessage && (
+              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100">
+                {loginState.flashMessage}
+              </div>
+            )}
             {loginState?.reason === "auth-required" && (
               <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-foreground dark:border-primary/20 dark:bg-primary/15">
                 Please log in first to access that section.
@@ -226,7 +231,12 @@ const Login = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs uppercase tracking-wide text-muted-foreground">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs uppercase tracking-wide text-muted-foreground">Password</Label>
+                <Link to="/forgot-password" className="text-xs font-medium text-primary transition-colors hover:underline">
+                  Forgot Password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

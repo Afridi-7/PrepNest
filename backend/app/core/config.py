@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_exp_minutes: int = 60 * 24
+    password_reset_token_exp_minutes: int = 30
 
     # SMTP / Email verification
     smtp_host: str = ""

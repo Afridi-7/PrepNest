@@ -115,6 +115,18 @@ async def on_startup() -> None:
                 text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)")
             )
             await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_hash VARCHAR(128)")
+            )
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_expires_at TIMESTAMP")
+            )
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_requested_at TIMESTAMP")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
+            )
+            await conn.execute(
                 text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
             )
             # One-time: mark all pre-existing users as verified

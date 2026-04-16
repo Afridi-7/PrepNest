@@ -1,10 +1,17 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
+import re
+import secrets
 
 import bcrypt
 from jose import JWTError, jwt
 
 from app.core.config import get_settings
+
+PASSWORD_MIN_LENGTH = 10
+PASSWORD_POLICY_MESSAGE = (
+    "Password must be at least 10 characters and include uppercase, lowercase, a number, and a special character."
+)
 
 
 def hash_password(password: str) -> str:
@@ -16,6 +23,29 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     normalized = hashlib.sha256(password.encode("utf-8")).digest()
     return bcrypt.checkpw(normalized, password_hash.encode("utf-8"))
+
+
+def validate_password_strength(password: str) -> list[str]:
+    issues: list[str] = []
+    if len(password) < PASSWORD_MIN_LENGTH:
+        issues.append(f"Be at least {PASSWORD_MIN_LENGTH} characters long")
+    if not re.search(r"[A-Z]", password):
+        issues.append("Include at least one uppercase letter")
+    if not re.search(r"[a-z]", password):
+        issues.append("Include at least one lowercase letter")
+    if not re.search(r"\d", password):
+        issues.append("Include at least one number")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        issues.append("Include at least one special character")
+    return issues
+
+
+def create_password_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_password_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def create_access_token(subject: str) -> str:

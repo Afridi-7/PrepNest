@@ -476,6 +476,21 @@ class ApiClient {
     return this.request<{ message: string }>("/auth/resend-verification", "POST", { email });
   }
 
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/auth/forgot-password", "POST", { email });
+  }
+
+  async validateResetPasswordToken(token: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/auth/reset-password/validate", "POST", { token });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/auth/reset-password", "POST", {
+      token,
+      new_password: newPassword,
+    });
+  }
+
   async googleAuth(credential: string): Promise<AuthResponse> {
     return this.request<AuthResponse>("/auth/google", "POST", { credential });
   }
