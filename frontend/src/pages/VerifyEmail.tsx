@@ -38,28 +38,28 @@ const VerifyEmail = () => {
   }, [token]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40">
-      <div className="absolute -top-28 -left-20 w-72 h-72 rounded-full bg-fuchsia-300/25 blur-3xl" />
-      <div className="absolute -bottom-28 -right-24 w-80 h-80 rounded-full bg-cyan-300/30 blur-3xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="absolute -top-28 -left-20 h-72 w-72 rounded-full bg-fuchsia-300/25 blur-3xl dark:bg-fuchsia-500/15" />
+      <div className="absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl dark:bg-cyan-500/15" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md bg-white/90 rounded-3xl p-8 border border-violet-100/50 shadow-2xl shadow-violet-200/20 text-center overflow-hidden"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-violet-100/50 bg-white/90 p-8 text-center shadow-2xl shadow-violet-200/20 dark:border-violet-500/20 dark:bg-slate-900/92 dark:shadow-black/30"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
-        <Link to="/" className="inline-flex items-center gap-2 mb-6">
+        <Link to="/" className="mb-6 inline-flex items-center gap-2">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
             <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
           </div>
-          <span className="font-heading font-bold text-lg">PrepNest</span>
+          <span className="font-heading text-lg font-bold">PrepNest</span>
         </Link>
 
         {status === "loading" && (
           <div className="py-8">
-            <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
-            <h2 className="font-heading text-xl font-bold text-foreground mb-2">Verifying your email...</h2>
-            <p className="text-muted-foreground text-sm">Please wait a moment.</p>
+            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
+            <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Verifying your email...</h2>
+            <p className="text-sm text-muted-foreground">Please wait a moment.</p>
           </div>
         )}
 
@@ -70,12 +70,12 @@ const VerifyEmail = () => {
               animate={{ scale: 1 }}
               transition={{ type: "spring" as const, stiffness: 200, damping: 15 }}
             >
-              <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
+              <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-emerald-500" />
             </motion.div>
-            <h2 className="font-heading text-xl font-bold text-foreground mb-2">Email Verified!</h2>
-            <p className="text-muted-foreground text-sm mb-6">{message}</p>
+            <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Email Verified!</h2>
+            <p className="mb-6 text-sm text-muted-foreground">{message}</p>
             <Link to="/login">
-              <Button variant="gradient" className="w-full h-11 rounded-xl font-semibold">
+              <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
                 Log In to Your Account
               </Button>
             </Link>
@@ -84,11 +84,11 @@ const VerifyEmail = () => {
 
         {status === "already" && (
           <div className="py-8">
-            <Mail className="h-16 w-16 text-primary mx-auto mb-4" />
-            <h2 className="font-heading text-xl font-bold text-foreground mb-2">Already Verified</h2>
-            <p className="text-muted-foreground text-sm mb-6">{message}</p>
+            <Mail className="mx-auto mb-4 h-16 w-16 text-primary" />
+            <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Already Verified</h2>
+            <p className="mb-6 text-sm text-muted-foreground">{message}</p>
             <Link to="/login">
-              <Button variant="gradient" className="w-full h-11 rounded-xl font-semibold">
+              <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
                 Go to Login
               </Button>
             </Link>
@@ -97,17 +97,17 @@ const VerifyEmail = () => {
 
         {status === "error" && (
           <div className="py-8">
-            <XCircle className="h-16 w-16 text-rose-500 mx-auto mb-4" />
-            <h2 className="font-heading text-xl font-bold text-foreground mb-2">Verification Failed</h2>
-            <p className="text-muted-foreground text-sm mb-6">{message}</p>
+            <XCircle className="mx-auto mb-4 h-16 w-16 text-rose-500" />
+            <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Verification Failed</h2>
+            <p className="mb-6 text-sm text-muted-foreground">{message}</p>
             <div className="space-y-3">
               <Link to="/signup">
-                <Button variant="gradient" className="w-full h-11 rounded-xl font-semibold">
+                <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
                   Sign Up Again
                 </Button>
               </Link>
               <Link to="/login">
-                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold">
+                <Button variant="outline" className="h-11 w-full rounded-xl font-semibold dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:hover:bg-slate-800">
                   Back to Login
                 </Button>
               </Link>

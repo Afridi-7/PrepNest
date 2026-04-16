@@ -45,7 +45,9 @@ const Login = () => {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifyMsg("");
-    
+
     if (!email || !password) {
       toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
       return;
@@ -96,10 +98,10 @@ const Login = () => {
       if (msg.toLowerCase().includes("verify your email")) {
         setVerifyMsg(msg);
       } else {
-        toast({ 
-          title: "Login Failed", 
-          description: msg, 
-          variant: "destructive" 
+        toast({
+          title: "Login Failed",
+          description: msg,
+          variant: "destructive",
         });
       }
     } finally {
@@ -124,121 +126,138 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40">
-      <div className="absolute -top-28 -left-20 w-72 h-72 rounded-full bg-fuchsia-300/20 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-      <div className="absolute -bottom-28 -right-24 w-80 h-80 rounded-full bg-cyan-300/20 blur-3xl animate-pulse" style={{ animationDuration: '10s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-violet-200/15 blur-3xl" />
+    <div className="relative flex min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="absolute -top-28 -left-20 h-72 w-72 rounded-full bg-fuchsia-300/20 blur-3xl animate-pulse dark:bg-fuchsia-500/15" style={{ animationDuration: "8s" }} />
+      <div className="absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl animate-pulse dark:bg-cyan-500/15" style={{ animationDuration: "10s" }} />
+      <div className="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-200/15 blur-3xl dark:bg-violet-500/10" />
 
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative items-center justify-center p-12 overflow-hidden">
+      <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 items-center justify-center p-12 gradient-primary">
         <div className="absolute inset-0 pattern-dots opacity-20" />
         <div className="absolute inset-0 pattern-grid opacity-10" />
-        <div className="absolute top-10 left-10 px-3 py-1.5 rounded-full bg-white/20 border border-white/40 text-white text-xs font-semibold backdrop-blur">
+        <div className="absolute top-10 left-10 rounded-full border border-white/40 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
           Smart Exam Prep
         </div>
-        <div className="absolute bottom-10 right-10 px-3 py-1.5 rounded-full bg-white/20 border border-white/40 text-white text-xs font-semibold backdrop-blur">
+        <div className="absolute bottom-10 right-10 rounded-full border border-white/40 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
           AI Guided Learning
         </div>
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
-          className="relative text-center z-10 max-w-md"
+          className="relative z-10 max-w-md text-center"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 border border-white/40 text-white text-sm font-semibold mb-6 backdrop-blur">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
             <Sparkles className="h-4 w-4" /> Trusted by ambitious students
           </div>
           <div className="animate-[gentle-rock_6s_ease-in-out_infinite]">
-            <div className="h-32 w-32 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-violet-600/90 to-fuchsia-600/90 p-3 shadow-2xl shadow-violet-400/50">
+            <div className="mx-auto mb-6 h-32 w-32 rounded-2xl bg-gradient-to-br from-violet-600/90 to-fuchsia-600/90 p-3 shadow-2xl shadow-violet-400/50">
               <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
             </div>
           </div>
-          <h2 className="font-heading text-4xl font-bold text-white mb-4 drop-shadow-lg">Welcome Back</h2>
-          <p className="text-white/90 max-w-sm mx-auto text-lg">Continue your USAT & HAT preparation journey with AI-powered learning.</p>
+          <h2 className="mb-4 font-heading text-4xl font-bold text-white drop-shadow-lg">Welcome Back</h2>
+          <p className="mx-auto max-w-sm text-lg text-white/90">Continue your USAT & HAT preparation journey with AI-powered learning.</p>
           <div className="mt-8 grid grid-cols-3 gap-2 text-xs text-white/95">
-            <div className="rounded-xl bg-white/15 border border-white/30 p-3 backdrop-blur"><ShieldCheck className="h-4 w-4 mx-auto mb-1" />Secure</div>
-            <div className="rounded-xl bg-white/15 border border-white/30 p-3 backdrop-blur"><Zap className="h-4 w-4 mx-auto mb-1" />Fast</div>
-            <div className="rounded-xl bg-white/15 border border-white/30 p-3 backdrop-blur"><Sparkles className="h-4 w-4 mx-auto mb-1" />Smart</div>
+            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><ShieldCheck className="mx-auto mb-1 h-4 w-4" />Secure</div>
+            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><Zap className="mx-auto mb-1 h-4 w-4" />Fast</div>
+            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><Sparkles className="mx-auto mb-1 h-4 w-4" />Smart</div>
           </div>
         </motion.div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10">
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md bg-white/95 rounded-3xl p-6 sm:p-7 border-2 border-violet-200 shadow-2xl shadow-violet-200/30 relative overflow-hidden">
+      <div className="relative z-10 flex flex-1 items-center justify-center p-4 sm:p-6">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-violet-200 bg-white/95 p-6 shadow-2xl shadow-violet-200/30 dark:border-violet-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
+        >
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
           <div className="mb-8">
             <button
               type="button"
               onClick={handleBack}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-5"
+              className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" /> Go back
             </button>
-            <Link to="/" className="flex items-center gap-2 mb-8">
+            <Link to="/" className="mb-8 flex items-center gap-2">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
                 <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
               </div>
-              <span className="font-heading font-bold text-lg">PrepNest</span>
+              <span className="font-heading text-lg font-bold">PrepNest</span>
             </Link>
             {loginState?.reason === "auth-required" && (
-              <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
+              <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-foreground dark:border-primary/20 dark:bg-primary/15">
                 Please log in first to access that section.
               </div>
             )}
             {verifyMsg && (
-              <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 flex flex-col gap-2">
+              <div className="mb-4 flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{verifyMsg}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={resending}
-                  className="text-primary font-medium hover:underline text-xs self-start"
+                  className="self-start text-xs font-medium text-primary hover:underline"
                 >
                   {resending ? "Resending..." : "Resend verification email"}
                 </button>
               </div>
             )}
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-foreground mb-1">Welcome Back</h1>
-            <p className="text-slate-400 text-sm">Enter your credentials to continue your progress</p>
+            <h1 className="mb-1 font-heading text-2xl font-bold text-foreground sm:text-3xl">Welcome Back</h1>
+            <p className="text-sm text-slate-400">Enter your credentials to continue your progress</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs uppercase tracking-wide text-muted-foreground">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="student@prepnest.app" className="pl-10 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-violet-400/50 focus-visible:border-violet-300 transition-colors" value={email} onChange={e => setEmail(e.target.value)} />
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="student@prepnest.app"
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-colors focus-visible:border-violet-300 focus-visible:ring-violet-400/50 dark:border-slate-700 dark:bg-slate-950/60"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-xs uppercase tracking-wide text-muted-foreground">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type={showPass ? "text" : "password"} placeholder="••••••••" className="pl-10 pr-10 h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-violet-400/50 focus-visible:border-violet-300 transition-colors" value={password} onChange={e => setPassword(e.target.value)} />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  placeholder="........"
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-10 transition-colors focus-visible:border-violet-300 focus-visible:ring-violet-400/50 dark:border-slate-700 dark:bg-slate-950/60"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPass(!showPass)}>
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-            <Button type="submit" variant="gradient" className="w-full h-12 rounded-xl font-semibold shadow-lg shadow-violet-300/30 hover:shadow-xl hover:shadow-violet-300/40 transition-shadow" disabled={loading}>
+            <Button type="submit" variant="gradient" className="h-12 w-full rounded-xl font-semibold shadow-lg shadow-violet-300/30 transition-shadow hover:shadow-xl hover:shadow-violet-300/40" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? "Logging in..." : "Log In"}
             </Button>
           </form>
 
           <div className="my-5 flex items-center gap-3">
-            <div className="flex-1 h-px bg-border/60" />
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">or</span>
-            <div className="flex-1 h-px bg-border/60" />
+            <div className="h-px flex-1 bg-border/60" />
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border/60" />
           </div>
 
-          {/* Google sign-in button rendered by Google Identity Services */}
-          <div ref={googleBtnRef} className="w-full flex justify-center [&>div]:!w-full" />
+          <div ref={googleBtnRef} className="flex w-full justify-center [&>div]:!w-full" />
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Don't have an account? <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account? <Link to="/signup" className="font-medium text-primary hover:underline">Sign up</Link>
           </p>
         </motion.div>
       </div>
