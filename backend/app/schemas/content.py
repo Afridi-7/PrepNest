@@ -294,12 +294,24 @@ class DashboardSubjectStat(BaseModel):
     mcq_count: int
 
 
+class SubjectAttemptedStat(BaseModel):
+    subject_name: str
+    attempted: int
+    correct: int
+
+
 class DashboardStats(BaseModel):
     user_name: str
     total_subjects: int
     total_topics: int
     total_mcqs: int
     subjects: list[DashboardSubjectStat]
+    # User-specific practice stats
+    mcqs_solved: int = 0
+    mcqs_attempted: int = 0
+    tests_taken: int = 0
+    accuracy: float = 0.0
+    subject_attempted: list[SubjectAttemptedStat] = []
 
 
 class LeaderboardEntry(BaseModel):

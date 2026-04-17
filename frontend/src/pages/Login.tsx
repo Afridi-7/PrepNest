@@ -31,7 +31,7 @@ const Login = () => {
     setLoading(true);
     try {
       const auth = await apiClient.googleAuth(response.credential);
-      apiClient.setToken(auth.access_token);
+      apiClient.setToken(auth.access_token, auth.user_name);
       toast({ title: "Success", description: "Logged in with Google!" });
       navigate(redirectTo, { replace: true });
     } catch (error: any) {
@@ -90,7 +90,7 @@ const Login = () => {
     setLoading(true);
     try {
       const response = await apiClient.login(email, password);
-      apiClient.setToken(response.access_token);
+      apiClient.setToken(response.access_token, response.user_name);
       toast({ title: "Success", description: "Logged in successfully!" });
       navigate(redirectTo, { replace: true });
     } catch (error: any) {

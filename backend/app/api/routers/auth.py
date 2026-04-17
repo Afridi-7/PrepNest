@@ -245,7 +245,7 @@ async def login_user(
         )
 
     token = create_access_token(user.id)
-    return TokenResponse(access_token=token, token_type="bearer")
+    return TokenResponse(access_token=token, token_type="bearer", user_name=user.full_name or user.email.split("@")[0])
 
 
 @router.post("/google", response_model=TokenResponse)

@@ -17,6 +17,7 @@ from app.schemas.content import (
     DashboardSubjectStat,
     LeaderboardEntry,
     LeaderboardResponse,
+    SubjectAttemptedStat,
 )
 
 router = APIRouter(tags=["dashboard"])
@@ -67,12 +68,78 @@ async def get_dashboard_stats(
             DashboardSubjectStat(id=row.id, name=row.name, topic_count=tc, mcq_count=mc)
         )
 
+    # ── User-specific practice stats ──
+    from app.db.session import database_url
+    is_sqlite = database_url.startswith("sqlite")
+
+    if is_sqlite:
+        mcq_score_expr = func.coalesce(
+            cast(func.json_extract(MockTest.result_json, "$.mcq_score"), Integer), 0
+        )
+        mcq_total_expr = func.coalesce(
+            cast(func.json_extract(MockTest.result_json, "$.mcq_total"), Integer), 0
+        )
+    else:
+        mcq_score_expr = func.coalesce(
+            cast(MockTest.result_json.op("->>")('mcq_score'), Integer), 0
+        )
+        mcq_total_expr = func.coalesce(
+            cast(MockTest.result_json.op("->>")('mcq_total'), Integer), 0
+        )
+
+    mock_row = (await db.execute(
+        select(
+            func.coalesce(func.sum(mcq_score_expr), 0).label("solved"),
+            func.coalesce(func.sum(mcq_total_expr), 0).label("attempted"),
+            func.count(MockTest.id).label("sessions"),
+        ).where(MockTest.user_id == current_user.id, MockTest.status == "evaluated")
+    )).one()
+
+    practice_row = (await db.execute(
+        select(
+            func.coalesce(func.sum(PracticeResult.correct_answers), 0).label("solved"),
+            func.coalesce(func.sum(PracticeResult.total_questions), 0).label("attempted"),
+            func.count(PracticeResult.id).label("sessions"),
+        ).where(PracticeResult.user_id == current_user.id)
+    )).one()
+
+    user_mcqs_solved = int(mock_row.solved) + int(practice_row.solved)
+    user_mcqs_attempted = int(mock_row.attempted) + int(practice_row.attempted)
+    user_tests_taken = int(mock_row.sessions) + int(practice_row.sessions)
+    user_accuracy = round((user_mcqs_solved / user_mcqs_attempted * 100) if user_mcqs_attempted > 0 else 0.0, 1)
+
+    # ── Per-subject attempted breakdown (practice results only) ──
+    per_subject_rows = (await db.execute(
+        select(
+            func.coalesce(PracticeResult.subject_name, "General").label("subject_name"),
+            func.sum(PracticeResult.total_questions).label("attempted"),
+            func.sum(PracticeResult.correct_answers).label("correct"),
+        )
+        .where(PracticeResult.user_id == current_user.id)
+        .group_by(func.coalesce(PracticeResult.subject_name, "General"))
+        .order_by(func.sum(PracticeResult.total_questions).desc())
+    )).all()
+
+    subject_attempted = [
+        SubjectAttemptedStat(
+            subject_name=r.subject_name,
+            attempted=int(r.attempted or 0),
+            correct=int(r.correct or 0),
+        )
+        for r in per_subject_rows
+    ]
+
     return DashboardStats(
         user_name=current_user.full_name or current_user.email.split("@")[0],
         total_subjects=len(rows),
         total_topics=total_topics,
         total_mcqs=total_mcqs,
         subjects=subject_stats,
+        mcqs_solved=user_mcqs_solved,
+        mcqs_attempted=user_mcqs_attempted,
+        tests_taken=user_tests_taken,
+        accuracy=user_accuracy,
+        subject_attempted=subject_attempted,
     )
 
 

@@ -99,6 +99,7 @@ export interface SignupRequest {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+  user_name?: string;
 }
 
 export interface SignupResponse {
@@ -223,12 +224,23 @@ export interface DashboardSubjectStat {
   mcq_count: number;
 }
 
+export interface SubjectAttemptedStat {
+  subject_name: string;
+  attempted: number;
+  correct: number;
+}
+
 export interface DashboardStats {
   user_name: string;
   total_subjects: number;
   total_topics: number;
   total_mcqs: number;
   subjects: DashboardSubjectStat[];
+  mcqs_solved?: number;
+  mcqs_attempted?: number;
+  tests_taken?: number;
+  accuracy?: number;
+  subject_attempted?: SubjectAttemptedStat[];
 }
 
 export interface LeaderboardEntry {
@@ -343,16 +355,18 @@ class ApiClient {
     this.token = localStorage.getItem("access_token");
   }
 
-  setToken(token: string) {
+  setToken(token: string, userName?: string) {
     this.token = token;
     this._adminCache = null;
     localStorage.setItem("access_token", token);
+    if (userName) localStorage.setItem("user_name", userName);
   }
 
   clearToken() {
     this.token = null;
     this._adminCache = null;
     localStorage.removeItem("access_token");
+    localStorage.removeItem("user_name");
   }
 
   /** Cached admin check – avoids repeated /users/me calls */
