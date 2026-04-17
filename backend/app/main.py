@@ -99,36 +99,58 @@ async def on_startup() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            # Add columns that create_all won't add to existing tables
-            await conn.execute(
-                text(
-                    "ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT"
+
+            # Detect backend so we can use the right SQL dialect
+            is_sqlite = engine.url.get_backend_name() == "sqlite"
+
+            if is_sqlite:
+                # SQLite: check existing columns and only add missing ones
+                for table, column, col_def in [
+                    ("contact_info", "whatsapp_url", "TEXT"),
+                    ("users", "is_verified", "BOOLEAN DEFAULT FALSE"),
+                    ("users", "google_id", "VARCHAR(255)"),
+                    ("users", "verification_token", "VARCHAR(512)"),
+                    ("users", "reset_password_token_hash", "VARCHAR(128)"),
+                    ("users", "reset_password_token_expires_at", "TIMESTAMP"),
+                    ("users", "reset_password_requested_at", "TIMESTAMP"),
+                ]:
+                    cols = await conn.execute(text(f"PRAGMA table_info({table})"))
+                    existing = {row[1] for row in cols}
+                    if column not in existing:
+                        await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+                await conn.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
                 )
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_hash VARCHAR(128)")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_expires_at TIMESTAMP")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_requested_at TIMESTAMP")
-            )
-            await conn.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
-            )
-            await conn.execute(
-                text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
-            )
+            else:
+                # PostgreSQL: use IF NOT EXISTS / ALTER COLUMN syntax
+                await conn.execute(
+                    text("ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_hash VARCHAR(128)")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_expires_at TIMESTAMP")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_requested_at TIMESTAMP")
+                )
+                await conn.execute(
+                    text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
+                )
+
             # One-time: mark all pre-existing users as verified
             await conn.execute(
                 text("UPDATE users SET is_verified = TRUE WHERE is_verified = FALSE AND verification_token IS NULL")

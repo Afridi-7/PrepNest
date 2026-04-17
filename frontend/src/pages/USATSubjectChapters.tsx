@@ -6,6 +6,7 @@ import {
   Lightbulb, Link2, ListChecks, Loader2, Plus, Trash2, Upload, X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 import { apiClient, MCQ, PastPaper, Subject, SubjectResource, Tip, Topic, UserNote, API_ORIGIN } from "@/services/api";
 
 const slugify = (value: string) =>
@@ -246,6 +247,7 @@ const USATSubjectChapters = () => {
   const [subjResTitle, setSubjResTitle] = useState("");
   const [subjResUrl, setSubjResUrl] = useState("");
   const fetchedRef = useRef(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -434,6 +436,10 @@ const USATSubjectChapters = () => {
   };
 
   const viewUserNotePdf = async (noteId: number) => {
+    if (!apiClient.isAuthenticated()) {
+      setShowAuthDialog(true);
+      return;
+    }
     try {
       const directUrl = await apiClient.getUserNoteDirectUrl(noteId);
       setUserNotePdfUrl(directUrl);
@@ -986,6 +992,12 @@ const USATSubjectChapters = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AuthRequiredDialog
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        message="Please log in to view subject notes."
+      />
     </>
   );
 };
