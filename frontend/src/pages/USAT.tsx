@@ -8,7 +8,7 @@ import { apiClient, USATCategory } from "@/services/api";
 const CATEGORY_CARD_STYLES: Record<string, {
   gradient: string; border: string; code: string; bar: string; hover: string; iconBg: string;
 }> = {
-  "USAT-E": { gradient: "from-violet-100 to-purple-200 dark:from-violet-500/20 dark:to-purple-500/10", border: "border-violet-300 dark:border-violet-500/20", code: "bg-violet-200 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200", bar: "from-violet-500 to-purple-600", hover: "hover:border-violet-400 hover:shadow-violet-200/60 dark:hover:border-violet-500/40 dark:hover:shadow-violet-950/20", iconBg: "bg-violet-500" },
+  "USAT-E": { gradient: "from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-500/10", border: "border-blue-300 dark:border-blue-500/20", code: "bg-blue-200 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200", bar: "from-blue-500 to-blue-600", hover: "hover:border-blue-400 hover:shadow-blue-200/60 dark:hover:border-blue-500/40 dark:hover:shadow-blue-950/20", iconBg: "bg-blue-500" },
   "USAT-M": { gradient: "from-emerald-100 to-teal-200 dark:from-emerald-500/20 dark:to-teal-500/10", border: "border-emerald-300 dark:border-emerald-500/20", code: "bg-emerald-200 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200", bar: "from-emerald-500 to-teal-600", hover: "hover:border-emerald-400 hover:shadow-emerald-200/60 dark:hover:border-emerald-500/40 dark:hover:shadow-emerald-950/20", iconBg: "bg-emerald-500" },
   "USAT-CS": { gradient: "from-cyan-100 to-sky-200 dark:from-cyan-500/20 dark:to-sky-500/10", border: "border-cyan-300 dark:border-cyan-500/20", code: "bg-cyan-200 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-200", bar: "from-cyan-500 to-sky-600", hover: "hover:border-cyan-400 hover:shadow-cyan-200/60 dark:hover:border-cyan-500/40 dark:hover:shadow-cyan-950/20", iconBg: "bg-cyan-500" },
   "USAT-GS": { gradient: "from-amber-100 to-orange-200 dark:from-amber-500/20 dark:to-orange-500/10", border: "border-amber-300 dark:border-amber-500/20", code: "bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200", bar: "from-amber-500 to-orange-600", hover: "hover:border-amber-400 hover:shadow-amber-200/60 dark:hover:border-amber-500/40 dark:hover:shadow-amber-950/20", iconBg: "bg-amber-500" },
@@ -25,7 +25,7 @@ const FALLBACK_STYLE = {
 };
 
 const examInfo = [
-  { label: "Verbal Reasoning", marks: "20", cardBg: "bg-white/95 dark:bg-slate-900/90", border: "border-violet-300 dark:border-violet-500/20", bar: "from-violet-500 to-purple-500", marksColor: "text-violet-700 dark:text-violet-200", labelColor: "text-violet-500 dark:text-violet-300" },
+  { label: "Verbal Reasoning", marks: "20", cardBg: "bg-white/95 dark:bg-slate-900/90", border: "border-blue-300 dark:border-blue-500/20", bar: "from-blue-500 to-blue-500", marksColor: "text-blue-700 dark:text-blue-200", labelColor: "text-blue-500 dark:text-blue-300" },
   { label: "Quantitative Reasoning", marks: "25", cardBg: "bg-white/95 dark:bg-slate-900/90", border: "border-cyan-300 dark:border-cyan-500/20", bar: "from-cyan-500 to-sky-500", marksColor: "text-cyan-700 dark:text-cyan-200", labelColor: "text-cyan-500 dark:text-cyan-300" },
   { label: "Subject Knowledge", marks: "30", cardBg: "bg-white/95 dark:bg-slate-900/90", border: "border-emerald-300 dark:border-emerald-500/20", bar: "from-emerald-500 to-teal-500", marksColor: "text-emerald-700 dark:text-emerald-200", labelColor: "text-emerald-500 dark:text-emerald-300" },
   { label: "Essay Writing", marks: "25", cardBg: "bg-white/95 dark:bg-slate-900/90", border: "border-amber-300 dark:border-amber-500/20", bar: "from-amber-500 to-orange-500", marksColor: "text-amber-700 dark:text-amber-200", labelColor: "text-amber-500 dark:text-amber-300" },
@@ -55,37 +55,32 @@ const USAT = () => {
       <Navbar />
 
       <div className="relative min-h-screen overflow-hidden bg-background pt-24 pb-20">
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1 dark:bg-violet-500/15" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl blob-float-2 dark:bg-fuchsia-500/15" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl blob-float-3 dark:bg-cyan-500/10" />
 
         <div className="container relative z-10 mx-auto px-4">
           <motion.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30 md:p-10"
+            className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 shadow-xl shadow-blue-400/20 md:p-10"
           >
-            <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
 
             <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
               <div className="max-w-2xl">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-sm">
                   <Sparkles className="h-3.5 w-3.5" /> USAT Premium Preparation Space
                 </span>
 
                 <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm md:text-5xl">
                   Choose Your
                   <br />
-                  <span className="text-fuchsia-200">USAT Stream</span>
+                  <span className="text-cyan-200">USAT Stream</span>
                 </h1>
 
-                <p className="mt-3 max-w-xl text-sm leading-relaxed text-violet-200 md:text-base">
+                <p className="mt-3 max-w-xl text-sm leading-relaxed text-blue-200 md:text-base">
                   Start with a category. A dedicated subjects window opens next. Then open a subject to enter chapters and resources.
                 </p>
 
-                <div className="mt-5 inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                <div className="mt-5 inline-flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-blue-100 backdrop-blur-sm">
                   {["Category", "Subject", "Chapters & Materials"].map((step, i, arr) => (
                     <span key={step} className="flex items-center gap-1.5">
                       <span className="rounded-full bg-white/20 px-2 py-0.5">{step}</span>
@@ -100,13 +95,13 @@ const USAT = () => {
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
                     <Clock3 className="h-4 w-4" />
                   </span>
-                  Total Time: <span className="text-fuchsia-200">140 minutes</span>
+                  Total Time: <span className="text-cyan-200">140 minutes</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm font-semibold text-white">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
                     <Target className="h-4 w-4" />
                   </span>
-                  Passing Marks: <span className="text-fuchsia-200">50</span>
+                  Passing Marks: <span className="text-cyan-200">50</span>
                 </div>
               </div>
             </div>
@@ -138,9 +133,9 @@ const USAT = () => {
           <section>
             <div className="mb-5 flex items-center gap-3">
               <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">USAT Categories</h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-violet-200 to-transparent dark:from-violet-500/20" />
+              <div className="h-px flex-1 bg-gradient-to-r from-blue-200 to-transparent dark:from-blue-500/20" />
               {!loading && (
-                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-600 dark:bg-violet-500/15 dark:text-violet-200">
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-500/15 dark:text-blue-200">
                   {categories.length} streams
                 </span>
               )}

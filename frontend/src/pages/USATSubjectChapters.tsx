@@ -30,17 +30,17 @@ const MCQ_PAGE_SIZE = 30;
 /* ── Chapter color palette — vivid & bold so they POP on all screens ── */
 const CHAPTER_COLORS = [
   {
-    dot: "bg-violet-500",
-    badge: "bg-violet-600 text-white",
-    headerBg: "bg-violet-600",
+    dot: "bg-blue-500",
+    badge: "bg-blue-600 text-white",
+    headerBg: "bg-blue-600",
     headerText: "text-white",
-    expandedBg: "bg-violet-50",
-    expandedBorder: "border-violet-400",
-    labelText: "text-violet-700",
-    titleText: "text-violet-900",
-    collapsedBg: "bg-white hover:bg-violet-50",
-    collapsedBorder: "border-violet-300",
-    shadow: "shadow-violet-200/60",
+    expandedBg: "bg-blue-50",
+    expandedBorder: "border-blue-400",
+    labelText: "text-blue-700",
+    titleText: "text-blue-900",
+    collapsedBg: "bg-white hover:bg-blue-50",
+    collapsedBorder: "border-blue-300",
+    shadow: "shadow-blue-200/60",
   },
   {
     dot: "bg-sky-500",
@@ -108,17 +108,17 @@ const CHAPTER_COLORS = [
     shadow: "shadow-cyan-200/60",
   },
   {
-    dot: "bg-fuchsia-500",
-    badge: "bg-fuchsia-600 text-white",
-    headerBg: "bg-fuchsia-600",
+    dot: "bg-cyan-500",
+    badge: "bg-cyan-600 text-white",
+    headerBg: "bg-cyan-600",
     headerText: "text-white",
-    expandedBg: "bg-fuchsia-50",
-    expandedBorder: "border-fuchsia-400",
-    labelText: "text-fuchsia-700",
-    titleText: "text-fuchsia-900",
-    collapsedBg: "bg-white hover:bg-fuchsia-50",
-    collapsedBorder: "border-fuchsia-300",
-    shadow: "shadow-fuchsia-200/60",
+    expandedBg: "bg-cyan-50",
+    expandedBorder: "border-cyan-400",
+    labelText: "text-cyan-700",
+    titleText: "text-cyan-900",
+    collapsedBg: "bg-white hover:bg-cyan-50",
+    collapsedBorder: "border-cyan-300",
+    shadow: "shadow-cyan-200/60",
   },
   {
     dot: "bg-indigo-500",
@@ -145,17 +145,17 @@ const InlineForm = ({
   <>
     {!show && (
       <button type="button" onClick={onToggle}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-300 py-2 text-[11px] font-bold text-violet-500 transition hover:bg-violet-50 hover:border-violet-400">
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-300 py-2 text-[11px] font-bold text-blue-500 transition hover:bg-blue-50 hover:border-blue-400">
         <Plus className="h-3 w-3" /> {label}
       </button>
     )}
     {show && (
       <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-        onSubmit={onSubmit} className="mt-2 space-y-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+        onSubmit={onSubmit} className="mt-2 space-y-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
         {children}
         <div className="flex gap-2">
           <button type="submit" disabled={busy}
-            className="flex-1 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-1.5 text-[10px] font-bold text-white transition hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50">
+            className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 py-1.5 text-[10px] font-bold text-white transition hover:from-blue-500 hover:to-cyan-500 disabled:opacity-50">
             {busy ? <Loader2 className="mx-auto h-3 w-3 animate-spin" /> : "Save"}
           </button>
           <button type="button" onClick={onToggle}
@@ -169,11 +169,11 @@ const InlineForm = ({
 );
 
 const SmallInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input {...props} className={`w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200 transition ${props.className ?? ""}`} />
+  <input {...props} className={`w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 transition ${props.className ?? ""}`} />
 );
 
 const SmallTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea {...props} className={`w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200 transition ${props.className ?? ""}`} rows={2} />
+  <textarea {...props} className={`w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 transition ${props.className ?? ""}`} rows={2} />
 );
 
 const DelBtn = ({ onClick, title }: { onClick: () => void; title?: string }) => (
@@ -470,19 +470,13 @@ const USATSubjectChapters = () => {
   return (
     <>
       <Navbar />
-      <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
-
-        {/* ambient blobs (CSS-only for performance) */}
-        <div aria-hidden className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-violet-400/20 blur-3xl blob-float-1" />
-        <div aria-hidden className="pointer-events-none absolute right-0 top-32 h-80 w-80 rounded-full bg-fuchsia-400/20 blur-3xl blob-float-2" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-400/15 blur-3xl blob-float-3" />
+      <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4">
 
           {/* ── HERO ── */}
           <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}
-            className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-500/30">
-            <div aria-hidden className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full bg-white/10 blur-2xl blob-glow-1" />
+            className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 shadow-xl shadow-blue-500/20">
             <Link to={`/usat/${encodeURIComponent(category)}`}
               className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/30">
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Subjects
@@ -490,12 +484,12 @@ const USATSubjectChapters = () => {
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
               {subjectInfo?.name || "Subject"}
             </h1>
-            <p className="mt-1 text-sm font-medium text-violet-200">{category} · Chapters Window</p>
+            <p className="mt-1 text-sm font-medium text-blue-200">{category} · Chapters Window</p>
             <div className="mt-6 flex flex-wrap gap-3">
               {[
                 { label: "Chapters",      value: chapters.length,      color: "bg-white/20 text-white" },
                 { label: "PDF Notes",     value: userNotes.length,     color: "bg-cyan-400/30 text-cyan-100" },
-                { label: "Past Papers",   value: subjectPapers.length, color: "bg-fuchsia-400/30 text-fuchsia-100" },
+                { label: "Past Papers",   value: subjectPapers.length, color: "bg-cyan-400/30 text-cyan-100" },
               ].map((stat) => (
                 <div key={stat.label} className={`${stat.color} flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold backdrop-blur-sm`}>
                   <span className="text-xl font-black">{stat.value}</span>
@@ -524,19 +518,19 @@ const USATSubjectChapters = () => {
                   LEFT — ACCORDION CHAPTERS
               ══════════════════════════════════════════════ */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-                <div className="rounded-2xl border border-violet-100 bg-white p-5 shadow-lg shadow-violet-100/40">
-                  <h2 className="mb-5 flex items-center gap-2 text-base font-bold text-violet-700">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
-                      <Layers className="h-4 w-4 text-violet-600" />
+                <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-100/40">
+                  <h2 className="mb-5 flex items-center gap-2 text-base font-bold text-blue-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100">
+                      <Layers className="h-4 w-4 text-blue-600" />
                     </span>
                     Chapters
-                    <span className="ml-auto rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-600">{chapters.length}</span>
+                    <span className="ml-auto rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-600">{chapters.length}</span>
                   </h2>
 
                   {chapters.length === 0 && !isAdmin ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100">
-                        <Layers className="h-6 w-6 text-violet-400" />
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
+                        <Layers className="h-6 w-6 text-blue-400" />
                       </div>
                       <p className="text-sm font-semibold text-slate-500">No chapters yet</p>
                       <p className="text-xs text-slate-400 mt-1">Content is being added soon.</p>
@@ -723,14 +717,14 @@ const USATSubjectChapters = () => {
 
                   {/* Admin: Essay CSV Upload (only on essay subjects) */}
                   {isAdmin && isEssaySubject && (
-                    <div className="mt-4 rounded-xl border border-dashed border-violet-300 bg-violet-50/60 p-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-violet-500 mb-2">Upload Essay Prompts CSV</p>
+                    <div className="mt-4 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-blue-500 mb-2">Upload Essay Prompts CSV</p>
                       <p className="text-[10px] text-slate-400 mb-2">CSV must have columns: <strong>essay_type</strong>, <strong>prompt_text</strong>, <strong>exam_type</strong> (optional)</p>
                       <input ref={essayCsvRef} type="file" accept=".csv"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEssayCsvUpload(f); }}
-                        className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 hover:file:bg-violet-200" />
+                        className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-blue-700 hover:file:bg-blue-200" />
                       {essayUploadBusy && (
-                        <div className="mt-2 flex items-center gap-1.5 text-xs text-violet-500">
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-500">
                           <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
                         </div>
                       )}
@@ -747,25 +741,25 @@ const USATSubjectChapters = () => {
 
                 {/* Subject Notes */}
                 <SectionCard
-                  headerGradient="bg-gradient-to-r from-violet-500 to-purple-600"
+                  headerGradient="bg-gradient-to-r from-blue-500 to-blue-600"
                   icon={<FileText className="h-4 w-4 text-white" />}
                   title="Subject Notes"
-                  borderColor="border-violet-100"
-                  shadowColor="shadow-violet-100/30"
+                  borderColor="border-blue-100"
+                  shadowColor="shadow-blue-100/30"
                 >
                   {/* admin view */}
                   {isAdmin && userNotes.length > 0 && (
                     <>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-violet-400 mb-2">Uploaded PDFs</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-2">Uploaded PDFs</p>
                       <div className="space-y-2 mb-3">
                         {userNotes.map((un) => (
-                          <div key={un.id} className="flex items-center gap-2.5 rounded-xl border border-violet-100 bg-violet-50 p-2.5">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-200">
-                              <FileText className="h-3.5 w-3.5 text-violet-700" />
+                          <div key={un.id} className="flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-2.5">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-200">
+                              <FileText className="h-3.5 w-3.5 text-blue-700" />
                             </span>
                             <p className="flex-1 text-xs font-semibold text-slate-800 truncate min-w-0">{un.title}</p>
                             <button type="button" onClick={() => viewUserNotePdf(un.id)}
-                              className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white transition hover:bg-violet-700 shrink-0">
+                              className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white transition hover:bg-blue-700 shrink-0">
                               <Eye className="h-2.5 w-2.5" /> View
                             </button>
                             <DelBtn onClick={() => deleteUserNote(un.id)} />
@@ -778,13 +772,13 @@ const USATSubjectChapters = () => {
                   {!isAdmin && userNotes.length > 0 && (
                     <div className="space-y-2 mb-3">
                       {userNotes.map((un) => (
-                        <div key={un.id} className="flex items-center gap-2.5 rounded-xl border border-violet-100 bg-violet-50 p-2.5">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-200">
-                            <FileText className="h-3.5 w-3.5 text-violet-700" />
+                        <div key={un.id} className="flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-2.5">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-200">
+                            <FileText className="h-3.5 w-3.5 text-blue-700" />
                           </span>
                           <p className="flex-1 text-xs font-semibold text-slate-800 truncate min-w-0">{un.title}</p>
                           <button type="button" onClick={() => viewUserNotePdf(un.id)}
-                            className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white transition hover:bg-violet-700 shrink-0">
+                            className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white transition hover:bg-blue-700 shrink-0">
                             <Eye className="h-2.5 w-2.5" /> View
                           </button>
                         </div>
@@ -795,18 +789,18 @@ const USATSubjectChapters = () => {
                   {isAdmin && (
                     !showAddUserNote ? (
                       <button type="button" onClick={() => setShowAddUserNote(true)}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-300 py-2 text-[11px] font-bold text-violet-500 transition hover:bg-violet-50 hover:border-violet-400">
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-300 py-2 text-[11px] font-bold text-blue-500 transition hover:bg-blue-50 hover:border-blue-400">
                         <Plus className="h-3 w-3" /> Upload PDF Note
                       </button>
                     ) : (
                       <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                        onSubmit={uploadUserNote} className="space-y-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                        onSubmit={uploadUserNote} className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
                         <SmallInput placeholder="Note title" value={userNoteTitle} onChange={(e) => setUserNoteTitle(e.target.value)} autoFocus />
                         <input type="file" accept=".pdf" onChange={(e) => setUserNoteFile(e.target.files?.[0] ?? null)}
-                          className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 hover:file:bg-violet-200" />
+                          className="w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-blue-700 hover:file:bg-blue-200" />
                         <div className="flex gap-2">
                           <button type="submit" disabled={userNoteBusy || !userNoteTitle.trim() || !userNoteFile}
-                            className="flex-1 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 py-1.5 text-[10px] font-bold text-white transition disabled:opacity-50">
+                            className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 py-1.5 text-[10px] font-bold text-white transition disabled:opacity-50">
                             {userNoteBusy ? <Loader2 className="mx-auto h-3 w-3 animate-spin" /> : "Upload"}
                           </button>
                           <button type="button" onClick={() => { setShowAddUserNote(false); setUserNoteTitle(""); setUserNoteFile(null); }}
@@ -980,10 +974,10 @@ const USATSubjectChapters = () => {
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl will-change-transform"
               onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between border-b border-violet-100 bg-gradient-to-r from-violet-50 to-purple-50 px-5 py-3">
-                <h3 className="text-sm font-bold text-violet-800">My Note — View Only</h3>
+              <div className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-50 px-5 py-3">
+                <h3 className="text-sm font-bold text-blue-800">My Note — View Only</h3>
                 <button type="button" onClick={() => setUserNotePdfUrl(null)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-500 transition hover:bg-rose-100 hover:text-rose-600">
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-500 transition hover:bg-rose-100 hover:text-rose-600">
                   <X className="h-4 w-4" />
                 </button>
               </div>

@@ -5,15 +5,15 @@ import Navbar from "@/components/Navbar";
 const TermsOfService = () => (
   <>
     <Navbar />
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white pt-24 pb-16">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-50 to-white pt-24 pb-16">
       <div className="container mx-auto max-w-3xl px-4">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-800 font-medium mb-6 transition-colors">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-violet-100 p-8 sm:p-12">
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-100 p-8 sm:p-12">
           <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
               <FileText className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -117,7 +117,7 @@ const TermsOfService = () => (
               <h2 className="text-lg font-bold text-slate-800 mb-2">12. Contact Us</h2>
               <p className="text-slate-600">
                 If you have any questions about these Terms, please contact us at{" "}
-                <a href="mailto:support@prepnest.com" className="text-violet-600 hover:text-violet-800 underline">support@prepnest.com</a>.
+                <a href="mailto:support@prepnest.com" className="text-blue-600 hover:text-blue-800 underline">support@prepnest.com</a>.
               </p>
             </section>
 

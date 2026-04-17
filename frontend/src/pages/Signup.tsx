@@ -116,10 +116,7 @@ const Signup = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="absolute -top-24 -right-20 h-72 w-72 rounded-full bg-purple-300/20 blur-3xl animate-pulse dark:bg-purple-500/15" style={{ animationDuration: "8s" }} />
-      <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-sky-300/20 blur-3xl animate-pulse dark:bg-sky-500/15" style={{ animationDuration: "10s" }} />
-      <div className="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-200/15 blur-3xl dark:bg-violet-500/10" />
+    <div className="relative flex min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 items-center justify-center p-12 gradient-primary">
         <div className="absolute inset-0 pattern-dots opacity-20" />
@@ -140,7 +137,7 @@ const Signup = () => {
             <Sparkles className="h-4 w-4" /> Start strong, stay consistent
           </div>
           <div className="animate-[gentle-rock_6s_ease-in-out_infinite]">
-            <div className="mx-auto mb-6 h-32 w-32 rounded-2xl bg-gradient-to-br from-violet-600/90 to-fuchsia-600/90 p-3 shadow-2xl shadow-violet-400/50">
+            <div className="mx-auto mb-6 h-32 w-32 rounded-2xl bg-gradient-to-br from-blue-600/90 to-cyan-600/90 p-3 shadow-2xl shadow-blue-400/50">
               <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
             </div>
           </div>
@@ -158,9 +155,9 @@ const Signup = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-violet-200 bg-white/95 p-6 shadow-2xl shadow-violet-200/30 dark:border-violet-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-blue-200 bg-white/95 p-6 shadow-2xl shadow-blue-200/30 dark:border-blue-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
         >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
           {signupDone ? (
             <div className="py-4 text-center">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" as const, stiffness: 200, damping: 15 }}>
@@ -190,7 +187,7 @@ const Signup = () => {
                   <ArrowLeft className="h-4 w-4" /> Go back
                 </button>
                 <Link to="/" className="mb-8 flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
                     <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
                   </div>
                   <span className="font-heading text-lg font-bold">PrepNest</span>
@@ -207,7 +204,7 @@ const Signup = () => {
                     <Input
                       id="name"
                       placeholder="Enter your full name"
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-colors focus-visible:border-violet-300 focus-visible:ring-violet-400/50 dark:border-slate-700 dark:bg-slate-950/60"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-colors focus-visible:border-blue-300 focus-visible:ring-blue-400/50 dark:border-slate-700 dark:bg-slate-950/60"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={loading}
@@ -222,7 +219,7 @@ const Signup = () => {
                       id="email"
                       type="email"
                       placeholder="student@prepnest.app"
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-colors focus-visible:border-violet-300 focus-visible:ring-violet-400/50 dark:border-slate-700 dark:bg-slate-950/60"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-colors focus-visible:border-blue-300 focus-visible:ring-blue-400/50 dark:border-slate-700 dark:bg-slate-950/60"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
@@ -237,7 +234,7 @@ const Signup = () => {
                       id="password"
                       type={showPass ? "text" : "password"}
                       placeholder="........"
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-10 transition-colors focus-visible:border-violet-300 focus-visible:ring-violet-400/50 dark:border-slate-700 dark:bg-slate-950/60"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-10 transition-colors focus-visible:border-blue-300 focus-visible:ring-blue-400/50 dark:border-slate-700 dark:bg-slate-950/60"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={loading}
@@ -252,7 +249,7 @@ const Signup = () => {
                     </button>
                   </div>
                 </div>
-                <Button type="submit" variant="gradient" className="h-12 w-full rounded-xl font-semibold shadow-lg shadow-violet-300/30 transition-shadow hover:shadow-xl hover:shadow-violet-300/40" disabled={loading}>
+                <Button type="submit" variant="gradient" className="h-12 w-full rounded-xl font-semibold shadow-lg shadow-blue-300/30 transition-shadow hover:shadow-xl hover:shadow-blue-300/40" disabled={loading}>
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

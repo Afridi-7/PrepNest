@@ -38,18 +38,16 @@ const VerifyEmail = () => {
   }, [token]);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="absolute -top-28 -left-20 h-72 w-72 rounded-full bg-fuchsia-300/25 blur-3xl dark:bg-fuchsia-500/15" />
-      <div className="absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl dark:bg-cyan-500/15" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-violet-100/50 bg-white/90 p-8 text-center shadow-2xl shadow-violet-200/20 dark:border-violet-500/20 dark:bg-slate-900/92 dark:shadow-black/30"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-blue-100/50 bg-white/90 p-8 text-center shadow-2xl shadow-blue-200/20 dark:border-blue-500/20 dark:bg-slate-900/92 dark:shadow-black/30"
       >
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
         <Link to="/" className="mb-6 inline-flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
             <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
           </div>
           <span className="font-heading text-lg font-bold">PrepNest</span>

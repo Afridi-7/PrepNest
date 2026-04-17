@@ -93,9 +93,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-cyan-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-violet-300/20 blur-3xl dark:bg-violet-500/15" />
-      <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl dark:bg-cyan-500/15" />
+    <div className="relative flex min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 items-center justify-center p-12 gradient-primary">
         <div className="absolute inset-0 pattern-grid opacity-10" />
@@ -108,7 +106,7 @@ const ResetPassword = () => {
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
             <ShieldCheck className="h-4 w-4" /> Single-use secure reset
           </div>
-          <div className="mx-auto mb-6 flex h-32 w-32 items-center justify-center rounded-3xl bg-white/15 shadow-2xl shadow-violet-400/40 backdrop-blur">
+          <div className="mx-auto mb-6 flex h-32 w-32 items-center justify-center rounded-3xl bg-white/15 shadow-2xl shadow-blue-400/40 backdrop-blur">
             <Lock className="h-14 w-14 text-white" />
           </div>
           <h2 className="mb-4 font-heading text-4xl font-bold text-white">Choose a New Password</h2>
@@ -122,9 +120,9 @@ const ResetPassword = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-violet-200 bg-white/95 p-6 shadow-2xl shadow-violet-200/30 dark:border-violet-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-blue-200 bg-white/95 p-6 shadow-2xl shadow-blue-200/30 dark:border-blue-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
         >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
 
           <div className="mb-8">
             <button
@@ -135,7 +133,7 @@ const ResetPassword = () => {
               <ArrowLeft className="h-4 w-4" /> Go back
             </button>
             <Link to="/" className="mb-8 flex items-center gap-2">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-md shadow-violet-300/40">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
                 <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
               </div>
               <span className="font-heading text-lg font-bold">PrepNest</span>
@@ -146,7 +144,7 @@ const ResetPassword = () => {
 
           {status === "checking" && (
             <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
-              <Loader2 className="mb-4 h-10 w-10 animate-spin text-violet-500" />
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-blue-500" />
               <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Validating your link</h2>
               <p className="text-sm text-muted-foreground">Please wait while we confirm that your reset token is still valid.</p>
             </div>

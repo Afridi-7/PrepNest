@@ -55,8 +55,8 @@ const Navbar = () => {
       initial={false}
       className={`fixed top-0 left-0 right-0 z-50 border-b transition-shadow duration-300 ${
         scrolled
-          ? "border-violet-100 bg-white shadow-lg shadow-violet-100/30 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30"
-          : "border-violet-100 bg-white shadow-sm shadow-violet-100/20 dark:border-slate-900 dark:bg-slate-950 dark:shadow-black/20"
+          ? "border-blue-100 bg-white shadow-lg shadow-blue-100/30 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30"
+          : "border-blue-100 bg-white shadow-sm shadow-blue-100/20 dark:border-slate-900 dark:bg-slate-950 dark:shadow-black/20"
       }`}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -64,13 +64,13 @@ const Navbar = () => {
           <motion.div
             whileHover={{ scale: 1.08, rotate: 3 }}
             whileTap={{ scale: 0.95 }}
-            className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 shadow-lg shadow-violet-300/50"
+            className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-lg shadow-blue-300/50"
           >
             <img src="/logo.png" alt="PrepNest AI" className="h-full w-full rounded-lg object-contain" />
           </motion.div>
           <div className="flex flex-col">
             <span className="font-heading text-lg font-bold leading-tight text-foreground">PrepNest</span>
-            <span className="text-[9px] font-bold uppercase tracking-[0.15em] leading-none text-violet-500">AI Powered</span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.15em] leading-none text-blue-500">AI Powered</span>
           </div>
         </Link>
 
@@ -83,8 +83,8 @@ const Navbar = () => {
                 onClick={() => handleNav(link.path)}
                 className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-300/40 dark:shadow-violet-950/60"
-                    : "text-slate-500 hover:bg-violet-50 hover:text-violet-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-violet-100"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-300/40 dark:shadow-blue-950/60"
+                    : "text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-100"
                 }`}
               >
                 {link.label}
@@ -99,21 +99,21 @@ const Navbar = () => {
             size="icon"
             onClick={toggleTheme}
             aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-            className="rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-violet-500/50 dark:hover:bg-slate-800 dark:hover:text-violet-100"
+            className="rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-100"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           {isAuthenticated ? (
-            <Button variant="outline" size="sm" className="rounded-xl border-2 border-slate-200 bg-white font-semibold hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-violet-500/50 dark:hover:bg-slate-800 dark:hover:text-violet-100" onClick={handleLogout}>
+            <Button variant="outline" size="sm" className="rounded-xl border-2 border-slate-200 bg-white font-semibold hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-100" onClick={handleLogout}>
               Logout
             </Button>
           ) : (
             <>
               <Link to="/login">
-                <Button variant="ghost" size="sm" className="rounded-xl font-semibold hover:bg-violet-50 hover:text-violet-700 dark:text-slate-100 dark:hover:bg-slate-800 dark:hover:text-violet-100">Log In</Button>
+                <Button variant="ghost" size="sm" className="rounded-xl font-semibold hover:bg-blue-50 hover:text-blue-700 dark:text-slate-100 dark:hover:bg-slate-800 dark:hover:text-blue-100">Log In</Button>
               </Link>
               <Link to="/signup">
-                <Button size="sm" variant="gradient" className="gap-1.5 rounded-xl shadow-md shadow-violet-300/40">
+                <Button size="sm" variant="gradient" className="gap-1.5 rounded-xl shadow-md shadow-blue-300/40">
                   <Sparkles className="h-3.5 w-3.5" /> Sign Up
                 </Button>
               </Link>
@@ -127,11 +127,11 @@ const Navbar = () => {
             size="icon"
             onClick={toggleTheme}
             aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-            className="rounded-xl border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-violet-500/50 dark:hover:bg-slate-800 dark:hover:text-violet-100"
+            className="rounded-xl border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-100"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <button className="rounded-xl p-2 transition-colors hover:bg-violet-50 dark:hover:bg-slate-800" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button className="rounded-xl p-2 transition-colors hover:bg-blue-50 dark:hover:bg-slate-800" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5 text-slate-600 dark:text-slate-200" /> : <Menu className="h-5 w-5 text-slate-600 dark:text-slate-200" />}
           </button>
         </div>
@@ -143,7 +143,7 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-t border-violet-100 bg-white dark:border-slate-800 dark:bg-slate-950 md:hidden"
+            className="border-t border-blue-100 bg-white dark:border-slate-800 dark:bg-slate-950 md:hidden"
           >
             <div className="space-y-1 px-4 py-3">
               {navLinks.map((link) => {
@@ -154,8 +154,8 @@ const Navbar = () => {
                     onClick={() => handleNav(link.path)}
                     className={`block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all ${
                       isActive
-                        ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-200 dark:shadow-violet-950/50"
-                        : "text-slate-600 hover:bg-violet-50 hover:text-violet-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-violet-100"
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-950/50"
+                        : "text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-100"
                     }`}
                   >
                     {link.label}
@@ -164,7 +164,7 @@ const Navbar = () => {
               })}
               <button
                 onClick={toggleTheme}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-800 dark:text-slate-100 dark:hover:border-violet-500/50 dark:hover:bg-slate-800 dark:hover:text-violet-100"
+                className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:text-slate-100 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-100"
               >
                 <span>{isDark ? "Light theme" : "Dark theme"}</span>
                 {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

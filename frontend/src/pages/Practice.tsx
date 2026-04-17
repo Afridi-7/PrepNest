@@ -45,14 +45,14 @@ const timeOptions = [
 
 /* ── Option letter colors — vivid & bold so they POP ── */
 const OPTION_COLORS = [
-  { idle: "bg-violet-200 text-violet-800 border-violet-400",   active: "bg-violet-600 text-white border-violet-600",   ring: "border-violet-500 bg-violet-50 shadow-violet-200" },
+  { idle: "bg-blue-200 text-blue-800 border-blue-400",   active: "bg-blue-600 text-white border-blue-600",   ring: "border-blue-500 bg-blue-50 shadow-blue-200" },
   { idle: "bg-sky-200 text-sky-800 border-sky-400",            active: "bg-sky-600 text-white border-sky-600",          ring: "border-sky-500 bg-sky-50 shadow-sky-200" },
   { idle: "bg-emerald-200 text-emerald-800 border-emerald-400",active: "bg-emerald-600 text-white border-emerald-600",  ring: "border-emerald-500 bg-emerald-50 shadow-emerald-200" },
   { idle: "bg-amber-200 text-amber-800 border-amber-400",      active: "bg-amber-500 text-white border-amber-500",      ring: "border-amber-500 bg-amber-50 shadow-amber-200" },
 ];
 
 const SUBJECT_PILLS: Record<string, { pill: string; dot: string }> = {
-  English:     { pill: "bg-violet-200 text-violet-800 border-violet-300",  dot: "bg-violet-500" },
+  English:     { pill: "bg-blue-200 text-blue-800 border-blue-300",  dot: "bg-blue-500" },
   Mathematics: { pill: "bg-cyan-200 text-cyan-800 border-cyan-300",        dot: "bg-cyan-500" },
   Physics:     { pill: "bg-amber-200 text-amber-800 border-amber-300",     dot: "bg-amber-500" },
   Chemistry:   { pill: "bg-emerald-200 text-emerald-800 border-emerald-300",dot: "bg-emerald-500" },
@@ -203,11 +203,7 @@ const Practice = () => {
       <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}
         message="Please log in first to start a practice test." />
 
-      <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
-        {/* blobs (CSS-only for performance) */}
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl blob-float-2" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/15 blur-3xl blob-float-3" />
+      <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4 max-w-6xl">
 
@@ -216,15 +212,13 @@ const Practice = () => {
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
 
               {/* hero */}
-              <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30">
-                <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-                <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
+              <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 shadow-xl shadow-blue-400/20">
                 <div className="relative z-10">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-sm">
                     <Settings className="h-3.5 w-3.5" /> Practice Test
                   </span>
                   <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">Configure Your Test</h1>
-                  <p className="mt-1.5 text-sm text-violet-200">Pick your category, subject, questions and time — then hit start.</p>
+                  <p className="mt-1.5 text-sm text-blue-200">Pick your category, subject, questions and time — then hit start.</p>
                   <div className="mt-5 flex gap-1.5">
                     {[...Array(6)].map((_, i) => <div key={i} className="h-1 rounded-full bg-white/25" style={{ width: i === 0 ? 24 : 8 }} />)}
                   </div>
@@ -232,7 +226,7 @@ const Practice = () => {
               </div>
 
               {/* config card */}
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 space-y-8">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/30 space-y-8">
 
                 {/* Category */}
                 <div>
@@ -240,7 +234,7 @@ const Practice = () => {
                   <div className="relative sm:max-w-sm">
                     <button type="button" onClick={() => setCategoryOpen(!categoryOpen)}
                       className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all duration-200 ${
-                        selectedCategory ? "border-violet-400 bg-violet-50 text-violet-800" : "border-slate-200 bg-slate-50 text-slate-500"
+                        selectedCategory ? "border-blue-400 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}>
                       <span>{selectedCategory ? `${selectedCategory.code} — ${selectedCategory.title}` : "Select a category…"}</span>
                       <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
@@ -248,17 +242,17 @@ const Practice = () => {
                     <AnimatePresence>
                       {categoryOpen && (
                         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                          className="absolute z-20 mt-1.5 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-violet-100/40">
+                          className="absolute z-20 mt-1.5 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-blue-100/40">
                           {categories.map((cat) => (
                             <button key={cat.code} type="button"
                               onClick={() => { setSelectedCategory(cat); setCategoryOpen(false); }}
-                              className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-violet-50 ${selectedCategory?.code === cat.code ? "bg-violet-50" : ""}`}>
-                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-black text-violet-700">{cat.code.split("-")[1]}</span>
+                              className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-blue-50 ${selectedCategory?.code === cat.code ? "bg-blue-50" : ""}`}>
+                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xs font-black text-blue-700">{cat.code.split("-")[1]}</span>
                               <div>
                                 <div className="text-sm font-bold text-slate-800">{cat.code} — {cat.title}</div>
                                 <div className="text-[11px] text-slate-400 mt-0.5">{cat.description}</div>
                               </div>
-                              {selectedCategory?.code === cat.code && <CheckCircle2 className="ml-auto h-4 w-4 text-violet-500 shrink-0 mt-0.5" />}
+                              {selectedCategory?.code === cat.code && <CheckCircle2 className="ml-auto h-4 w-4 text-blue-500 shrink-0 mt-0.5" />}
                             </button>
                           ))}
                         </motion.div>
@@ -287,8 +281,8 @@ const Practice = () => {
                             }}
                               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
                                 isActive
-                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
-                                  : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
+                                  : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                               }`}>
                               {s}
                             </button>
@@ -307,8 +301,8 @@ const Practice = () => {
                       <button key={n} onClick={() => setMcqCount(n)}
                         className={`w-14 py-3 rounded-xl text-sm font-bold transition-all duration-200 border-2 ${
                           mcqCount === n
-                            ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                            ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                         }`}>
                         {n}
                       </button>
@@ -324,8 +318,8 @@ const Practice = () => {
                       <button key={t.value} onClick={() => setTimeLimit(t.value)}
                         className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
                           timeLimit === t.value
-                            ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                            ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                         }`}>
                         {t.label}
                       </button>
@@ -334,26 +328,26 @@ const Practice = () => {
                 </div>
 
                 {/* Summary strip */}
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-violet-300 bg-violet-100 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-blue-300 bg-blue-100 px-5 py-4">
                   {selectedCategory && (
                     <>
                       <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-200 text-[10px] font-black text-violet-800">{selectedCategory.code.split("-")[1]}</span>
-                        <span className="text-sm font-bold text-violet-800">{selectedCategory.code}</span>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-200 text-[10px] font-black text-blue-800">{selectedCategory.code.split("-")[1]}</span>
+                        <span className="text-sm font-bold text-blue-800">{selectedCategory.code}</span>
                       </div>
-                      <div className="h-4 w-px bg-violet-300" />
+                      <div className="h-4 w-px bg-blue-300" />
                     </>
                   )}
                   <div className="flex items-center gap-2 text-sm">
-                    <BookOpen className="h-4 w-4 text-violet-500" />
+                    <BookOpen className="h-4 w-4 text-blue-500" />
                     <span className="font-semibold text-slate-700">{selectedSubjectName}</span>
                   </div>
-                  <div className="h-4 w-px bg-violet-300" />
+                  <div className="h-4 w-px bg-blue-300" />
                   <div className="flex items-center gap-2 text-sm">
-                    <Target className="h-4 w-4 text-fuchsia-500" />
+                    <Target className="h-4 w-4 text-cyan-500" />
                     <span className="font-semibold text-slate-700">{mcqCount} MCQs</span>
                   </div>
-                  <div className="h-4 w-px bg-violet-300" />
+                  <div className="h-4 w-px bg-blue-300" />
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="h-4 w-4 text-cyan-500" />
                     <span className="font-semibold text-slate-700">{timeLimit === 0 ? "Untimed" : `${timeLimit} min`}</span>
@@ -361,15 +355,15 @@ const Practice = () => {
                 </div>
 
                 <button onClick={startQuiz} disabled={fetchingMCQs || !selectedCategory}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-violet-400/50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-xl">
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 py-4 text-base font-bold text-white shadow-xl shadow-blue-300/40 transition-all duration-200 hover:from-blue-500 hover:to-cyan-500 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-blue-400/50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-xl">
                   {fetchingMCQs ? <><Loader2 className="h-5 w-5 animate-spin" /> Loading MCQs…</> : <><Play className="h-5 w-5" /> Start Test</>}
                 </button>
               </div>
 
               {/* ── Mock Test Card ── */}
-              <div className="mt-6 rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30">
+              <div className="mt-6 rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/30">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-violet-600 shadow-lg shadow-fuchsia-200/40">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-200/40">
                       <FileText className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -378,7 +372,7 @@ const Practice = () => {
                         75 MCQs + 2 Essays — timed, AI-evaluated, with detailed feedback and results.
                       </p>
                       <button onClick={() => navigate(`/mock-test${selectedCategory ? `?category=${selectedCategory.code}` : ""}`)}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-300/30 transition-all duration-200 hover:from-fuchsia-500 hover:to-violet-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-300/30 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
                         <Play className="h-4 w-4" /> Take Interactive Test
                       </button>
                     </div>
@@ -392,11 +386,11 @@ const Practice = () => {
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
               {/* ── TOP PROGRESS BAR (full-width sticky feel) ── */}
-              <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-violet-100/20">
+              <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-blue-100/20">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <button onClick={restart}
-                      className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700">
+                      className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
                       <ArrowLeft className="h-3.5 w-3.5" /> Back
                     </button>
                     <button onClick={restart}
@@ -430,10 +424,10 @@ const Practice = () => {
                 {/* progress bar */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
-                    <motion.div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                    <motion.div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                       animate={{ width: `${progressPct}%` }} transition={{ duration: 0.4 }} />
                   </div>
-                  <span className="text-xs font-black text-violet-600 min-w-[36px] text-right">{progressPct}%</span>
+                  <span className="text-xs font-black text-blue-600 min-w-[36px] text-right">{progressPct}%</span>
                 </div>
 
                 {/* answered mini bar */}
@@ -441,7 +435,7 @@ const Practice = () => {
                   <div className="flex gap-0.5 flex-1">
                     {questions.map((_, idx) => (
                       <div key={idx} className={`h-1.5 flex-1 rounded-full transition-all ${
-                        idx === currentQ ? "bg-violet-500" :
+                        idx === currentQ ? "bg-blue-500" :
                         answers[idx] !== null ? "bg-emerald-400" :
                         "bg-slate-200"
                       }`} />
@@ -461,15 +455,15 @@ const Practice = () => {
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -30, scale: 0.98 }}
                       transition={{ duration: 0.22 }}
-                      className="rounded-3xl border-2 border-violet-200 bg-white p-6 sm:p-8 shadow-xl shadow-violet-200/40">
+                      className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8 shadow-xl shadow-blue-200/40">
 
                       {/* question number badge */}
                       <div className="flex items-center gap-3 mb-5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-sm font-black text-white shadow-md shadow-violet-300/40">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-sm font-black text-white shadow-md shadow-blue-300/40">
                           {String(currentQ + 1).padStart(2, "0")}
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Question {currentQ + 1} of {questions.length}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Question {currentQ + 1} of {questions.length}</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-bold ${subjectPill(q.subject)}`}>
                               {q.subject}
@@ -478,7 +472,7 @@ const Practice = () => {
                         </div>
                       </div>
 
-                      <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed mb-8 border-l-4 border-violet-400 pl-4">{q.question}</p>
+                      <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed mb-8 border-l-4 border-blue-400 pl-4">{q.question}</p>
 
                       {/* Option grid — 2 columns on large screens */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -504,7 +498,7 @@ const Practice = () => {
                               {isSelected && (
                                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
                                   className="shrink-0 mt-0.5">
-                                  <CheckCircle2 className="h-5 w-5 text-violet-500" />
+                                  <CheckCircle2 className="h-5 w-5 text-blue-500" />
                                 </motion.div>
                               )}
                             </motion.button>
@@ -521,7 +515,7 @@ const Practice = () => {
                         <div className="flex-1" />
                         {currentQ < questions.length - 1 ? (
                           <button onClick={nextQ}
-                            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-violet-200 transition hover:from-violet-500 hover:to-fuchsia-500">
+                            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:from-blue-500 hover:to-cyan-500">
                             Next <ArrowRight className="h-4 w-4" />
                           </button>
                         ) : (
@@ -539,11 +533,11 @@ const Practice = () => {
                 <aside className="lg:sticky lg:top-28 space-y-4">
 
                   {/* Navigator */}
-                  <div className="rounded-2xl border-2 border-violet-200 bg-white p-4 shadow-lg shadow-violet-200/20">
+                  <div className="rounded-2xl border-2 border-blue-200 bg-white p-4 shadow-lg shadow-blue-200/20">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-sm font-bold text-slate-800">Navigator</p>
                       <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500" />
+                        <span className="h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
                         <span className="text-xs text-slate-400 font-medium">{answeredCount}/{questions.length}</span>
                       </div>
                     </div>
@@ -557,10 +551,10 @@ const Practice = () => {
                             whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                             className={`h-9 rounded-xl text-xs font-black transition-all border-2 ${
                               isCurrent
-                                ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white border-transparent shadow-md shadow-violet-300/40"
+                                ? "bg-gradient-to-br from-blue-600 to-cyan-600 text-white border-transparent shadow-md shadow-blue-300/40"
                                 : isAnswered
                                 ? "bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200"
-                                : "bg-white text-slate-500 border-slate-200 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-600"
+                                : "bg-white text-slate-500 border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
                             }`}>
                             {index + 1}
                           </motion.button>
@@ -570,7 +564,7 @@ const Practice = () => {
 
                     {/* legend */}
                     <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-2 border-t border-slate-100">
-                      <span className="flex items-center gap-1 font-semibold"><span className="h-2.5 w-2.5 rounded-md bg-gradient-to-br from-violet-600 to-fuchsia-600" />Current</span>
+                      <span className="flex items-center gap-1 font-semibold"><span className="h-2.5 w-2.5 rounded-md bg-gradient-to-br from-blue-600 to-cyan-600" />Current</span>
                       <span className="flex items-center gap-1 font-semibold"><span className="h-2.5 w-2.5 rounded-md bg-emerald-300 border border-emerald-400" />Done</span>
                       <span className="flex items-center gap-1 font-semibold"><span className="h-2.5 w-2.5 rounded-md bg-slate-200 border border-slate-300" />Skip</span>
                     </div>
@@ -598,9 +592,7 @@ const Practice = () => {
               )}
 
               {/* score hero */}
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 sm:p-12 text-center mb-6 shadow-2xl shadow-violet-400/30">
-                <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-                <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 sm:p-12 text-center mb-6 shadow-xl shadow-blue-400/20">
                 <div className="relative z-10">
                   {/* animated ring gauge */}
                   <div className="mx-auto mb-6 relative h-44 w-44 sm:h-52 sm:w-52">
@@ -619,7 +611,7 @@ const Practice = () => {
                         transition={{ duration: 0.5, delay: 0.7 }}>
                         {pct}%
                       </motion.span>
-                      <span className="text-xs text-violet-200 mt-1 font-semibold">{score} / {questions.length}</span>
+                      <span className="text-xs text-blue-200 mt-1 font-semibold">{score} / {questions.length}</span>
                     </div>
                   </div>
 
@@ -627,7 +619,7 @@ const Practice = () => {
                     className="text-2xl sm:text-3xl font-extrabold text-white mb-1">
                     {pct >= 80 ? "🎉 Excellent!" : pct >= 60 ? "👍 Good Job!" : pct >= 40 ? "💪 Keep Practicing!" : "🔥 Don't Give Up!"}
                   </motion.h2>
-                  <p className="text-violet-200 text-sm mb-8">You answered {score} out of {questions.length} correctly</p>
+                  <p className="text-blue-200 text-sm mb-8">You answered {score} out of {questions.length} correctly</p>
 
                   {/* stat chips */}
                   <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -641,7 +633,7 @@ const Practice = () => {
                         transition={{ duration: 0.35, delay: 0.9 + idx * 0.1 }}
                         className={`rounded-2xl border-2 backdrop-blur-sm px-6 py-3 min-w-[100px] ${stat.bg}`}>
                         <div className={`text-3xl font-black ${stat.text}`}>{stat.value}</div>
-                        <div className="text-xs text-violet-200 mt-0.5 font-semibold">{stat.label}</div>
+                        <div className="text-xs text-blue-200 mt-0.5 font-semibold">{stat.label}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -652,7 +644,7 @@ const Practice = () => {
                       <Settings className="h-4 w-4" /> New Test
                     </button>
                     <button onClick={() => { setPhase("config"); startQuiz(); }}
-                      className="flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-violet-700 shadow-xl transition hover:bg-violet-50">
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-blue-700 shadow-xl transition hover:bg-blue-50">
                       <RotateCcw className="h-4 w-4" /> Retry Same
                     </button>
                   </div>
@@ -660,10 +652,10 @@ const Practice = () => {
               </div>
 
               {/* ── ANSWER REVIEW ── */}
-              <div className="rounded-3xl border-2 border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/20">
+              <div className="rounded-3xl border-2 border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/20">
                 <div className="flex items-center gap-3 mb-6">
                   <h3 className="text-lg font-bold text-slate-900">Answer Review</h3>
-                  <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">{questions.length} questions</span>
+                  <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">{questions.length} questions</span>
                 </div>
                 <div className="space-y-3">
                   {questions.map((q, i) => {
@@ -717,8 +709,8 @@ const Practice = () => {
                               })}
                             </div>
 
-                            <div className="rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-slate-700 leading-relaxed">
-                              <span className="font-black text-violet-600">💡 Explanation: </span>{q.explanation}
+                            <div className="rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-slate-700 leading-relaxed">
+                              <span className="font-black text-blue-600">💡 Explanation: </span>{q.explanation}
                             </div>
                           </div>
                         </div>

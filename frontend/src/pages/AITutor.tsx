@@ -59,8 +59,8 @@ const quickPrompts = [
     label: "Explain a concept",
     prompt: "Explain the water cycle in simple, clear terms with examples",
     icon: BookOpen,
-    color: "border-violet-200 hover:border-violet-400 hover:bg-violet-50/60",
-    iconBg: "bg-violet-100 text-violet-600",
+    color: "border-blue-200 hover:border-blue-400 hover:bg-blue-50/60",
+    iconBg: "bg-blue-100 text-blue-600",
   },
   {
     label: "Solve math problem",
@@ -73,8 +73,8 @@ const quickPrompts = [
     label: "Evaluate my essay",
     prompt: "Provide constructive feedback on my essay about environmental conservation",
     icon: FileText,
-    color: "border-fuchsia-200 hover:border-fuchsia-400 hover:bg-fuchsia-50/60",
-    iconBg: "bg-fuchsia-100 text-fuchsia-600",
+    color: "border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50/60",
+    iconBg: "bg-cyan-100 text-cyan-600",
   },
 ];
 
@@ -132,7 +132,7 @@ function renderMarkdown(content: string) {
     if (olMatch) {
       elements.push(
         <div key={elements.length} className="flex gap-2.5 ml-1 my-0.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600 mt-0.5">{olMatch[1]}</span>
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-600 mt-0.5">{olMatch[1]}</span>
           <span className="text-slate-700 leading-relaxed">{inlineMarkdown(olMatch[2])}</span>
         </div>
       );
@@ -143,7 +143,7 @@ function renderMarkdown(content: string) {
     if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
         <div key={elements.length} className="flex gap-2.5 ml-1 my-0.5">
-          <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
+          <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
           <span className="text-slate-700 leading-relaxed">{inlineMarkdown(line.slice(2))}</span>
         </div>
       );
@@ -172,7 +172,7 @@ function inlineMarkdown(text: string): (string | JSX.Element)[] {
     if (m.startsWith("**")) {
       parts.push(<strong key={`b-${match.index}`} className="font-bold text-slate-900">{m.slice(2, -2)}</strong>);
     } else if (m.startsWith("`")) {
-      parts.push(<code key={`c-${match.index}`} className="px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[13px] font-mono border border-violet-100">{m.slice(1, -1)}</code>);
+      parts.push(<code key={`c-${match.index}`} className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[13px] font-mono border border-blue-100">{m.slice(1, -1)}</code>);
     } else if (m.startsWith("*")) {
       parts.push(<em key={`i-${match.index}`} className="italic">{m.slice(1, -1)}</em>);
     }
@@ -450,7 +450,7 @@ const AITutor = () => {
       <Navbar />
       <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} message="Please log in first to use AI Tutor actions." />
 
-      <div className="min-h-screen pt-16 flex bg-[#f8f7ff]">
+      <div className="min-h-screen pt-16 flex bg-slate-50 dark:bg-background">
         {isMobile && sidebarOpen && (
           <button aria-label="Close" className="fixed inset-0 top-16 z-30 bg-black/30 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
         )}
@@ -459,20 +459,19 @@ const AITutor = () => {
         <motion.aside
           initial={false}
           animate={{ x: sidebarOpen ? 0 : -300 }}
-          className="w-[272px] flex flex-col overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40"
-          style={{ background: "white", borderRight: "0.5px solid #e2e0f0", boxShadow: "2px 0 12px rgba(139,92,246,0.06)" }}
+          className="w-[272px] flex flex-col overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-sm"
         >
-          <div className="p-4 border-b border-violet-100 bg-gradient-to-b from-violet-50/50 to-white">
+          <div className="p-4 border-b border-blue-100 bg-gradient-to-b from-blue-50/50 to-white">
             <button onClick={newConversation}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-300/40 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:-translate-y-0.5 hover:shadow-xl">
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-300/40 transition-all hover:from-blue-500 hover:to-cyan-500 hover:-translate-y-0.5 hover:shadow-xl">
               <Sparkles className="h-4 w-4" /> New Chat
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
             {visibleConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-10 w-10 rounded-2xl bg-violet-100 flex items-center justify-center mb-3">
-                  <Bot className="h-5 w-5 text-violet-400" />
+                <div className="h-10 w-10 rounded-2xl bg-blue-100 flex items-center justify-center mb-3">
+                  <Bot className="h-5 w-5 text-blue-400" />
                 </div>
                 <p className="text-xs text-slate-400 font-medium">No chats yet</p>
                 <p className="text-[10px] text-slate-300 mt-0.5">Start a conversation above</p>
@@ -483,8 +482,8 @@ const AITutor = () => {
                   <button onClick={() => loadConversation(conv)} title={conv.title}
                     className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-all truncate border ${
                       conv.id === (conversationId || "current-chat") && conv.messages === messages
-                        ? "bg-violet-50 border-violet-200 text-violet-800"
-                        : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-violet-50/60 hover:border-violet-200 hover:text-violet-700"
+                        ? "bg-blue-50 border-blue-200 text-blue-800"
+                        : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-blue-50/60 hover:border-blue-200 hover:text-blue-700"
                     }`}>
                     {conv.id === (conversationId || "current-chat") && conv.messages === messages ? `\u25cf ${conv.title}` : conv.title}
                   </button>
@@ -501,13 +500,13 @@ const AITutor = () => {
         {/* -- MAIN -- */}
         <div className="flex-1 flex flex-col pb-48 sm:pb-44" style={{ marginLeft: !isMobile && sidebarOpen ? 272 : 0, transition: "margin-left 0.3s ease" }}>
           {/* header */}
-          <div className="border-b border-violet-100 bg-white/80 backdrop-blur-md px-4 py-3 flex items-center justify-between shadow-sm shadow-violet-100/30 sticky top-16 z-20">
+          <div className="border-b border-blue-100 bg-white/80 backdrop-blur-md px-4 py-3 flex items-center justify-between shadow-sm shadow-blue-100/30 sticky top-16 z-20">
             <button onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-violet-50 rounded-xl transition-colors text-slate-500 hover:text-violet-600">
+              className="p-2 hover:bg-blue-50 rounded-xl transition-colors text-slate-500 hover:text-blue-600">
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md shadow-violet-200">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -532,7 +531,7 @@ const AITutor = () => {
 
                     {msg.role === "assistant" && (
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md shadow-violet-200 mt-1">
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200 mt-1">
                         <Bot className="h-4 w-4 text-white" />
                       </motion.div>
                     )}
@@ -540,19 +539,19 @@ const AITutor = () => {
                     <div className="flex flex-col gap-2 max-w-[90%] sm:max-w-[82%]">
                       <div className={`rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm ${
                         msg.role === "user"
-                          ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white rounded-br-sm shadow-violet-200"
-                          : "bg-white text-slate-800 rounded-bl-sm border border-violet-100/80 shadow-violet-100/40"
+                          ? "bg-gradient-to-br from-blue-600 to-cyan-600 text-white rounded-br-sm shadow-blue-200"
+                          : "bg-white text-slate-800 rounded-bl-sm border border-blue-100/80 shadow-blue-100/40"
                       }`}>
                         {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
                         {msg.streaming && msg.role === "assistant" && (
-                          <span className="inline-block w-2 h-4 ml-1 rounded-sm bg-violet-400 opacity-70 animate-pulse" />
+                          <span className="inline-block w-2 h-4 ml-1 rounded-sm bg-blue-400 opacity-70 animate-pulse" />
                         )}
                       </div>
 
                       {msg.attachments && msg.attachments.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap gap-1.5 px-1">
                           {msg.attachments.map((att, j) => (
-                            <div key={j} className="flex items-center gap-1 px-2 py-1 bg-violet-50 rounded-lg text-xs text-violet-600 border border-violet-200">
+                            <div key={j} className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-lg text-xs text-blue-600 border border-blue-200">
                               <Paperclip className="h-3 w-3" />{att.name}
                             </div>
                           ))}
@@ -565,7 +564,7 @@ const AITutor = () => {
                             <div className="flex flex-wrap gap-1 items-center">
                               <span className="font-semibold text-slate-500">Agents:</span>
                               {msg.usedAgents.map((a, j) => (
-                                <span key={j} className="px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-200 rounded-full text-[10px] font-semibold">
+                                <span key={j} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-full text-[10px] font-semibold">
                                   {a.replace("_agent", "")}
                                 </span>
                               ))}
@@ -586,7 +585,7 @@ const AITutor = () => {
 
                       {msg.role === "assistant" && msg.content && !msg.streaming && (
                         <button onClick={() => copyToClipboard(msg.content, i)}
-                          className="w-fit flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-violet-600 transition-colors px-2 py-1 rounded-lg hover:bg-violet-50">
+                          className="w-fit flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50">
                           {copiedIndex === i ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                           {copiedIndex === i ? "Copied!" : "Copy"}
                         </button>
@@ -595,8 +594,8 @@ const AITutor = () => {
 
                     {msg.role === "user" && (
                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 border border-violet-200 mt-1">
-                        <User className="h-4 w-4 text-violet-500" />
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-100 border border-blue-200 mt-1">
+                        <User className="h-4 w-4 text-blue-500" />
                       </motion.div>
                     )}
                   </motion.div>
@@ -605,11 +604,11 @@ const AITutor = () => {
 
               {loading && !messages[messages.length - 1]?.content && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md shadow-violet-200">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200">
                     <Bot className="h-4 w-4 text-white" />
                   </div>
-                  <div className="bg-white rounded-2xl rounded-bl-sm px-5 py-3.5 border border-violet-100 shadow-sm flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 text-violet-400 animate-spin" />
+                  <div className="bg-white rounded-2xl rounded-bl-sm px-5 py-3.5 border border-blue-100 shadow-sm flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
                     <span className="text-xs text-slate-400 font-medium">Thinking...</span>
                   </div>
                 </motion.div>
@@ -646,7 +645,7 @@ const AITutor = () => {
           )}
 
           {/* -- INPUT -- */}
-          <div className="fixed bottom-0 right-0 border-t border-violet-100 bg-white/90 backdrop-blur-xl p-3 sm:p-4 shadow-lg shadow-violet-100/30 z-10"
+          <div className="fixed bottom-0 right-0 border-t border-blue-100 bg-white/90 backdrop-blur-xl p-3 sm:p-4 shadow-lg shadow-blue-100/30 z-10"
             style={{ left: !isMobile && sidebarOpen ? 272 : 0, transition: "left 0.3s ease" }}>
             <div className="container mx-auto max-w-3xl space-y-3">
               {/* mode chips */}
@@ -657,8 +656,8 @@ const AITutor = () => {
                     <button key={m.value} onClick={() => setAiMode(m.value)} disabled={loading}
                       className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold transition-all border ${
                         active
-                          ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-transparent shadow-md shadow-violet-200"
-                          : "bg-slate-50 text-slate-500 border-slate-200 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50"
+                          ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
+                          : "bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50"
                       } disabled:opacity-50`}>
                       <m.icon className="h-3 w-3" />
                       {m.label}
@@ -669,10 +668,10 @@ const AITutor = () => {
 
               {attachments.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-wrap gap-2 pb-2 border-b border-violet-100">
+                  className="flex flex-wrap gap-2 pb-2 border-b border-blue-100">
                   {attachments.map((att, idx) => (
                     <motion.div key={idx} initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 border border-violet-200 rounded-xl text-xs font-medium text-violet-700">
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-medium text-blue-700">
                       <Paperclip className="h-3 w-3" />
                       <span className="max-w-[120px] truncate">{att.name}</span>
                       <button onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
@@ -685,7 +684,7 @@ const AITutor = () => {
               <form onSubmit={e => { e.preventDefault(); sendMessage(input); }} className="flex gap-2 items-end">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept="image/*,.pdf" className="hidden" />
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 text-violet-500 transition hover:bg-violet-100 hover:text-violet-700 disabled:opacity-40">
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-500 transition hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40">
                   <Upload className="h-4 w-4" />
                 </button>
                 <textarea
@@ -696,10 +695,10 @@ const AITutor = () => {
                   placeholder="Ask me anything about USAT or HAT preparation..."
                   disabled={loading}
                   rows={1}
-                  className="flex-1 min-h-[40px] max-h-[160px] resize-none rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent transition disabled:opacity-50"
+                  className="flex-1 min-h-[40px] max-h-[160px] resize-none rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition disabled:opacity-50"
                 />
                 <button type="submit" disabled={!input.trim() || loading}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-300/40 transition hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-300/40 transition hover:from-blue-500 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>

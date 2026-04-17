@@ -28,7 +28,7 @@ const formatTime = (s: number) =>
   `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
 const OPTION_COLORS = [
-  { idle: "bg-violet-100 text-violet-800 border-violet-300", active: "bg-violet-600 text-white border-violet-600" },
+  { idle: "bg-blue-100 text-blue-800 border-blue-300", active: "bg-blue-600 text-white border-blue-600" },
   { idle: "bg-sky-100 text-sky-800 border-sky-300", active: "bg-sky-600 text-white border-sky-600" },
   { idle: "bg-emerald-100 text-emerald-800 border-emerald-300", active: "bg-emerald-600 text-white border-emerald-600" },
   { idle: "bg-amber-100 text-amber-800 border-amber-300", active: "bg-amber-500 text-white border-amber-500" },
@@ -181,11 +181,7 @@ const MockTestPage = () => {
       <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}
         message="Please log in to take a mock test." />
 
-      <div className="relative min-h-screen bg-[#f8f7ff] pt-24 pb-20">
-        {/* blobs */}
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl blob-float-2" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/15 blur-3xl blob-float-3" />
+      <div className="relative min-h-screen bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4 max-w-6xl">
 
@@ -193,31 +189,29 @@ const MockTestPage = () => {
           {phase === "config" && (
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               {/* Hero */}
-              <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-fuchsia-600 via-violet-600 to-indigo-600 p-8 shadow-2xl shadow-violet-400/30">
-                <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-                <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
+              <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-600 via-blue-600 to-indigo-600 p-8 shadow-xl shadow-blue-400/20">
                 <div className="relative z-10">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-sm">
                     <FileText className="h-3.5 w-3.5" /> Full Mock Test
                   </span>
                   <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
                     Mock Exam
                   </h1>
-                  <p className="mt-1.5 text-sm text-violet-200">
+                  <p className="mt-1.5 text-sm text-blue-200">
                     75 MCQs + 2 Essays — 120 min, AI-evaluated, with detailed feedback.
                   </p>
                 </div>
               </div>
 
               {/* Config card */}
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 space-y-6">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/30 space-y-6">
                 {/* Category selector */}
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Category</label>
                   <div className="relative sm:max-w-sm">
                     <button type="button" onClick={() => setCategoryOpen(!categoryOpen)}
                       className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all duration-200 ${
-                        selectedCategory ? "border-violet-400 bg-violet-50 text-violet-800" : "border-slate-200 bg-slate-50 text-slate-500"
+                        selectedCategory ? "border-blue-400 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}>
                       <span>{selectedCategory ? `${selectedCategory.code} — ${selectedCategory.title}` : "Select a category…"}</span>
                       <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
@@ -225,19 +219,19 @@ const MockTestPage = () => {
                     <AnimatePresence>
                       {categoryOpen && (
                         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                          className="absolute z-20 mt-1.5 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-violet-100/40"
+                          className="absolute z-20 mt-1.5 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl shadow-blue-100/40"
                           style={{ minHeight: 200 }} // DEBUG: force height
 >
                           {categories.map((cat) => (
                             <button key={cat.code} type="button"
                               onClick={() => { setSelectedCategory(cat); setCategoryOpen(false); }}
-                              className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-violet-50 ${selectedCategory?.code === cat.code ? "bg-violet-50" : ""}`}>
-                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-black text-violet-700">{cat.code.split("-")[1]}</span>
+                              className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-blue-50 ${selectedCategory?.code === cat.code ? "bg-blue-50" : ""}`}>
+                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xs font-black text-blue-700">{cat.code.split("-")[1]}</span>
                               <div>
                                 <div className="text-sm font-bold text-slate-800">{cat.code} — {cat.title}</div>
                                 <div className="text-[11px] text-slate-400 mt-0.5">{cat.description}</div>
                               </div>
-                              {selectedCategory?.code === cat.code && <CheckCircle2 className="ml-auto h-4 w-4 text-violet-500 shrink-0 mt-0.5" />}
+                              {selectedCategory?.code === cat.code && <CheckCircle2 className="ml-auto h-4 w-4 text-blue-500 shrink-0 mt-0.5" />}
                             </button>
                           ))}
                         </motion.div>
@@ -248,22 +242,22 @@ const MockTestPage = () => {
 
                 {/* Test info */}
                 {selectedCategory && (
-                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-violet-300 bg-violet-50 px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-blue-300 bg-blue-50 px-5 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-200 text-[10px] font-black text-violet-800">{selectedCategory.code.split("-")[1]}</span>
-                      <span className="text-sm font-bold text-violet-800">{selectedCategory.code}</span>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-200 text-[10px] font-black text-blue-800">{selectedCategory.code.split("-")[1]}</span>
+                      <span className="text-sm font-bold text-blue-800">{selectedCategory.code}</span>
                     </div>
-                    <div className="h-4 w-px bg-violet-300" />
+                    <div className="h-4 w-px bg-blue-300" />
                     <div className="flex items-center gap-2 text-sm">
-                      <Target className="h-4 w-4 text-fuchsia-500" />
+                      <Target className="h-4 w-4 text-cyan-500" />
                       <span className="font-semibold text-slate-700">75 MCQs + 2 Essays</span>
                     </div>
-                    <div className="h-4 w-px bg-violet-300" />
+                    <div className="h-4 w-px bg-blue-300" />
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-cyan-500" />
                       <span className="font-semibold text-slate-700">120 min</span>
                     </div>
-                    <div className="h-4 w-px bg-violet-300" />
+                    <div className="h-4 w-px bg-blue-300" />
                     <div className="flex items-center gap-2 text-sm">
                       <Award className="h-4 w-4 text-amber-500" />
                       <span className="font-semibold text-slate-700">AI-Evaluated</span>
@@ -275,7 +269,7 @@ const MockTestPage = () => {
                 {selectedCategory && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[
-                      { icon: BookOpen, label: "Verbal Reasoning", count: "20 MCQs", color: "violet" },
+                      { icon: BookOpen, label: "Verbal Reasoning", count: "20 MCQs", color: "blue" },
                       { icon: BarChart3, label: "Quantitative Reasoning", count: "25 MCQs", color: "sky" },
                       { icon: Target, label: "Subject Knowledge", count: "30 MCQs", color: "emerald" },
                       { icon: PenLine, label: "Argumentative Essay", count: "1 Essay", color: "amber" },
@@ -299,7 +293,7 @@ const MockTestPage = () => {
                 )}
 
                 <button onClick={startTest} disabled={!selectedCategory}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 py-4 text-base font-bold text-white shadow-xl shadow-violet-300/40 transition-all duration-200 hover:from-fuchsia-500 hover:to-violet-500 hover:-translate-y-0.5 hover:shadow-2xl active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 py-4 text-base font-bold text-white shadow-xl shadow-blue-300/40 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500 hover:-translate-y-0.5 hover:shadow-2xl active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
                   <Play className="h-5 w-5" /> Start Mock Test
                 </button>
               </div>
@@ -309,7 +303,7 @@ const MockTestPage = () => {
           {/* ═══ LOADING PHASE ═══ */}
           {phase === "loading" && (
             <div className="flex flex-col items-center justify-center py-32">
-              <Loader2 className="h-12 w-12 animate-spin text-violet-500 mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
               <p className="text-lg font-bold text-slate-700">Generating your mock test…</p>
               <p className="text-sm text-slate-400 mt-1">Fetching questions from the database</p>
             </div>
@@ -320,7 +314,7 @@ const MockTestPage = () => {
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
               {/* Top bar */}
-              <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-violet-100/20">
+              <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-blue-100/20">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   {/* Left: progress */}
                   <div className="flex items-center gap-3">
@@ -333,7 +327,7 @@ const MockTestPage = () => {
                   </div>
 
                   {/* Center: section label */}
-                  <span className="text-xs font-bold text-violet-600 bg-violet-100 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
                     {currentSection?.label}
                   </span>
 
@@ -347,7 +341,7 @@ const MockTestPage = () => {
 
                 {/* Progress bar */}
                 <div className="mt-3 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-300"
+                  <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300"
                     style={{ width: `${Math.round(((currentIdx + 1) / flatItems.length) * 100)}%` }} />
                 </div>
               </div>
@@ -358,7 +352,7 @@ const MockTestPage = () => {
                   {currentItem.type === "mcq" && isMCQ(currentQuestion) && (
                     <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-lg">
                       <div className="mb-1 flex items-center gap-2">
-                        <span className="text-xs font-bold text-violet-500 bg-violet-100 px-2 py-0.5 rounded">{(currentQuestion as MockTestMCQQuestion).subject}</span>
+                        <span className="text-xs font-bold text-blue-500 bg-blue-100 px-2 py-0.5 rounded">{(currentQuestion as MockTestMCQQuestion).subject}</span>
                       </div>
                       <h2 className="text-lg font-bold text-slate-800 mt-3 mb-6 leading-relaxed">
                         {currentQuestion.question}
@@ -401,7 +395,7 @@ const MockTestPage = () => {
                         onChange={(e) => updateEssay(currentQuestion.id, e.target.value)}
                         placeholder="Write your essay here…"
                         rows={14}
-                        className="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200 transition resize-y"
+                        className="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 transition resize-y"
                       />
                       <div className="mt-2 text-right text-xs text-slate-400">
                         {(essayAnswers[String(currentQuestion.id)] || "").split(/\s+/).filter(Boolean).length} words
@@ -412,7 +406,7 @@ const MockTestPage = () => {
                   {/* Navigation buttons */}
                   <div className="flex items-center justify-between mt-4 gap-3">
                     <button onClick={goPrev} disabled={currentIdx === 0}
-                      className="flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-40">
+                      className="flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-40">
                       <ArrowLeft className="h-4 w-4" /> Previous
                     </button>
 
@@ -423,7 +417,7 @@ const MockTestPage = () => {
                       </button>
                     ) : (
                       <button onClick={goNext}
-                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
                         Next <ArrowRight className="h-4 w-4" />
                       </button>
                     )}
@@ -436,7 +430,7 @@ const MockTestPage = () => {
                     <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Questions</h3>
                     {mockTest.sections.map((sec, si) => (
                       <div key={si} className="mb-3">
-                        <div className="text-[10px] font-bold text-violet-500 mb-1.5 uppercase">{sec.label}</div>
+                        <div className="text-[10px] font-bold text-blue-500 mb-1.5 uppercase">{sec.label}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {sec.questions.map((q, qi) => {
                             const flatIdx = flatItems.findIndex(
@@ -451,7 +445,7 @@ const MockTestPage = () => {
                               <button key={q.id} onClick={() => goTo(flatIdx)}
                                 className={`h-7 w-7 rounded-lg text-[10px] font-bold transition ${
                                   isActive
-                                    ? "bg-violet-600 text-white shadow-md"
+                                    ? "bg-blue-600 text-white shadow-md"
                                     : isAnswered
                                       ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
                                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -482,7 +476,7 @@ const MockTestPage = () => {
           {/* ═══ SUBMITTING PHASE ═══ */}
           {phase === "submitting" && (
             <div className="flex flex-col items-center justify-center py-32">
-              <Loader2 className="h-12 w-12 animate-spin text-violet-500 mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
               <p className="text-lg font-bold text-slate-700">Evaluating your answers…</p>
               <p className="text-sm text-slate-400 mt-1">MCQs are graded instantly. Essays are being evaluated by AI.</p>
             </div>
@@ -493,10 +487,10 @@ const MockTestPage = () => {
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
 
               {/* Score hero */}
-              <div className={`relative mb-8 overflow-hidden rounded-3xl p-8 shadow-2xl ${
-                result.percentage >= 70 ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 shadow-emerald-300/30"
-                : result.percentage >= 50 ? "bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 shadow-amber-300/30"
-                : "bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-500 shadow-rose-300/30"
+              <div className={`relative mb-8 overflow-hidden rounded-3xl p-8 shadow-xl ${
+                result.percentage >= 70 ? "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 shadow-emerald-300/20"
+                : result.percentage >= 50 ? "bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 shadow-amber-300/20"
+                : "bg-gradient-to-br from-rose-500 via-pink-500 to-cyan-500 shadow-rose-300/20"
               }`}>
                 <div className="relative z-10 text-center">
                   <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 text-sm font-bold text-white/90 mb-4">
@@ -523,7 +517,7 @@ const MockTestPage = () => {
               {/* MCQ Results */}
               <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg">
                 <h3 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-violet-500" /> MCQ Results
+                  <Target className="h-5 w-5 text-blue-500" /> MCQ Results
                   <span className="text-sm font-normal text-slate-400 ml-auto">{result.mcq_score} / {result.mcq_total} correct</span>
                 </h3>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
@@ -585,7 +579,7 @@ const MockTestPage = () => {
                         </div>
                         {essay.user_answer && (
                           <details className="mt-3">
-                            <summary className="text-xs font-bold text-slate-500 cursor-pointer hover:text-violet-600">View your response</summary>
+                            <summary className="text-xs font-bold text-slate-500 cursor-pointer hover:text-blue-600">View your response</summary>
                             <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 border">{essay.user_answer}</p>
                           </details>
                         )}
@@ -598,11 +592,11 @@ const MockTestPage = () => {
               {/* Action buttons */}
               <div className="flex flex-wrap gap-3 justify-center">
                 <button onClick={restart}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl">
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl">
                   <RotateCcw className="h-4 w-4" /> Take Another Test
                 </button>
                 <button onClick={() => navigate("/practice")}
-                  className="flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 shadow transition hover:border-violet-300 hover:bg-violet-50">
+                  className="flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 shadow transition hover:border-blue-300 hover:bg-blue-50">
                   <ArrowLeft className="h-4 w-4" /> Back to Practice
                 </button>
               </div>

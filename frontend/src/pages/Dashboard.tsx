@@ -6,12 +6,12 @@ import Navbar from "@/components/Navbar";
 import { apiClient, type DashboardStats } from "@/services/api";
 
 const SUBJECT_COLORS = [
-  "from-violet-500 to-purple-500",
+  "from-blue-500 to-blue-500",
   "from-cyan-500 to-sky-500",
   "from-amber-500 to-orange-500",
   "from-emerald-500 to-teal-500",
   "from-rose-500 to-pink-500",
-  "from-indigo-500 to-violet-500",
+  "from-indigo-500 to-blue-500",
 ];
 
 const Dashboard = () => {
@@ -69,13 +69,10 @@ const Dashboard = () => {
     <>
       <Navbar />
       <div className="relative min-h-screen overflow-hidden bg-background pt-20 pb-16">
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1 dark:bg-violet-500/15" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-fuchsia-300/20 blur-3xl blob-float-2 dark:bg-fuchsia-500/15" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl blob-float-3 dark:bg-cyan-500/10" />
 
         {loading ? (
           <div className="flex h-[60vh] items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
         ) : (
           <div className="container relative mx-auto px-4">
@@ -83,20 +80,18 @@ const Dashboard = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-7 shadow-2xl shadow-violet-400/30"
+              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-7 shadow-xl shadow-blue-400/20"
             >
-              <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-              <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
 
               <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+                  <p className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-blue-100 backdrop-blur-sm">
                     <Flame className="h-3.5 w-3.5 text-amber-300" /> {totalSubjects} subjects loaded
                   </p>
                   <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-4xl">
                     {greetingByTime}, {userName}!
                   </h1>
-                  <p className="mt-1.5 text-sm text-violet-200">Here&apos;s your preparation overview for today.</p>
+                  <p className="mt-1.5 text-sm text-blue-200">Here&apos;s your preparation overview for today.</p>
                 </div>
                 <div className="flex gap-2">
                   {[...Array(Math.min(totalSubjects, 7))].map((_, i) => (
@@ -119,8 +114,8 @@ const Dashboard = () => {
               className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3"
             >
               {[
-                { label: "Subjects", value: String(totalSubjects), icon: Flame, bar: "from-violet-500 to-purple-600", bg: "bg-violet-100 dark:bg-violet-500/15", text: "text-violet-700 dark:text-violet-200", border: "border-violet-200 dark:border-violet-500/20" },
-                { label: "Topics", value: String(totalTopics), icon: Target, bar: "from-fuchsia-500 to-pink-600", bg: "bg-fuchsia-100 dark:bg-fuchsia-500/15", text: "text-fuchsia-700 dark:text-fuchsia-200", border: "border-fuchsia-200 dark:border-fuchsia-500/20" },
+                { label: "Subjects", value: String(totalSubjects), icon: Flame, bar: "from-blue-500 to-blue-600", bg: "bg-blue-100 dark:bg-blue-500/15", text: "text-blue-700 dark:text-blue-200", border: "border-blue-200 dark:border-blue-500/20" },
+                { label: "Topics", value: String(totalTopics), icon: Target, bar: "from-cyan-500 to-pink-600", bg: "bg-cyan-100 dark:bg-cyan-500/15", text: "text-cyan-700 dark:text-cyan-200", border: "border-cyan-200 dark:border-cyan-500/20" },
                 { label: "Total MCQs", value: String(totalMcqs), icon: TrendingUp, bar: "from-cyan-500 to-sky-600", bg: "bg-cyan-100 dark:bg-cyan-500/15", text: "text-cyan-700 dark:text-cyan-200", border: "border-cyan-200 dark:border-cyan-500/20" },
               ].map((stat, i) => (
                 <motion.div
@@ -149,18 +144,18 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="rounded-2xl border-2 border-violet-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
+                  className="rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
                 >
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-100">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-200 dark:bg-violet-500/15">
-                        <BarChart3 className="h-4 w-4 text-violet-700 dark:text-violet-200" />
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-200 dark:bg-blue-500/15">
+                        <BarChart3 className="h-4 w-4 text-blue-700 dark:text-blue-200" />
                       </span>
                       Content by Subject
                     </h2>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-violet-400">Performance</span>
-                      <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-200">MCQs</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Performance</span>
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">MCQs</span>
                     </div>
                   </div>
                   <div className="flex h-44 items-end gap-2 sm:gap-3">
@@ -169,14 +164,14 @@ const Dashboard = () => {
                       const isMax = s.mcq_count === maxMcqs;
                       return (
                         <div key={s.id} className="group flex flex-1 cursor-pointer flex-col items-center gap-2" title={`${s.name}: ${s.mcq_count} MCQs, ${s.topic_count} topics`}>
-                          <span className="text-[11px] font-semibold text-slate-500 transition-colors group-hover:text-violet-600 dark:text-slate-400 dark:group-hover:text-violet-300">{s.mcq_count}</span>
+                          <span className="text-[11px] font-semibold text-slate-500 transition-colors group-hover:text-blue-600 dark:text-slate-400 dark:group-hover:text-blue-300">{s.mcq_count}</span>
                           <motion.div
-                            className={`w-full rounded-t-xl transition-colors ${isMax ? "bg-gradient-to-t from-violet-600 to-fuchsia-500 shadow-md shadow-violet-200 dark:shadow-violet-950/50" : "bg-gradient-to-t from-violet-200 to-violet-100 group-hover:from-violet-400 group-hover:to-violet-300 dark:from-violet-500/30 dark:to-violet-400/20 dark:group-hover:from-violet-500/50 dark:group-hover:to-violet-400/40"}`}
+                            className={`w-full rounded-t-xl transition-colors ${isMax ? "bg-gradient-to-t from-blue-600 to-cyan-500 shadow-md shadow-blue-200 dark:shadow-blue-950/50" : "bg-gradient-to-t from-blue-200 to-blue-100 group-hover:from-blue-400 group-hover:to-blue-300 dark:from-blue-500/30 dark:to-blue-400/20 dark:group-hover:from-blue-500/50 dark:group-hover:to-blue-400/40"}`}
                             initial={{ height: 0 }}
                             animate={{ height: `${Math.max(pct, 5)}%` }}
                             transition={{ delay: 0.3 + i * 0.06, duration: 0.5, ease: "easeOut" }}
                           />
-                          <span className={`text-[11px] font-semibold transition-colors ${isMax ? "text-violet-600 dark:text-violet-300" : "text-slate-400 group-hover:text-violet-500 dark:text-slate-500 dark:group-hover:text-violet-300"}`}>{s.name.slice(0, 4)}</span>
+                          <span className={`text-[11px] font-semibold transition-colors ${isMax ? "text-blue-600 dark:text-blue-300" : "text-slate-400 group-hover:text-blue-500 dark:text-slate-500 dark:group-hover:text-blue-300"}`}>{s.name.slice(0, 4)}</span>
                         </div>
                       );
                     })}
@@ -187,12 +182,12 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="rounded-2xl border-2 border-violet-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
+                  className="rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
                 >
                   <div className="mb-5 flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-100">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-200 dark:bg-violet-500/15">
-                        <BookOpen className="h-4 w-4 text-violet-700 dark:text-violet-200" />
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-200 dark:bg-blue-500/15">
+                        <BookOpen className="h-4 w-4 text-blue-700 dark:text-blue-200" />
                       </span>
                       Subject Progress
                     </h2>
@@ -259,17 +254,17 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="overflow-hidden rounded-2xl border-2 border-violet-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
+                  className="overflow-hidden rounded-2xl border-2 border-blue-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
                 >
-                  <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3.5">
+                  <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3.5">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-white">
                       <Target className="h-4 w-4" /> Quick Actions
                     </h2>
                   </div>
                   <div className="space-y-2 p-4">
                     {[
-                      { to: "/practice", icon: Target, label: "Take a Quiz", pill: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200", border: "hover:border-violet-300 dark:hover:border-violet-500/30" },
-                      { to: "/ai-tutor", icon: Brain, label: "Ask AI Tutor", pill: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-200", border: "hover:border-fuchsia-300 dark:hover:border-fuchsia-500/30" },
+                      { to: "/practice", icon: Target, label: "Take a Quiz", pill: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200", border: "hover:border-blue-300 dark:hover:border-blue-500/30" },
+                      { to: "/ai-tutor", icon: Brain, label: "Ask AI Tutor", pill: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-200", border: "hover:border-cyan-300 dark:hover:border-cyan-500/30" },
                       { to: "/usat", icon: BookOpen, label: "Open USAT Hub", pill: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-200", border: "hover:border-cyan-300 dark:hover:border-cyan-500/30" },
                       { to: "/admin", icon: Award, label: "Admin Content Studio", pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200", border: "hover:border-emerald-300 dark:hover:border-emerald-500/30" },
                     ].map((a, i) => (
@@ -292,9 +287,9 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="overflow-hidden rounded-2xl border-2 border-fuchsia-200 bg-white shadow-lg dark:border-fuchsia-500/20 dark:bg-slate-900 dark:shadow-black/20"
+                  className="overflow-hidden rounded-2xl border-2 border-cyan-200 bg-white shadow-lg dark:border-cyan-500/20 dark:bg-slate-900 dark:shadow-black/20"
                 >
-                  <div className="bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3.5">
+                  <div className="bg-gradient-to-r from-cyan-500 to-pink-500 px-5 py-3.5">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-white">
                       <Brain className="h-4 w-4" /> AI Suggestions
                     </h2>
@@ -305,9 +300,9 @@ const Dashboard = () => {
                       { title: "Explore Subjects", desc: `${totalSubjects} subjects with ${totalTopics} topics to study.`, icon: BookOpen },
                       { title: "Ask AI Tutor", desc: "Get instant help with any topic or question.", icon: Brain },
                     ].map((s, i) => (
-                      <div key={i} className="flex items-start gap-3 rounded-xl border border-fuchsia-100 bg-gradient-to-r from-fuchsia-50/60 to-pink-50/40 p-3 dark:border-fuchsia-500/20 dark:from-fuchsia-500/10 dark:to-pink-500/5">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fuchsia-100 dark:bg-fuchsia-500/15">
-                          <s.icon className="h-3.5 w-3.5 text-fuchsia-600 dark:text-fuchsia-200" />
+                      <div key={i} className="flex items-start gap-3 rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50/60 to-pink-50/40 p-3 dark:border-cyan-500/20 dark:from-cyan-500/10 dark:to-pink-500/5">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-500/15">
+                          <s.icon className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-200" />
                         </span>
                         <div>
                           <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{s.title}</div>

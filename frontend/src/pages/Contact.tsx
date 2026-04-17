@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail, Github, Linkedin, MessageCircle, Twitter, Save, Loader2,
@@ -10,14 +10,14 @@ import Navbar from "@/components/Navbar";
 import { apiClient, API_ORIGIN, type ContactInfo as ContactInfoType, type ContactInfoUpdate } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
-/* ── Skeleton ─────────────────────────────────────────────────────────── */
+/* -- Skeleton ----------------------------------------------------------- */
 const Skeleton = ({ className = "" }: { className?: string }) => (
-  <div className={`animate-pulse rounded-xl bg-violet-100/60 ${className}`} />
+  <div className={`animate-pulse rounded-xl bg-blue-100/60 ${className}`} />
 );
 
 const SkeletonPage = () => (
   <div className="container relative mx-auto max-w-4xl px-4">
-    <div className="mb-8 rounded-3xl bg-gradient-to-br from-violet-200 via-purple-200 to-fuchsia-200 p-8 sm:p-10">
+    <div className="mb-8 rounded-3xl bg-gradient-to-br from-blue-200 via-blue-200 to-cyan-200 p-8 sm:p-10">
       <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
         <Skeleton className="h-28 w-28 sm:h-32 sm:w-32 !rounded-full shrink-0" />
         <div className="flex-1 space-y-3 w-full max-w-sm">
@@ -57,7 +57,7 @@ const SkeletonPage = () => (
   </div>
 );
 
-/* ── Error state ──────────────────────────────────────────────────────── */
+/* -- Error state -------------------------------------------------------- */
 const ErrorState = ({ onRetry }: { onRetry: () => void }) => (
   <div className="container relative mx-auto max-w-4xl px-4">
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -68,14 +68,14 @@ const ErrorState = ({ onRetry }: { onRetry: () => void }) => (
       <h2 className="text-lg font-bold text-slate-800 mb-1">Unable to load contact info</h2>
       <p className="text-sm text-slate-400 mb-6 max-w-sm">Something went wrong. Please check your connection and try again.</p>
       <button onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-300/30 hover:shadow-xl transition">
+        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-300/30 hover:shadow-xl transition">
         <RefreshCw className="h-4 w-4" /> Try Again
       </button>
     </motion.div>
   </div>
 );
 
-/* ── Stagger variants ─────────────────────────────────────────────────── */
+/* -- Stagger variants --------------------------------------------------- */
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -173,28 +173,19 @@ const Contact = () => {
   return (
     <>
       <Navbar />
-      <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-20 pb-16">
-        {/* ambient blobs (CSS-only for performance) */}
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-[500px] w-[500px] rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-96 w-96 rounded-full bg-fuchsia-300/15 blur-3xl blob-float-2" />
-        <div aria-hidden className="pointer-events-none absolute bottom-20 left-1/3 h-72 w-72 rounded-full bg-cyan-200/10 blur-3xl blob-float-3" />
+      <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-20 pb-16 dark:bg-background">
 
         {loading ? <SkeletonPage /> : error ? <ErrorState onRetry={fetchData} /> : (
           <motion.div variants={stagger} initial="hidden" animate="show"
             className="container relative mx-auto max-w-4xl px-4">
 
-            {/* ── HERO PROFILE CARD ── */}
+            {/* -- HERO PROFILE CARD -- */}
             <motion.div variants={fadeUp}
-              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 shadow-2xl shadow-violet-400/30">
+              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 shadow-xl shadow-blue-400/20">
               {/* decorative */}
               <div className="absolute inset-0 pointer-events-none">
-                <div aria-hidden className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-                <div aria-hidden className="absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                {/* grid pattern overlay */}
-                <div className="absolute inset-0 opacity-[0.04]"
-                  style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
               </div>
 
               <div className="relative z-10 p-8 sm:p-10">
@@ -250,11 +241,11 @@ const Contact = () => {
                     <AnimatePresence mode="wait">
                       {editing ? (
                         <motion.textarea key="bio-edit" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                          className="w-full mt-3 rounded-xl bg-white/15 border border-white/25 px-4 py-2.5 text-sm text-violet-100 placeholder:text-white/40 backdrop-blur-sm resize-none focus:outline-none focus:ring-2 focus:ring-white/30 transition"
+                          className="w-full mt-3 rounded-xl bg-white/15 border border-white/25 px-4 py-2.5 text-sm text-blue-100 placeholder:text-white/40 backdrop-blur-sm resize-none focus:outline-none focus:ring-2 focus:ring-white/30 transition"
                           rows={2} value={draft.bio ?? ""} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} placeholder="Write a short bio..." />
                       ) : (
                         <motion.p key="bio-view" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                          className="mt-2.5 text-sm sm:text-base text-violet-200 max-w-lg leading-relaxed">{info?.bio}
+                          className="mt-2.5 text-sm sm:text-base text-blue-200 max-w-lg leading-relaxed">{info?.bio}
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -268,7 +259,7 @@ const Contact = () => {
                           { icon: Heart,    text: "Student-First" },
                         ].map((tag) => (
                           <span key={tag.text}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/20 px-3 py-1 text-xs font-semibold text-violet-100 backdrop-blur-sm hover:bg-white/25 transition-colors cursor-default">
+                            className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/20 px-3 py-1 text-xs font-semibold text-blue-100 backdrop-blur-sm hover:bg-white/25 transition-colors cursor-default">
                             <tag.icon className="h-3 w-3" /> {tag.text}
                           </span>
                         ))}
@@ -305,14 +296,14 @@ const Contact = () => {
                             <X className="h-4 w-4" /> Cancel
                           </button>
                           <button onClick={handleSave} disabled={saving}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-300/30 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60">
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-300/30 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Changes
                           </button>
                         </motion.div>
                       ) : (
                         <motion.button key="edit-btn" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}
                           onClick={() => setEditing(true)}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-300/30 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-300/30 hover:shadow-xl hover:-translate-y-0.5 transition-all">
                           <Pencil className="h-4 w-4" /> Edit Page
                         </motion.button>
                       )}
@@ -322,14 +313,14 @@ const Contact = () => {
               )}
             </AnimatePresence>
 
-            {/* ── EMAIL + AVAILABILITY CARDS ── */}
+            {/* -- EMAIL + AVAILABILITY CARDS -- */}
             <div className="grid md:grid-cols-2 gap-5 mb-6">
               {/* EMAIL */}
               <motion.div variants={fadeUp}
-                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-violet-100 hover:shadow-xl hover:shadow-violet-100/40 hover:border-violet-200 transition-all">
-                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-violet-400 to-fuchsia-400 rounded-t-2xl" />
+                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-blue-100 hover:shadow-xl hover:shadow-blue-100/40 hover:border-blue-200 transition-all">
+                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-blue-400 to-cyan-400 rounded-t-2xl" />
                 <div className="flex items-center gap-3 mb-4 mt-1">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-md shadow-violet-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
                     <Mail className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -340,18 +331,18 @@ const Contact = () => {
                 <AnimatePresence mode="wait">
                   {editing ? (
                     <motion.input key="email-edit" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                      className="w-full rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent transition"
+                      className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
                       value={(draft.email as string) ?? ""} onChange={(e) => setDraft({ ...draft, email: e.target.value || null })} placeholder="email@example.com" />
                   ) : info?.email ? (
                     <motion.div key="email-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                      <a href={`mailto:${info.email}`} className="text-sm font-semibold text-violet-600 hover:text-violet-700 transition truncate flex-1">{info.email}</a>
+                      <a href={`mailto:${info.email}`} className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition truncate flex-1">{info.email}</a>
                       <button onClick={copyEmail}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-500 hover:bg-violet-100 hover:scale-110 transition-all border border-violet-200"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 hover:scale-110 transition-all border border-blue-200"
                         title="Copy email">
                         {copiedEmail ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
                       <a href={`mailto:${info.email}`}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-500 hover:bg-violet-100 hover:scale-110 transition-all border border-violet-200"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 hover:scale-110 transition-all border border-blue-200"
                         title="Send email">
                         <Send className="h-3.5 w-3.5" />
                       </a>
@@ -391,10 +382,10 @@ const Contact = () => {
               </motion.div>
             </div>
 
-            {/* ── SOCIAL LINKS ── */}
+            {/* -- SOCIAL LINKS -- */}
             <motion.div variants={fadeUp}
-              className="bg-white rounded-2xl shadow-md border border-violet-100 mb-6 overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-4">
+              className="bg-white rounded-2xl shadow-md border border-blue-100 mb-6 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4">
                 <h2 className="font-bold text-white text-sm flex items-center gap-2">
                   <Globe className="h-4 w-4" /> Connect With Me
                 </h2>
@@ -415,7 +406,7 @@ const Contact = () => {
                             <div className="flex-1 min-w-0">
                               <label className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 block">{link.label}</label>
                               <input
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent transition"
+                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
                                 value={(draft[link.key] as string) ?? ""}
                                 onChange={(e) => setDraft({ ...draft, [link.key]: e.target.value || null })}
                                 placeholder="https://..." />
@@ -454,10 +445,10 @@ const Contact = () => {
               </div>
             </motion.div>
 
-            {/* ── COMMUNITY SECTION ── */}
+            {/* -- COMMUNITY SECTION -- */}
             <motion.div variants={fadeUp}
               className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-md mb-6">
-              <div className="relative bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-600 px-6 sm:px-8 py-8">
+              <div className="relative bg-gradient-to-r from-indigo-500 via-blue-500 to-blue-600 px-6 sm:px-8 py-8">
                 {/* shine sweep (CSS-only) */}
                 <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20 animate-[shimmer_8s_linear_infinite]"
                   style={{ backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)", backgroundSize: "200% 100%" }} />
@@ -521,12 +512,12 @@ const Contact = () => {
               </div>
             </motion.div>
 
-            {/* ── TRUST INDICATORS ── */}
+            {/* -- TRUST INDICATORS -- */}
             <motion.div variants={fadeUp} className="grid grid-cols-3 gap-4 mb-8">
               {[
-                { icon: Shield, label: "Trusted Platform", color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-100", bar: "from-violet-400 to-purple-400" },
+                { icon: Shield, label: "Trusted Platform", color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", bar: "from-blue-400 to-blue-400" },
                 { icon: Users,  label: "Growing Community", color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", bar: "from-indigo-400 to-blue-400" },
-                { icon: Heart,  label: "Student-Focused",   color: "text-fuchsia-600", bg: "bg-fuchsia-50", border: "border-fuchsia-100", bar: "from-fuchsia-400 to-pink-400" },
+                { icon: Heart,  label: "Student-Focused",   color: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-100", bar: "from-cyan-400 to-pink-400" },
               ].map((item) => (
                 <motion.div key={item.label} whileHover={{ y: -3, transition: { type: "spring", stiffness: 320, damping: 22 } }}
                   className={`relative overflow-hidden flex flex-col items-center gap-2 rounded-2xl ${item.bg} border ${item.border} py-5 px-3 text-center transition-shadow hover:shadow-md`}>
@@ -537,7 +528,7 @@ const Contact = () => {
               ))}
             </motion.div>
 
-            {/* ── FOOTER ── */}
+            {/* -- FOOTER -- */}
             <motion.div variants={fadeUp} className="text-center pt-2 pb-4">
               <p className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
                 Made with <Heart className="h-3 w-3 text-rose-400 fill-rose-400" /> by the PrepNest Team

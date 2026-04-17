@@ -8,13 +8,13 @@ import { apiClient, Subject } from "@/services/api";
 /* ── per-card accent palette: vivid & bold for maximum visibility ── */
 const CARD_STYLES = [
   {
-    gradient: "from-violet-100 to-purple-200",
-    border: "border-violet-300",
-    icon: "bg-violet-200 text-violet-700",
-    label: "text-violet-600",
-    pill: "bg-violet-200 text-violet-800",
-    bar: "bg-gradient-to-r from-violet-500 to-purple-500",
-    hover: "hover:border-violet-400 hover:shadow-violet-200/60",
+    gradient: "from-blue-100 to-blue-200",
+    border: "border-blue-300",
+    icon: "bg-blue-200 text-blue-700",
+    label: "text-blue-600",
+    pill: "bg-blue-200 text-blue-800",
+    bar: "bg-gradient-to-r from-blue-500 to-blue-500",
+    hover: "hover:border-blue-400 hover:shadow-blue-200/60",
   },
   {
     gradient: "from-cyan-100 to-sky-200",
@@ -133,12 +133,7 @@ const USATSubjects = () => {
     <>
       <Navbar />
 
-      <div className="relative min-h-screen overflow-hidden bg-[#f8f7ff] pt-24 pb-20">
-
-        {/* ── ambient background blobs (CSS-only for performance) ── */}
-        <div aria-hidden className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl blob-float-1" />
-        <div aria-hidden className="pointer-events-none absolute -right-24 top-32 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl blob-float-2" />
-        <div aria-hidden className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-fuchsia-300/15 blur-3xl blob-float-3" />
+      <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4">
 
@@ -147,11 +142,8 @@ const USATSubjects = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-8 shadow-2xl shadow-violet-400/30"
+            className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 shadow-xl shadow-blue-400/20"
           >
-            {/* inner glow orbs (CSS-only) */}
-            <div aria-hidden className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-2xl blob-glow-1" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-fuchsia-300/20 blur-2xl blob-glow-2" />
 
             {/* back link */}
             <Link
@@ -162,14 +154,14 @@ const USATSubjects = () => {
             </Link>
 
             {/* badge */}
-            <div className="relative z-10 mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-violet-100 backdrop-blur-sm">
+            <div className="relative z-10 mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5" /> Subjects Window
             </div>
 
             <h1 className="relative z-10 mt-3 text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
               {category}
             </h1>
-            <p className="relative z-10 mt-1.5 text-sm text-violet-200">
+            <p className="relative z-10 mt-1.5 text-sm text-blue-200">
               {subjects.length > 0
                 ? `${subjects.length} subject${subjects.length !== 1 ? "s" : ""} available — pick one to explore its chapters.`
                 : "Select a subject to open its chapter window."}
@@ -204,10 +196,10 @@ const USATSubjects = () => {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-violet-200 bg-white/60 py-20 text-center backdrop-blur-sm"
+              className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-blue-200 bg-white/60 py-20 text-center backdrop-blur-sm"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100">
-                <BookOpen className="h-7 w-7 text-violet-400" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100">
+                <BookOpen className="h-7 w-7 text-blue-400" />
               </div>
               <p className="mt-4 text-base font-semibold text-slate-700">No subjects yet</p>
               <p className="mt-1 text-sm text-slate-400">Check back soon — content is being added.</p>
@@ -282,7 +274,7 @@ const USATSubjects = () => {
                   animate={{ opacity: 1, y: 0 }}
                   whileHover={{ y: -4 }}
                   onClick={() => setShowAddForm(true)}
-                  className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-white/60 p-5 text-violet-500 transition hover:border-violet-400 hover:bg-violet-50/60"
+                  className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-300 bg-white/60 p-5 text-blue-500 transition hover:border-blue-400 hover:bg-blue-50/60"
                 >
                   <Plus className="h-8 w-8" />
                   <span className="text-sm font-bold">Add Subject</span>
@@ -295,22 +287,22 @@ const USATSubjects = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   onSubmit={handleAddSubject}
-                  className="flex flex-col gap-3 rounded-2xl border border-violet-200 bg-white p-5 shadow-md"
+                  className="flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white p-5 shadow-md"
                 >
-                  <p className="text-xs font-bold uppercase tracking-widest text-violet-500">New Subject</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-blue-500">New Subject</p>
                   <input
                     type="text"
                     placeholder="Subject name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none"
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                     autoFocus
                   />
                   <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={busy || !newName.trim()}
-                      className="flex-1 rounded-xl bg-violet-600 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-50"
+                      className="flex-1 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
                     >
                       {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Create"}
                     </button>
