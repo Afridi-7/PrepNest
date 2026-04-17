@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Brain, Target, TrendingUp, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, ChevronRight, Loader2, Trophy } from "lucide-react";
+import { BookOpen, Brain, Target, TrendingUp, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, ChevronRight, Loader2, Trophy, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { apiClient, type DashboardStats, type LeaderboardResponse } from "@/services/api";
@@ -13,6 +13,23 @@ const SUBJECT_COLORS = [
   "from-rose-500 to-pink-500",
   "from-indigo-500 to-blue-500",
 ];
+
+/* ── Pro Feature Gate ── */
+const ProFeatureLocked = ({ children, locked = true, label = "Unlock with Pro" }: { children: ReactNode; locked?: boolean; label?: string }) => {
+  if (!locked) return <>{children}</>;
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      <div className="pointer-events-none select-none blur-[3px]">{children}</div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-white/70 backdrop-blur-[2px] dark:bg-slate-900/70">
+        <Lock className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
+        <button className="mt-1 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-1.5 text-[11px] font-bold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-105">
+          Upgrade
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -29,6 +46,9 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // ── Pro user (safe placeholder — defaults false if field missing) ──
+  const isProUser = (stats as any)?.is_pro === true;
+
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
 
   const fetchLeaderboard = useCallback(() => {
@@ -36,10 +56,31 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (!isProUser) return;
     fetchLeaderboard();
     const interval = setInterval(fetchLeaderboard, 3_600_000);
     return () => clearInterval(interval);
-  }, [fetchLeaderboard]);
+  }, [fetchLeaderboard, isProUser]);
+
+  // ── Daily streak (localStorage-based, no extra API) ──
+  const [streakData] = useState(() => {
+    const key = "prepnest_streak";
+    const toDS = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    const today = toDS(new Date());
+    let data: { dates: string[]; best: number } = { dates: [], best: 0 };
+    try { const s = localStorage.getItem(key); if (s) data = JSON.parse(s); } catch { /* */ }
+    if (!data.dates.includes(today)) data.dates.push(today);
+    data.dates.sort();
+    if (data.dates.length > 365) data.dates = data.dates.slice(-365);
+    let streak = 0;
+    const d = new Date();
+    for (let i = 0; i < 366; i++) {
+      if (data.dates.includes(toDS(d))) { streak++; d.setDate(d.getDate() - 1); } else break;
+    }
+    data.best = Math.max(data.best, streak);
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* */ }
+    return { current: streak, best: data.best, lastActive: today };
+  });
 
   const userName = stats?.user_name ?? "Student";
 
@@ -105,18 +146,8 @@ const Dashboard = () => {
                   </h1>
                   <p className="mt-1.5 text-sm text-blue-200">Here&apos;s your preparation overview for today.</p>
                 </div>
-                <div className="flex gap-2">
-                  {[...Array(Math.min(totalSubjects, 7))].map((_, i) => (
-                    <div key={i} className="h-8 w-2 rounded-full bg-white/80" />
-                  ))}
-                </div>
               </div>
 
-              <div className="relative z-10 mt-5 flex gap-1.5">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-1 rounded-full bg-white/25" style={{ width: i === 0 ? 24 : 8 }} />
-                ))}
-              </div>
             </motion.div>
 
             <motion.div
@@ -242,7 +273,7 @@ const Dashboard = () => {
                   <div className="space-y-3">
                     {uniqueSubjects
                       .filter((s) => s.mcq_count < 10)
-                      .slice(0, 3)
+                      .slice(0, 2)
                       .map((s) => (
                         <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/70 to-orange-50/50 p-3.5 dark:border-amber-500/20 dark:from-amber-500/10 dark:to-orange-500/5">
                           <div>
@@ -262,6 +293,43 @@ const Dashboard = () => {
               </div>
 
               <div className="space-y-6">
+                {/* ── Daily Streak ── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="overflow-hidden rounded-2xl border border-orange-200/60 bg-white/90 p-5 shadow-lg backdrop-blur-sm dark:border-orange-500/20 dark:bg-slate-900/90 dark:shadow-black/20"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                      <motion.span
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                        className="text-xl leading-none"
+                      >🔥</motion.span>
+                      Daily Streak
+                    </h2>
+                    <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-orange-600 dark:bg-orange-500/15 dark:text-orange-300">
+                      Best: {streakData.best}d
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-orange-600 dark:text-orange-400">{streakData.current}</span>
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">day{streakData.current !== 1 ? "s" : ""}</span>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                    {streakData.current > 0 ? "🚀 Keep your streak alive! Miss a day and it resets." : "Start solving MCQs to build your streak!"}
+                  </p>
+                  <ProFeatureLocked locked={!isProUser} label="Streak Insights · Pro">
+                    <div className="mt-3 flex gap-1">
+                      {[...Array(7)].map((_, i) => (
+                        <div key={i} className={`h-5 flex-1 rounded ${i < streakData.current ? "bg-gradient-to-t from-orange-500 to-amber-400" : "bg-slate-100 dark:bg-slate-800"}`} />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-400">Weekly activity</p>
+                  </ProFeatureLocked>
+                </motion.div>
+
                 <motion.div
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -309,7 +377,6 @@ const Dashboard = () => {
                   <div className="space-y-3 p-4">
                     {[
                       { title: "Practice MCQs", desc: `You have ${totalMcqs} MCQs available - start a quiz!`, icon: Target },
-                      { title: "Explore Subjects", desc: `${totalSubjects} subjects with ${totalTopics} topics to study.`, icon: BookOpen },
                       { title: "Ask AI Tutor", desc: "Get instant help with any topic or question.", icon: Brain },
                     ].map((s, i) => (
                       <div key={i} className="flex items-start gap-3 rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50/60 to-pink-50/40 p-3 dark:border-cyan-500/20 dark:from-cyan-500/10 dark:to-pink-500/5">
@@ -325,7 +392,7 @@ const Dashboard = () => {
                   </div>
                 </motion.div>
 
-                {/* ── Top Students Leaderboard ── */}
+                {/* ── Top Students Leaderboard (Pro-only) ── */}
                 <motion.div
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -334,80 +401,98 @@ const Dashboard = () => {
                 >
                   <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 px-5 py-3.5">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-white">
-                      <Trophy className="h-4 w-4" /> Top Students
+                      <Trophy className="h-4 w-4" /> Top Students Leaderboard
                     </h2>
                   </div>
                   <div className="p-4">
-                    {!leaderboard || leaderboard.entries.length === 0 ? (
-                      <p className="py-6 text-center text-sm text-slate-400">No leaderboard data yet. Take a mock test!</p>
+                    {isProUser ? (
+                      !leaderboard || leaderboard.entries.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-slate-400">No leaderboard data yet. Take a mock test!</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {leaderboard.entries.map((entry) => {
+                            const isFirst = entry.rank === 1;
+                            const isSecond = entry.rank === 2;
+                            const isThird = entry.rank === 3;
+                            const isTop3 = isFirst || isSecond || isThird;
+                            const isCurrentUser = entry.user_name === userName;
+
+                            const rankIcon = isFirst ? "🥇" : isSecond ? "🥈" : isThird ? "🥉" : null;
+
+                            const ringClass = isCurrentUser && !isTop3
+                              ? "ring-2 ring-blue-400 dark:ring-blue-500/60"
+                              : isFirst
+                                ? "ring-2 ring-amber-400 dark:ring-amber-500/60"
+                                : isSecond
+                                  ? "ring-2 ring-slate-300 dark:ring-slate-500/60"
+                                  : isThird
+                                    ? "ring-2 ring-orange-300 dark:ring-orange-500/60"
+                                    : "";
+
+                            const bgClass = isCurrentUser && !isTop3
+                              ? "bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-500/10 dark:to-cyan-500/5"
+                              : isFirst
+                                ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-500/10 dark:to-yellow-500/5"
+                                : isSecond
+                                  ? "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-500/10 dark:to-gray-500/5"
+                                  : isThird
+                                    ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/5"
+                                    : "bg-slate-50 dark:bg-slate-800/50";
+
+                            return (
+                              <motion.div
+                                key={entry.rank}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.45 + entry.rank * 0.04 }}
+                                className={`flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 ${ringClass} ${bgClass} ${
+                                  isTop3 || isCurrentUser ? "border-transparent" : "border-slate-100 dark:border-slate-700/50"
+                                } ${isTop3 ? "shadow-sm" : ""}`}
+                              >
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                                  {rankIcon ? (
+                                    <span className="text-lg leading-none">{rankIcon}</span>
+                                  ) : (
+                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500">#{entry.rank}</span>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className={`flex items-center gap-1.5 text-sm font-semibold ${isCurrentUser ? "text-blue-700 dark:text-blue-300" : isFirst ? "text-amber-700 dark:text-amber-300" : "text-slate-700 dark:text-slate-200"}`}>
+                                    <span className="truncate">{entry.user_name}</span>
+                                    {isCurrentUser && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">You</span>}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 dark:text-slate-500">
+                                    {entry.tests_taken} test{entry.tests_taken !== 1 ? "s" : ""}
+                                  </div>
+                                </div>
+                                <div className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                                  isFirst
+                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                                    : isTop3
+                                      ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                                      : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                                }`}>
+                                  {entry.mcqs_solved} MCQs
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      )
                     ) : (
-                      <div className="space-y-2">
-                        {leaderboard.entries.map((entry) => {
-                          const isFirst = entry.rank === 1;
-                          const isSecond = entry.rank === 2;
-                          const isThird = entry.rank === 3;
-                          const isTop3 = isFirst || isSecond || isThird;
-
-                          const rankIcon = isFirst ? "🥇" : isSecond ? "🥈" : isThird ? "🥉" : null;
-
-                          const ringClass = isFirst
-                            ? "ring-2 ring-amber-400 dark:ring-amber-500/60"
-                            : isSecond
-                              ? "ring-2 ring-slate-300 dark:ring-slate-500/60"
-                              : isThird
-                                ? "ring-2 ring-orange-300 dark:ring-orange-500/60"
-                                : "";
-
-                          const bgClass = isFirst
-                            ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-500/10 dark:to-yellow-500/5"
-                            : isSecond
-                              ? "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-500/10 dark:to-gray-500/5"
-                              : isThird
-                                ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/5"
-                                : "bg-slate-50 dark:bg-slate-800/50";
-
-                          return (
-                            <motion.div
-                              key={entry.rank}
-                              initial={{ opacity: 0, x: -8 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.45 + entry.rank * 0.04 }}
-                              className={`flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 ${ringClass} ${bgClass} ${
-                                isTop3 ? "border-transparent" : "border-slate-100 dark:border-slate-700/50"
-                              }`}
-                            >
-                              {/* Rank */}
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-                                {rankIcon ? (
-                                  <span className="text-lg leading-none">{rankIcon}</span>
-                                ) : (
-                                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500">#{entry.rank}</span>
-                                )}
-                              </div>
-
-                              {/* Name + stats */}
-                              <div className="min-w-0 flex-1">
-                                <div className={`truncate text-sm font-semibold ${isFirst ? "text-amber-700 dark:text-amber-300" : "text-slate-700 dark:text-slate-200"}`}>
-                                  {entry.user_name}
-                                </div>
-                                <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                                  {entry.tests_taken} test{entry.tests_taken !== 1 ? "s" : ""}
-                                </div>
-                              </div>
-
-                              {/* MCQ count */}
-                              <div className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                                isFirst
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
-                                  : isTop3
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                                    : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                              }`}>
-                                {entry.mcqs_solved} MCQs
-                              </div>
-                            </motion.div>
-                          );
-                        })}
+                      <div className="flex flex-col items-center gap-3 py-8">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 shadow-inner dark:from-amber-500/15 dark:to-orange-500/10">
+                          <Lock className="h-6 w-6 text-amber-500 dark:text-amber-400" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Pro Feature</p>
+                          <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-slate-400 dark:text-slate-500">
+                            Unlock Pro to see top performers and compete with the best students.
+                          </p>
+                        </div>
+                        <button className="mt-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-amber-500/25 transition-all hover:scale-105 hover:shadow-amber-500/40">
+                          Upgrade to Pro
+                        </button>
                       </div>
                     )}
                   </div>
