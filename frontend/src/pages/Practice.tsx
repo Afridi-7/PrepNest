@@ -165,7 +165,14 @@ const Practice = () => {
     let s = 0;
     answers.forEach((a, i) => { if (a === questions[i]?.correct) s++; });
     setScore(s); setPhase("result");
-  }, [answers, questions]);
+    // Persist result for leaderboard
+    apiClient.submitPracticeResult({
+      total_questions: questions.length,
+      correct_answers: s,
+      category: selectedCategory?.code,
+      subject_name: selectedSubjectName === "All Subjects" ? undefined : selectedSubjectName,
+    }).catch(() => {});
+  }, [answers, questions, selectedCategory, selectedSubjectName]);
 
   useEffect(() => {
     if (phase !== "quiz" || timeLimit === 0) return;

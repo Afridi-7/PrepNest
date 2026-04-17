@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Brain, Target, TrendingUp, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, ChevronRight, Loader2 } from "lucide-react";
+import { BookOpen, Brain, Target, TrendingUp, Award, AlertTriangle, Flame, BarChart3, ArrowUpRight, ChevronRight, Loader2, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-import { apiClient, type DashboardStats } from "@/services/api";
+import { apiClient, type DashboardStats, type LeaderboardResponse } from "@/services/api";
 
 const SUBJECT_COLORS = [
   "from-blue-500 to-blue-500",
@@ -28,6 +28,18 @@ const Dashboard = () => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
+
+  const fetchLeaderboard = useCallback(() => {
+    apiClient.getLeaderboard().then(setLeaderboard).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchLeaderboard();
+    const interval = setInterval(fetchLeaderboard, 3_600_000);
+    return () => clearInterval(interval);
+  }, [fetchLeaderboard]);
 
   const userName = stats?.user_name ?? "Student";
 
@@ -310,6 +322,94 @@ const Dashboard = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </motion.div>
+
+                {/* ── Top Students Leaderboard ── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-lg dark:border-amber-500/25 dark:bg-slate-900 dark:shadow-black/20"
+                >
+                  <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 px-5 py-3.5">
+                    <h2 className="flex items-center gap-2 text-sm font-bold text-white">
+                      <Trophy className="h-4 w-4" /> Top Students
+                    </h2>
+                  </div>
+                  <div className="p-4">
+                    {!leaderboard || leaderboard.entries.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-slate-400">No leaderboard data yet. Take a mock test!</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {leaderboard.entries.map((entry) => {
+                          const isFirst = entry.rank === 1;
+                          const isSecond = entry.rank === 2;
+                          const isThird = entry.rank === 3;
+                          const isTop3 = isFirst || isSecond || isThird;
+
+                          const rankIcon = isFirst ? "🥇" : isSecond ? "🥈" : isThird ? "🥉" : null;
+
+                          const ringClass = isFirst
+                            ? "ring-2 ring-amber-400 dark:ring-amber-500/60"
+                            : isSecond
+                              ? "ring-2 ring-slate-300 dark:ring-slate-500/60"
+                              : isThird
+                                ? "ring-2 ring-orange-300 dark:ring-orange-500/60"
+                                : "";
+
+                          const bgClass = isFirst
+                            ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-500/10 dark:to-yellow-500/5"
+                            : isSecond
+                              ? "bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-500/10 dark:to-gray-500/5"
+                              : isThird
+                                ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/5"
+                                : "bg-slate-50 dark:bg-slate-800/50";
+
+                          return (
+                            <motion.div
+                              key={entry.rank}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.45 + entry.rank * 0.04 }}
+                              className={`flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 ${ringClass} ${bgClass} ${
+                                isTop3 ? "border-transparent" : "border-slate-100 dark:border-slate-700/50"
+                              }`}
+                            >
+                              {/* Rank */}
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                                {rankIcon ? (
+                                  <span className="text-lg leading-none">{rankIcon}</span>
+                                ) : (
+                                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500">#{entry.rank}</span>
+                                )}
+                              </div>
+
+                              {/* Name + stats */}
+                              <div className="min-w-0 flex-1">
+                                <div className={`truncate text-sm font-semibold ${isFirst ? "text-amber-700 dark:text-amber-300" : "text-slate-700 dark:text-slate-200"}`}>
+                                  {entry.user_name}
+                                </div>
+                                <div className="text-[11px] text-slate-400 dark:text-slate-500">
+                                  {entry.tests_taken} test{entry.tests_taken !== 1 ? "s" : ""}
+                                </div>
+                              </div>
+
+                              {/* MCQ count */}
+                              <div className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                                isFirst
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                                  : isTop3
+                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                                    : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                              }`}>
+                                {entry.mcqs_solved} MCQs
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

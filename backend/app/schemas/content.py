@@ -302,6 +302,32 @@ class DashboardStats(BaseModel):
     subjects: list[DashboardSubjectStat]
 
 
+class LeaderboardEntry(BaseModel):
+    rank: int
+    user_name: str
+    mcqs_solved: int
+    tests_taken: int
+
+
+class LeaderboardResponse(BaseModel):
+    entries: list[LeaderboardEntry]
+    updated_at: str
+
+
+class PracticeResultCreate(BaseModel):
+    total_questions: int = Field(ge=1)
+    correct_answers: int = Field(ge=0)
+    category: str | None = None
+    subject_name: str | None = None
+
+
+class PracticeResultRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    total_questions: int
+    correct_answers: int
+
+
 # ── EssayPrompt schemas ──────────────────────────────────────────────────────
 
 class EssayPromptCreate(BaseModel):

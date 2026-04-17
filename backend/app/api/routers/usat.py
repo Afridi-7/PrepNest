@@ -17,6 +17,7 @@ from app.schemas.content import (
     MaterialRead,
     NoteRead,
     PastPaperRead,
+    PracticeResultCreate,
     ResourceRead,
     SubjectBulkData,
     SubjectRead,
@@ -369,6 +370,32 @@ async def list_subject_practice_mcqs(
         .limit(limit)
     )
     return [MCQRead.model_validate(m) for m in result.scalars().all()]
+
+
+# ── Practice result submission ───────────────────────────────────────────────
+
+@router.post("/practice-results", status_code=201)
+async def submit_practice_result(
+    payload: PracticeResultCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Persist a completed practice quiz result for leaderboard tracking."""
+    from app.db.models import PracticeResult
+
+    if payload.correct_answers > payload.total_questions:
+        raise HTTPException(status_code=422, detail="correct_answers cannot exceed total_questions")
+
+    row = PracticeResult(
+        user_id=current_user.id,
+        total_questions=payload.total_questions,
+        correct_answers=payload.correct_answers,
+        category=payload.category,
+        subject_name=payload.subject_name,
+    )
+    db.add(row)
+    await db.commit()
+    return {"ok": True}
 
 
 # ── User-uploaded PDF Notes ──────────────────────────────────────────────────

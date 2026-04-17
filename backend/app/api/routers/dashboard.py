@@ -1,12 +1,13 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_user
 from app.core.config import get_settings
-from app.db.models import MCQ, ContactInfo, Subject, Topic, User
+from app.db.models import MCQ, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.session import get_db_session
 from app.services.supabase_storage import async_upload_bytes, make_key
 from app.schemas.content import (
@@ -14,6 +15,8 @@ from app.schemas.content import (
     ContactInfoUpdate,
     DashboardStats,
     DashboardSubjectStat,
+    LeaderboardEntry,
+    LeaderboardResponse,
 )
 
 router = APIRouter(tags=["dashboard"])
@@ -70,6 +73,100 @@ async def get_dashboard_stats(
         total_topics=total_topics,
         total_mcqs=total_mcqs,
         subjects=subject_stats,
+    )
+
+
+# ── Leaderboard (public, no auth required) ──────────────────────────────────
+
+@router.get("/leaderboard", response_model=LeaderboardResponse)
+async def get_leaderboard(
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Top 10 users ranked by total MCQs solved correctly (mock tests + practice)."""
+    from sqlalchemy import union_all, literal
+    from app.db.session import database_url
+
+    is_sqlite = database_url.startswith("sqlite")
+
+    # ── Source 1: MCQ score from evaluated mock tests ──
+    if is_sqlite:
+        mcq_score_expr = func.coalesce(
+            cast(func.json_extract(MockTest.result_json, "$.mcq_score"), Integer), 0
+        )
+    else:
+        mcq_score_expr = func.coalesce(
+            cast(MockTest.result_json.op("->>")("mcq_score"), Integer), 0
+        )
+
+    mock_sub = (
+        select(
+            MockTest.user_id,
+            func.sum(mcq_score_expr).label("mcqs_solved"),
+            func.count(MockTest.id).label("sessions"),
+        )
+        .where(MockTest.status == "evaluated")
+        .group_by(MockTest.user_id)
+        .subquery("mock_sub")
+    )
+
+    # ── Source 2: correct answers from practice results ──
+    practice_sub = (
+        select(
+            PracticeResult.user_id,
+            func.sum(PracticeResult.correct_answers).label("mcqs_solved"),
+            func.count(PracticeResult.id).label("sessions"),
+        )
+        .group_by(PracticeResult.user_id)
+        .subquery("practice_sub")
+    )
+
+    # ── Combine both sources per user ──
+    stmt = (
+        select(
+            User.id.label("user_id"),
+            User.full_name,
+            User.email,
+            (
+                func.coalesce(mock_sub.c.mcqs_solved, 0)
+                + func.coalesce(practice_sub.c.mcqs_solved, 0)
+            ).label("mcqs_solved"),
+            (
+                func.coalesce(mock_sub.c.sessions, 0)
+                + func.coalesce(practice_sub.c.sessions, 0)
+            ).label("tests_taken"),
+        )
+        .outerjoin(mock_sub, User.id == mock_sub.c.user_id)
+        .outerjoin(practice_sub, User.id == practice_sub.c.user_id)
+        .where(
+            (mock_sub.c.mcqs_solved.isnot(None))
+            | (practice_sub.c.mcqs_solved.isnot(None))
+        )
+        .order_by(
+            (
+                func.coalesce(mock_sub.c.mcqs_solved, 0)
+                + func.coalesce(practice_sub.c.mcqs_solved, 0)
+            ).desc()
+        )
+        .limit(10)
+    )
+
+    rows = (await db.execute(stmt)).all()
+
+    entries = []
+    for rank, row in enumerate(rows, 1):
+        name = row.full_name or row.email.split("@")[0]
+        entries.append(
+            LeaderboardEntry(
+                rank=rank,
+                user_name=name,
+                mcqs_solved=row.mcqs_solved or 0,
+                tests_taken=row.tests_taken,
+            )
+        )
+
+    return LeaderboardResponse(
+        entries=entries,
+        updated_at=datetime.now(timezone.utc).isoformat(),
     )
 
 

@@ -231,6 +231,18 @@ export interface DashboardStats {
   subjects: DashboardSubjectStat[];
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  user_name: string;
+  mcqs_solved: number;
+  tests_taken: number;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  updated_at: string;
+}
+
 export interface ContactInfo {
   id: number;
   name: string;
@@ -681,6 +693,15 @@ class ApiClient {
     return this.request<MCQ[]>(url);
   }
 
+  async submitPracticeResult(payload: {
+    total_questions: number;
+    correct_answers: number;
+    category?: string;
+    subject_name?: string;
+  }): Promise<void> {
+    await this.request<unknown>("/usat/practice-results", "POST", payload);
+  }
+
   // ── Interactive Mock Tests ───────────────────────────────────────────────
 
   async generateMockTest(categoryCode: string): Promise<MockTestGenerated> {
@@ -1054,6 +1075,12 @@ class ApiClient {
 
   async getDashboardStats(): Promise<DashboardStats> {
     return this.request<DashboardStats>("/dashboard/stats");
+  }
+
+  // ── Leaderboard ──────────────────────────────────────────────────────────
+
+  async getLeaderboard(): Promise<LeaderboardResponse> {
+    return this.request<LeaderboardResponse>("/leaderboard");
   }
 
   // ── Contact ──────────────────────────────────────────────────────────────
