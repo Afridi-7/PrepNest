@@ -281,6 +281,26 @@ export interface ContactInfoUpdate {
   whatsapp_url?: string | null;
 }
 
+export interface Acknowledgment {
+  id: number;
+  name: string;
+  image_url: string | null;
+  link_url: string | null;
+  display_order: number;
+}
+
+export interface AcknowledgmentCreate {
+  name: string;
+  link_url?: string | null;
+  display_order?: number;
+}
+
+export interface AcknowledgmentUpdate {
+  name?: string;
+  link_url?: string | null;
+  display_order?: number;
+}
+
 // ── Mock Test types ──────────────────────────────────────────────────────────
 
 export interface MockTestMCQQuestion {
@@ -1109,6 +1129,41 @@ class ApiClient {
 
   async uploadContactImage(file: File): Promise<ContactInfo> {
     const url = `${API_BASE_URL}/contact/image`;
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      mode: "cors",
+      body: form,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err.detail || err.message || `API error: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  // ── Acknowledgments ──────────────────────────────────────────────────────
+
+  async getAcknowledgments(): Promise<Acknowledgment[]> {
+    return this.request<Acknowledgment[]>("/acknowledgments");
+  }
+
+  async createAcknowledgment(payload: AcknowledgmentCreate): Promise<Acknowledgment> {
+    return this.request<Acknowledgment>("/acknowledgments", "POST", payload);
+  }
+
+  async updateAcknowledgment(id: number, payload: AcknowledgmentUpdate): Promise<Acknowledgment> {
+    return this.request<Acknowledgment>(`/acknowledgments/${id}`, "PUT", payload);
+  }
+
+  async deleteAcknowledgment(id: number): Promise<void> {
+    await this.request<void>(`/acknowledgments/${id}`, "DELETE");
+  }
+
+  async uploadAcknowledgmentImage(id: number, file: File): Promise<Acknowledgment> {
+    const url = `${API_BASE_URL}/acknowledgments/${id}/image`;
     const form = new FormData();
     form.append("file", file);
     const response = await fetch(url, {

@@ -7,10 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_user
 from app.core.config import get_settings
-from app.db.models import MCQ, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
+from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.session import get_db_session
 from app.services.supabase_storage import async_upload_bytes, make_key
 from app.schemas.content import (
+    AcknowledgmentCreate,
+    AcknowledgmentRead,
+    AcknowledgmentUpdate,
     ContactInfoRead,
     ContactInfoUpdate,
     DashboardStats,
@@ -286,6 +289,84 @@ async def upload_contact_image(
     key = f"visuals/{safe_name}"
     image_url = await async_upload_bytes(content, key, file.content_type)
     row = await _get_or_create_contact(db)
+    row.image_url = image_url
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+# ── Acknowledgments (admin-managed people on Contact page) ──────────────────
+
+@router.get("/acknowledgments", response_model=list[AcknowledgmentRead])
+async def list_acknowledgments(db: AsyncSession = Depends(get_db_session)):
+    rows = (await db.execute(
+        select(Acknowledgment).order_by(Acknowledgment.display_order, Acknowledgment.id)
+    )).scalars().all()
+    return rows
+
+
+@router.post("/acknowledgments", response_model=AcknowledgmentRead, status_code=status.HTTP_201_CREATED)
+async def create_acknowledgment(
+    payload: AcknowledgmentCreate,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    row = Acknowledgment(name=payload.name, link_url=payload.link_url, display_order=payload.display_order)
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+@router.put("/acknowledgments/{ack_id}", response_model=AcknowledgmentRead)
+async def update_acknowledgment(
+    ack_id: int,
+    payload: AcknowledgmentUpdate,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    row = (await db.execute(select(Acknowledgment).where(Acknowledgment.id == ack_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Acknowledgment not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+@router.delete("/acknowledgments/{ack_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_acknowledgment(
+    ack_id: int,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    row = (await db.execute(select(Acknowledgment).where(Acknowledgment.id == ack_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Acknowledgment not found")
+    await db.delete(row)
+    await db.commit()
+
+
+@router.post("/acknowledgments/{ack_id}/image", response_model=AcknowledgmentRead)
+async def upload_acknowledgment_image(
+    ack_id: int,
+    file: UploadFile = File(...),
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    row = (await db.execute(select(Acknowledgment).where(Acknowledgment.id == ack_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Acknowledgment not found")
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed.")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 5 MB.")
+    ext = (file.filename or "img.png").rsplit(".", 1)[-1]
+    safe_name = f"ack_{uuid.uuid4().hex[:12]}.{ext}"
+    key = f"visuals/{safe_name}"
+    image_url = await async_upload_bytes(content, key, file.content_type)
     row.image_url = image_url
     await db.commit()
     await db.refresh(row)

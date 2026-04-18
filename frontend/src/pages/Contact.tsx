@@ -4,10 +4,10 @@ import {
   Mail, Github, Linkedin, MessageCircle, Twitter, Save, Loader2,
   Pencil, X, User, Camera, ExternalLink, Heart, Sparkles, Send,
   Copy, Check, MapPin, Globe, AlertCircle, RefreshCw, Clock,
-  Shield, Users, Phone,
+  Shield, Users, Phone, Plus, Trash2, Link as LinkIcon,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { apiClient, API_ORIGIN, type ContactInfo as ContactInfoType, type ContactInfoUpdate } from "@/services/api";
+import { apiClient, API_ORIGIN, type ContactInfo as ContactInfoType, type ContactInfoUpdate, type Acknowledgment } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 /* -- Skeleton ----------------------------------------------------------- */
@@ -98,6 +98,11 @@ const Contact = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fetchedRef = useRef(false);
 
+  // ── Acknowledgment state ──
+  const [acks, setAcks] = useState<Acknowledgment[]>([]);
+  const [ackUploading, setAckUploading] = useState<number | null>(null);
+  const ackFileRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
   const fetchData = () => {
     setLoading(true);
     setError(false);
@@ -106,6 +111,7 @@ const Contact = () => {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
+    apiClient.getAcknowledgments().then(setAcks).catch(() => {});
   };
 
   useEffect(() => {
@@ -150,6 +156,41 @@ const Contact = () => {
       setCopiedEmail(true);
       setTimeout(() => setCopiedEmail(false), 2000);
     }
+  };
+
+  // ── Acknowledgment handlers ──
+  const addAck = async () => {
+    try {
+      const created = await apiClient.createAcknowledgment({ name: "New Person", display_order: acks.length });
+      setAcks((prev) => [...prev, created]);
+      toast({ description: "Person added!" });
+    } catch { toast({ title: "Error", description: "Failed to add", variant: "destructive" }); }
+  };
+
+  const updateAck = async (id: number, data: { name?: string; link_url?: string | null; display_order?: number }) => {
+    try {
+      const updated = await apiClient.updateAcknowledgment(id, data);
+      setAcks((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    } catch { toast({ title: "Error", description: "Failed to update", variant: "destructive" }); }
+  };
+
+  const deleteAck = async (id: number) => {
+    try {
+      await apiClient.deleteAcknowledgment(id);
+      setAcks((prev) => prev.filter((a) => a.id !== id));
+      toast({ description: "Removed" });
+    } catch { toast({ title: "Error", description: "Failed to remove", variant: "destructive" }); }
+  };
+
+  const handleAckImageUpload = async (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setAckUploading(id);
+    try {
+      const updated = await apiClient.uploadAcknowledgmentImage(id, file);
+      setAcks((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    } catch { toast({ title: "Error", description: "Image upload failed", variant: "destructive" }); }
+    finally { setAckUploading(null); e.currentTarget.value = ""; }
   };
 
   const resolveImageUrl = (url: string | null | undefined) => {
@@ -317,7 +358,7 @@ const Contact = () => {
             <div className="grid md:grid-cols-2 gap-5 mb-6">
               {/* EMAIL */}
               <motion.div variants={fadeUp}
-                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-blue-100 hover:shadow-xl hover:shadow-blue-100/40 hover:border-blue-200 transition-all">
+                className="group card-hover relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100/60 dark:from-blue-950/30 dark:to-blue-900/20 rounded-2xl p-6 shadow-md border border-blue-200/70 hover:shadow-xl hover:shadow-blue-200/40 hover:border-blue-300 transition-all">
                 <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-blue-400 to-cyan-400 rounded-t-2xl" />
                 <div className="flex items-center gap-3 mb-4 mt-1">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
@@ -355,7 +396,7 @@ const Contact = () => {
 
               {/* AVAILABILITY */}
               <motion.div variants={fadeUp}
-                className="group card-hover relative overflow-hidden bg-white rounded-2xl p-6 shadow-md border border-emerald-100 hover:shadow-xl hover:shadow-emerald-100/40 hover:border-emerald-200 transition-all">
+                className="group card-hover relative overflow-hidden bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/30 dark:to-emerald-900/20 rounded-2xl p-6 shadow-md border border-emerald-200/70 hover:shadow-xl hover:shadow-emerald-200/40 hover:border-emerald-300 transition-all">
                 <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-t-2xl" />
                 <div className="flex items-center gap-3 mb-4 mt-1">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md shadow-emerald-200 group-hover:shadow-lg group-hover:scale-105 transition-all">
@@ -384,7 +425,7 @@ const Contact = () => {
 
             {/* -- SOCIAL LINKS -- */}
             <motion.div variants={fadeUp}
-              className="bg-white rounded-2xl shadow-md border border-blue-100 mb-6 overflow-hidden">
+              className="bg-gradient-to-br from-white to-blue-50/40 dark:from-slate-900 dark:to-blue-950/20 rounded-2xl shadow-md border border-blue-200/60 mb-6 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4">
                 <h2 className="font-bold text-white text-sm flex items-center gap-2">
                   <Globe className="h-4 w-4" /> Connect With Me
@@ -447,8 +488,8 @@ const Contact = () => {
 
             {/* -- COMMUNITY SECTION -- */}
             <motion.div variants={fadeUp}
-              className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-md mb-6">
-              <div className="relative bg-gradient-to-r from-indigo-500 via-blue-500 to-blue-600 px-6 sm:px-8 py-8">
+              className="relative overflow-hidden rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900 dark:to-indigo-950/20 shadow-md mb-6">
+              <div className="relative bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-500 px-6 sm:px-8 py-8">
                 {/* shine sweep (CSS-only) */}
                 <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20 animate-[shimmer_8s_linear_infinite]"
                   style={{ backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)", backgroundSize: "200% 100%" }} />
@@ -512,12 +553,106 @@ const Contact = () => {
               </div>
             </motion.div>
 
+            {/* -- ACKNOWLEDGMENT SECTION -- */}
+            {(acks.length > 0 || (isAdmin && editing)) && (
+              <motion.div variants={fadeUp}
+                className="relative overflow-hidden rounded-2xl border border-indigo-200/50 bg-gradient-to-br from-indigo-50/60 via-blue-50/40 to-cyan-50/30 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-cyan-950/10 shadow-md mb-6">
+                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400" />
+                <div className="px-6 pt-5 pb-2 flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-indigo-500" />
+                  <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">People Who Made This Possible</h3>
+                </div>
+                <p className="px-6 text-xs text-slate-400 dark:text-slate-500 mb-4 max-w-lg">
+                  A quiet thank-you to the people who helped shape PrepNest along the way.
+                </p>
+
+                <div className="px-6 pb-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {acks.map((ack) => (
+                    <motion.div key={ack.id}
+                      whileHover={{ y: -3 }}
+                      className="relative group/ack flex flex-col items-center gap-2.5 rounded-xl bg-white/70 dark:bg-slate-800/50 border border-indigo-100/60 dark:border-indigo-800/40 p-4 text-center shadow-sm hover:shadow-md transition-all">
+                      {/* avatar */}
+                      <div className="relative">
+                        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-200 to-blue-200 dark:from-indigo-700 dark:to-blue-700 flex items-center justify-center overflow-hidden shadow-sm">
+                          {ack.image_url ? (
+                            <img src={resolveImageUrl(ack.image_url) ?? ""} alt={ack.name} className="h-full w-full object-cover rounded-full" />
+                          ) : (
+                            <User className="h-6 w-6 text-indigo-400 dark:text-indigo-300" />
+                          )}
+                        </div>
+                        {isAdmin && editing && (
+                          <>
+                            <button
+                              onClick={() => ackFileRefs.current[ack.id]?.click()}
+                              className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow hover:bg-indigo-600 transition"
+                              title="Upload image">
+                              {ackUploading === ack.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                            </button>
+                            <input type="file" accept="image/*" className="hidden"
+                              ref={(el) => { ackFileRefs.current[ack.id] = el; }}
+                              onChange={(e) => handleAckImageUpload(ack.id, e)} />
+                          </>
+                        )}
+                      </div>
+
+                      {/* name */}
+                      {isAdmin && editing ? (
+                        <input
+                          className="w-full text-center text-xs font-semibold rounded-md border border-indigo-200 bg-white/80 dark:bg-slate-700 px-2 py-1 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                          defaultValue={ack.name}
+                          onBlur={(e) => { if (e.target.value !== ack.name) updateAck(ack.id, { name: e.target.value }); }}
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{ack.name}</span>
+                      )}
+
+                      {/* link */}
+                      {isAdmin && editing ? (
+                        <input
+                          className="w-full text-center text-[10px] rounded-md border border-indigo-200 bg-white/80 dark:bg-slate-700 px-2 py-0.5 text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                          defaultValue={ack.link_url ?? ""}
+                          placeholder="Link URL..."
+                          onBlur={(e) => { const v = e.target.value || null; if (v !== ack.link_url) updateAck(ack.id, { link_url: v }); }}
+                        />
+                      ) : ack.link_url ? (
+                        <a href={ack.link_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-500 hover:text-indigo-600 transition">
+                          <LinkIcon className="h-3 w-3" /> Profile
+                        </a>
+                      ) : null}
+
+                      {/* delete btn */}
+                      {isAdmin && editing && (
+                        <button onClick={() => deleteAck(ack.id)}
+                          className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-red-100 text-red-500 flex items-center justify-center opacity-0 group-hover/ack:opacity-100 hover:bg-red-200 transition-all"
+                          title="Remove">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </motion.div>
+                  ))}
+
+                  {/* Add button */}
+                  {isAdmin && editing && (
+                    <motion.button
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={addAck}
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-indigo-200/60 dark:border-indigo-700/40 p-4 text-indigo-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/20 transition-all">
+                      <Plus className="h-6 w-6" />
+                      <span className="text-[10px] font-semibold">Add Person</span>
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* -- TRUST INDICATORS -- */}
             <motion.div variants={fadeUp} className="grid grid-cols-3 gap-4 mb-8">
               {[
-                { icon: Shield, label: "Trusted Platform", color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", bar: "from-blue-400 to-blue-400" },
-                { icon: Users,  label: "Growing Community", color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", bar: "from-indigo-400 to-blue-400" },
-                { icon: Heart,  label: "Student-Focused",   color: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-100", bar: "from-cyan-400 to-pink-400" },
+                { icon: Shield, label: "Trusted Platform", color: "text-blue-600", bg: "bg-blue-100/70 dark:bg-blue-950/40", border: "border-blue-200/60 dark:border-blue-800/40", bar: "from-blue-400 to-blue-400" },
+                { icon: Users,  label: "Growing Community", color: "text-indigo-600", bg: "bg-indigo-100/70 dark:bg-indigo-950/40", border: "border-indigo-200/60 dark:border-indigo-800/40", bar: "from-indigo-400 to-blue-400" },
+                { icon: Heart,  label: "Student-Focused",   color: "text-cyan-600", bg: "bg-cyan-100/70 dark:bg-cyan-950/40", border: "border-cyan-200/60 dark:border-cyan-800/40", bar: "from-cyan-400 to-pink-400" },
               ].map((item) => (
                 <motion.div key={item.label} whileHover={{ y: -3, transition: { type: "spring", stiffness: 320, damping: 22 } }}
                   className={`relative overflow-hidden flex flex-col items-center gap-2 rounded-2xl ${item.bg} border ${item.border} py-5 px-3 text-center transition-shadow hover:shadow-md`}>

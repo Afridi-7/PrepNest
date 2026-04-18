@@ -285,6 +285,30 @@ class ContactInfoUpdate(BaseModel):
     whatsapp_url: str | None = None
 
 
+# ── Acknowledgment schemas ────────────────────────────────────────────────────
+
+class AcknowledgmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    image_url: str | None
+    link_url: str | None
+    display_order: int
+
+
+class AcknowledgmentCreate(BaseModel):
+    name: str = Field(max_length=255)
+    link_url: str | None = None
+    display_order: int = 0
+
+
+class AcknowledgmentUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    link_url: str | None = None
+    display_order: int | None = None
+
+
 # ── Dashboard schemas ─────────────────────────────────────────────────────────
 
 class DashboardSubjectStat(BaseModel):
