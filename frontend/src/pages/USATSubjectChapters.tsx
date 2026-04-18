@@ -25,7 +25,7 @@ const readYear = (title: string): string => {
   return match ? match[1] : "N/A";
 };
 
-const MCQ_PAGE_SIZE = 30;
+const MCQ_PAGE_SIZE = 20;
 
 /* ── Chapter color palette — vivid & bold so they POP on all screens ── */
 const CHAPTER_COLORS = [
@@ -218,10 +218,7 @@ const USATSubjectChapters = () => {
   const [userNotePdfUrl, setUserNotePdfUrl] = useState<string | null>(null);
   const [expandedChapterId, setExpandedChapterId] = useState<number | null>(null);
   const [chapterMcqsById, setChapterMcqsById] = useState<Record<number, MCQ[]>>({});
-  const [chapterMcqOffsets, setChapterMcqOffsets] = useState<Record<number, number>>({});
-  const [chapterMcqHasMore, setChapterMcqHasMore] = useState<Record<number, boolean>>({});
   const [chapterLoadingById, setChapterLoadingById] = useState<Record<number, boolean>>({});
-  const [chapterMcqLoadingById, setChapterMcqLoadingById] = useState<Record<number, boolean>>({});
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [addChapterTitle, setAddChapterTitle] = useState("");
   const [showAddMCQFor, setShowAddMCQFor] = useState<number | null>(null);
@@ -285,8 +282,6 @@ const USATSubjectChapters = () => {
     try {
       const mcqs = await apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, 0);
       setChapterMcqsById((prev) => ({ ...prev, [chapterId]: mcqs }));
-      setChapterMcqOffsets((prev) => ({ ...prev, [chapterId]: MCQ_PAGE_SIZE }));
-      setChapterMcqHasMore((prev) => ({ ...prev, [chapterId]: mcqs.length === MCQ_PAGE_SIZE }));
     } finally {
       setChapterLoadingById((prev) => ({ ...prev, [chapterId]: false }));
     }
@@ -297,20 +292,6 @@ const USATSubjectChapters = () => {
     setExpandedChapterId(chapterId);
     loadChapterData(chapterId).catch(() => {});
   }, [expandedChapterId, loadChapterData]);
-
-  const loadMoreMCQs = useCallback(async (chapterId: number) => {
-    if (chapterMcqLoadingById[chapterId]) return;
-    const currentOffset = chapterMcqOffsets[chapterId] ?? 0;
-    setChapterMcqLoadingById((prev) => ({ ...prev, [chapterId]: true }));
-    try {
-      const moreMcqs = await apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, currentOffset);
-      setChapterMcqsById((prev) => ({ ...prev, [chapterId]: [...(prev[chapterId] || []), ...moreMcqs] }));
-      setChapterMcqOffsets((prev) => ({ ...prev, [chapterId]: currentOffset + MCQ_PAGE_SIZE }));
-      setChapterMcqHasMore((prev) => ({ ...prev, [chapterId]: moreMcqs.length === MCQ_PAGE_SIZE }));
-    } finally {
-      setChapterMcqLoadingById((prev) => ({ ...prev, [chapterId]: false }));
-    }
-  }, [chapterMcqLoadingById, chapterMcqOffsets]);
 
   /* ── Admin handlers ─────────────────────────────────────────────────── */
   const addChapter = async (e: FormEvent) => {
@@ -362,8 +343,6 @@ const USATSubjectChapters = () => {
       alert(`Uploaded: ${result.created} created, ${result.skipped} skipped`);
       const mcqs = await apiClient.listChapterMCQsPaginated(chapterId, MCQ_PAGE_SIZE, 0);
       setChapterMcqsById((prev) => ({ ...prev, [chapterId]: mcqs }));
-      setChapterMcqOffsets((prev) => ({ ...prev, [chapterId]: MCQ_PAGE_SIZE }));
-      setChapterMcqHasMore((prev) => ({ ...prev, [chapterId]: mcqs.length === MCQ_PAGE_SIZE }));
     } catch (err: any) { alert(err.message); }
     finally { setBusy(false); if (csvRef.current) csvRef.current.value = ""; }
   };
@@ -543,8 +522,6 @@ const USATSubjectChapters = () => {
                         const isExpanded = expandedChapterId === chapter.id;
                         const mcqs = chapterMcqsById[chapter.id] ?? [];
                         const isLoading = !!chapterLoadingById[chapter.id];
-                        const isMcqLoading = !!chapterMcqLoadingById[chapter.id];
-                        const hasMoreMcqs = !!chapterMcqHasMore[chapter.id];
                         const C = CHAPTER_COLORS[index % CHAPTER_COLORS.length];
 
                         return (
@@ -657,13 +634,6 @@ const USATSubjectChapters = () => {
                                               </div>
                                             ))}
                                           </div>
-                                        )}
-
-                                        {hasMoreMcqs && (
-                                          <button type="button" onClick={() => loadMoreMCQs(chapter.id)} disabled={isMcqLoading}
-                                            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50">
-                                            {isMcqLoading ? <><Loader2 className="h-3 w-3 animate-spin" /> Loading…</> : "Load More MCQs"}
-                                          </button>
                                         )}
 
                                         {isAdmin && (

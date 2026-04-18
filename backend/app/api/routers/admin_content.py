@@ -4,7 +4,9 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
+from collections import defaultdict
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
@@ -1193,3 +1195,59 @@ async def upload_essay_csv(
     db.add_all(prompts)
     await db.commit()
     return {"created": len(prompts), "skipped": skipped, "total_rows": row_num}
+
+
+# ── Temporary: MCQ deduplication ──────────────────────────────────────────────
+
+@router.post("/dedup-mcqs")
+async def dedup_mcqs(
+    db: AsyncSession = Depends(get_db_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Delete duplicate MCQs that share the same four options within a topic.
+    Keeps the MCQ with the lowest id in each group."""
+    result = await db.execute(select(MCQ).order_by(MCQ.id.asc()))
+    all_mcqs = result.scalars().all()
+
+    groups: dict[tuple, list] = defaultdict(list)
+    for mcq in all_mcqs:
+        opts = sorted(
+            s.strip().lower()
+            for s in (mcq.option_a, mcq.option_b, mcq.option_c, mcq.option_d)
+        )
+        key = (mcq.topic_id, tuple(opts))
+        groups[key].append(mcq)
+
+    to_delete_ids: list[int] = []
+    for group in groups.values():
+        if len(group) <= 1:
+            continue
+        dupes = group[1:]
+        to_delete_ids.extend(m.id for m in dupes)
+
+    if to_delete_ids:
+        await db.execute(delete(MCQ).where(MCQ.id.in_(to_delete_ids)))
+        await db.commit()
+
+    return {
+        "total_before": len(all_mcqs),
+        "duplicates_deleted": len(to_delete_ids),
+        "total_after": len(all_mcqs) - len(to_delete_ids),
+    }
+
+
+@router.get("/mcq-stats")
+async def mcq_stats(
+    db: AsyncSession = Depends(get_db_session),
+    _admin: User = Depends(get_current_admin),
+):
+    from sqlalchemy import func as sa_func
+    result = await db.execute(
+        select(Subject.name, Topic.title, sa_func.count(MCQ.id))
+        .join(Topic, Topic.subject_id == Subject.id)
+        .join(MCQ, MCQ.topic_id == Topic.id)
+        .group_by(Subject.name, Topic.title)
+        .order_by(Subject.name, Topic.title)
+    )
+    rows = result.all()
+    return [{"subject": s, "chapter": c, "mcqs": n} for s, c, n in rows]

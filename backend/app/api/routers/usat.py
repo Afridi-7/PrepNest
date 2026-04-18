@@ -183,7 +183,7 @@ async def list_chapter_materials(chapter_id: int, db: AsyncSession = Depends(get
 @router.get("/chapters/{chapter_id}/mcqs", response_model=list[MCQRead])
 async def list_chapter_mcqs(
     chapter_id: int,
-    limit: int = Query(default=30, ge=1, le=200),
+    limit: int = Query(default=20, ge=1, le=20),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db_session),
 ) -> list[MCQRead]:
