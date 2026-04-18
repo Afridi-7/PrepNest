@@ -112,14 +112,15 @@ async def get_dashboard_stats(
     user_accuracy = round((user_mcqs_solved / user_mcqs_attempted * 100) if user_mcqs_attempted > 0 else 0.0, 1)
 
     # ── Per-subject attempted breakdown (practice results only) ──
+    subj_label = func.coalesce(PracticeResult.subject_name, "General").label("subject_name")
     per_subject_rows = (await db.execute(
         select(
-            func.coalesce(PracticeResult.subject_name, "General").label("subject_name"),
+            subj_label,
             func.sum(PracticeResult.total_questions).label("attempted"),
             func.sum(PracticeResult.correct_answers).label("correct"),
         )
         .where(PracticeResult.user_id == current_user.id)
-        .group_by(func.coalesce(PracticeResult.subject_name, "General"))
+        .group_by(PracticeResult.subject_name)
         .order_by(func.sum(PracticeResult.total_questions).desc())
     )).all()
 
@@ -134,6 +135,7 @@ async def get_dashboard_stats(
 
     return DashboardStats(
         user_name=current_user.full_name or current_user.email.split("@")[0],
+        is_pro=current_user.is_pro or current_user.is_admin,
         total_subjects=len(rows),
         total_topics=total_topics,
         total_mcqs=total_mcqs,

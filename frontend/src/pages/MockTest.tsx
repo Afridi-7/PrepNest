@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock, ArrowRight, ArrowLeft, Play, Target, BookOpen, AlertCircle,
   Loader2, ChevronDown, CheckCircle2, XCircle, FileText, Send,
-  RotateCcw, Award, BarChart3, MessageSquare, PenLine,
+  RotateCcw, Award, BarChart3, MessageSquare, PenLine, Lock,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import {
@@ -69,12 +69,14 @@ const MockTestPage = () => {
 
   const fetchedRef = useRef(false);
   const TIME_LIMIT_MINUTES = 120; // 120 minutes for full mock test
+  const [isPro, setIsPro] = useState(true); // default true to avoid flash
 
   /* ── Preload categories ── */
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     apiClient.listUSATCategories().then(setCategories).catch(() => {});
+    apiClient.checkIsPro().then(setIsPro).catch(() => setIsPro(false));
     // Auto-select from URL params
     const cat = searchParams.get("category");
     if (cat) {
@@ -292,9 +294,19 @@ const MockTestPage = () => {
                   </div>
                 )}
 
-                <button onClick={startTest} disabled={!selectedCategory}
+                {!isPro && (
+                  <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-4">
+                    <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Pro Feature</p>
+                      <p className="text-xs text-amber-600">Mock tests are available for Pro users only. Upgrade to unlock full mock tests with AI-evaluated essays!</p>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={startTest} disabled={!selectedCategory || !isPro}
                   className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 py-4 text-base font-bold text-white shadow-xl shadow-blue-300/40 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500 hover:-translate-y-0.5 hover:shadow-2xl active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
-                  <Play className="h-5 w-5" /> Start Mock Test
+                  {!isPro ? <><Lock className="h-5 w-5" /> Upgrade to Pro</> : <><Play className="h-5 w-5" /> Start Mock Test</>}
                 </button>
               </div>
             </motion.div>

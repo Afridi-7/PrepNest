@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings,
-  Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut, Loader2, ChevronDown, FileText,
+  Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut, Loader2, ChevronDown, FileText, Lock,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
@@ -83,6 +83,9 @@ const Practice = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [fetchingMCQs, setFetchingMCQs] = useState(false);
+  const [isPro, setIsPro] = useState(true); // default true to avoid flash
+  const [testsToday, setTestsToday] = useState(0);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
 
   // Pre-fetched subjects per category for instant switching
   const subjectsCacheRef = useRef<Record<string, Subject[]>>({});
@@ -104,6 +107,18 @@ const Practice = () => {
           }).catch(() => {})
         )
       );
+    }).catch(() => {});
+  }, []);
+
+  // Fetch practice status (pro check + daily limit)
+  useEffect(() => {
+    if (!apiClient.isAuthenticated()) return;
+    apiClient.getPracticeStatus().then((status) => {
+      setIsPro(status.is_pro);
+      setTestsToday(status.tests_today);
+      setDailyLimitReached(!status.is_pro && status.tests_today >= 1);
+      // Force mcqCount to 10 for free users
+      if (!status.is_pro) setMcqCount(10);
     }).catch(() => {});
   }, []);
 
@@ -171,8 +186,14 @@ const Practice = () => {
       correct_answers: s,
       category: selectedCategory?.code,
       subject_name: selectedSubjectName === "All Subjects" ? undefined : selectedSubjectName,
+    }).then(() => {
+      // Update daily limit for free users
+      if (!isPro) {
+        setTestsToday((prev) => prev + 1);
+        setDailyLimitReached(true);
+      }
     }).catch(() => {});
-  }, [answers, questions, selectedCategory, selectedSubjectName]);
+  }, [answers, questions, selectedCategory, selectedSubjectName, isPro]);
 
   useEffect(() => {
     if (phase !== "quiz" || timeLimit === 0) return;
@@ -304,17 +325,25 @@ const Practice = () => {
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 block">Number of Questions</label>
                   <div className="flex flex-wrap gap-2">
-                    {mcqCountOptions.map(n => (
-                      <button key={n} onClick={() => setMcqCount(n)}
-                        className={`w-14 py-3 rounded-xl text-sm font-bold transition-all duration-200 border-2 ${
-                          mcqCount === n
-                            ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                        }`}>
-                        {n}
-                      </button>
-                    ))}
+                    {mcqCountOptions.map(n => {
+                      const locked = !isPro && n !== 10;
+                      return (
+                        <button key={n} onClick={() => !locked && setMcqCount(n)}
+                          disabled={locked}
+                          className={`relative w-14 py-3 rounded-xl text-sm font-bold transition-all duration-200 border-2 ${
+                            locked
+                              ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed"
+                              : mcqCount === n
+                                ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white border-transparent shadow-md shadow-blue-200"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                          }`}>
+                          {n}
+                          {locked && <Lock className="absolute top-0.5 right-0.5 h-3 w-3 text-slate-400" />}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {!isPro && <p className="mt-2 text-xs text-amber-600 font-medium">Free plan: 10 MCQs only. Upgrade to Pro for more!</p>}
                 </div>
 
                 {/* Time */}
@@ -361,9 +390,19 @@ const Practice = () => {
                   </div>
                 </div>
 
-                <button onClick={startQuiz} disabled={fetchingMCQs || !selectedCategory}
+                {dailyLimitReached && (
+                  <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-4">
+                    <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Daily limit reached</p>
+                      <p className="text-xs text-amber-600">Free users can take 1 practice test per day. Upgrade to Pro for unlimited tests!</p>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={startQuiz} disabled={fetchingMCQs || !selectedCategory || dailyLimitReached}
                   className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 py-4 text-base font-bold text-white shadow-xl shadow-blue-300/40 transition-all duration-200 hover:from-blue-500 hover:to-cyan-500 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-blue-400/50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-xl">
-                  {fetchingMCQs ? <><Loader2 className="h-5 w-5 animate-spin" /> Loading MCQs…</> : <><Play className="h-5 w-5" /> Start Test</>}
+                  {fetchingMCQs ? <><Loader2 className="h-5 w-5 animate-spin" /> Loading MCQs…</> : dailyLimitReached ? <><Lock className="h-5 w-5" /> Daily Limit Reached</> : <><Play className="h-5 w-5" /> Start Test</>}
                 </button>
               </div>
 
@@ -378,10 +417,16 @@ const Practice = () => {
                       <p className="mt-1 text-sm text-slate-500">
                         75 MCQs + 2 Essays — timed, AI-evaluated, with detailed feedback and results.
                       </p>
+                      {!isPro ? (
+                        <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-600">
+                          <Lock className="h-3.5 w-3.5" /> Pro feature — upgrade to unlock
+                        </div>
+                      ) : (
                       <button onClick={() => navigate(`/mock-test${selectedCategory ? `?category=${selectedCategory.code}` : ""}`)}
                         className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-300/30 transition-all duration-200 hover:from-cyan-500 hover:to-blue-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]">
                         <Play className="h-4 w-4" /> Take Interactive Test
                       </button>
+                      )}
                     </div>
                   </div>
                 </div>

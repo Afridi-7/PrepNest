@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_verified_user, rate_limit
+from app.api.deps import get_current_verified_user, get_current_pro_user, rate_limit
 from app.db.models import MockTest, User
 from app.db.session import get_db_session
 from app.schemas.content import MockTestGenerated, MockTestSubmit, MockTestResult
@@ -39,7 +39,7 @@ def _validate_category(category: str) -> str:
 )
 async def generate(
     payload: dict,
-    user: User = Depends(get_current_verified_user),
+    user: User = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db_session),
 ):
     category_code = payload.get("category_code", "")

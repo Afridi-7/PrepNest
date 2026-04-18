@@ -5,7 +5,7 @@ from app.api.deps import get_current_admin, get_current_user
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
 from app.models import User
-from app.schemas.user_crud import DeleteUserResponse, UserPublic
+from app.schemas.user_crud import DeleteUserResponse, SetProRequest, UserAdminView, UserPublic
 from app.schemas.user import UserResponse
 from app.services.user_crud_service import UserCrudService
 
@@ -20,6 +20,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse
         email=current_user.email,
         full_name=current_user.full_name,
         is_admin=current_user.is_admin,
+        is_pro=current_user.is_pro or current_user.is_admin,
         preferences=current_user.preferences or {},
         created_at=current_user.created_at,
     )
@@ -38,9 +39,37 @@ async def update_preferences(
         email=user.email,
         full_name=user.full_name,
         is_admin=user.is_admin,
+        is_pro=user.is_pro or user.is_admin,
         preferences=user.preferences or {},
         created_at=user.created_at,
     )
+
+
+@router.get("", response_model=list[UserAdminView])
+async def list_users(
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[UserAdminView]:
+    """Admin-only: list all users with their roles."""
+    repo = UserRepository(db)
+    users = await repo.list_all()
+    return [UserAdminView.model_validate(u) for u in users]
+
+
+@router.patch("/{user_id}/pro", response_model=UserAdminView)
+async def set_user_pro_status(
+    user_id: str,
+    body: SetProRequest,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> UserAdminView:
+    """Admin-only: grant or revoke Pro status for a user."""
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    updated = await repo.set_pro_status(user, body.is_pro)
+    return UserAdminView.model_validate(updated)
 
 
 @router.get("/{user_id}", response_model=UserPublic)

@@ -111,8 +111,19 @@ export interface UserProfile {
   email: string;
   full_name?: string | null;
   is_admin: boolean;
+  is_pro: boolean;
   is_verified: boolean;
   preferences: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface UserAdminView {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_admin: boolean;
+  is_pro: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -232,6 +243,7 @@ export interface SubjectAttemptedStat {
 
 export interface DashboardStats {
   user_name: string;
+  is_pro: boolean;
   total_subjects: number;
   total_topics: number;
   total_mcqs: number;
@@ -400,6 +412,23 @@ class ApiClient {
     } catch {
       return false;
     }
+  }
+
+  /** Check if user has pro access (cached via getCurrentUser) */
+  async checkIsPro(): Promise<boolean> {
+    if (!this.isAuthenticated()) return false;
+    try {
+      const profile = await this.getCurrentUser();
+      return profile.is_pro || profile.is_admin;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Get practice status for today (tests taken, pro status) */
+  async getPracticeStatus(): Promise<{ tests_today: number; is_pro: boolean }> {
+    const res = await this.request<{ tests_today: number; is_pro: boolean }>("/usat/practice-status");
+    return res;
   }
 
   private isTokenExpired(token: string): boolean {
@@ -572,7 +601,7 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || `API error: ${response.status}`);
+      throw new Error(error.detail || error.message || `API error: ${response.status}`);
     }
 
     if (!response.body) {
@@ -598,6 +627,16 @@ class ApiClient {
 
   async getCurrentUser(): Promise<UserProfile> {
     return this.request<UserProfile>("/users/me");
+  }
+
+  // ── Admin: User Management ──────────────────────────────────────────────
+
+  async listAllUsers(): Promise<UserAdminView[]> {
+    return this.request<UserAdminView[]>("/users");
+  }
+
+  async setUserProStatus(userId: string, isPro: boolean): Promise<UserAdminView> {
+    return this.request<UserAdminView>(`/users/${userId}/pro`, "PATCH", { is_pro: isPro });
   }
 
   async listSubjects(): Promise<Subject[]> {
@@ -1095,7 +1134,7 @@ class ApiClient {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || `API error: ${response.status}`);
+      throw new Error(error.detail || error.message || `API error: ${response.status}`);
     }
     if (!response.body) throw new Error("No response body");
     return response.body;

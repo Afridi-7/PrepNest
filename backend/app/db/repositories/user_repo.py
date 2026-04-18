@@ -97,3 +97,15 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def set_pro_status(self, user: User, is_pro: bool) -> User:
+        user.is_pro = is_pro
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def list_all(self, *, skip: int = 0, limit: int = 100) -> list[User]:
+        result = await self.db.execute(
+            select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())

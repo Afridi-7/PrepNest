@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Bot, User, BookOpen, Calculator, FileText, Loader2,
   Copy, Check, AlertCircle, Menu, X, Upload, Paperclip, Sparkles,
-  Trash2, GraduationCap, Lightbulb, PenTool,
+  Trash2, GraduationCap, Lightbulb, PenTool, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/services/api";
@@ -218,6 +218,8 @@ const AITutor = () => {
   const [attachments, setAttachments] = useState<Array<{ type: string; name: string; data: string }>>([]);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [aiMode, setAiMode] = useState<AiMode>("chat");
+  const [isPro, setIsPro] = useState(true);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const isMobile = useIsMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,6 +229,11 @@ const AITutor = () => {
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior, block: "end" }), 50);
+  }, []);
+
+  // Check pro status on mount
+  useEffect(() => {
+    apiClient.checkIsPro().then(setIsPro).catch(() => setIsPro(false));
   }, []);
 
   /* -- Persist / restore -- */
@@ -435,6 +442,10 @@ const AITutor = () => {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to get response";
+      // Detect daily limit 403
+      if (msg.includes("messages per day") || msg.includes("Upgrade to Pro")) {
+        setDailyLimitReached(true);
+      }
       setError(msg);
       setMessages(prev => prev.slice(0, -1));
       toast({ title: "Error", description: msg, variant: "destructive" });
@@ -681,9 +692,16 @@ const AITutor = () => {
                 </motion.div>
               )}
 
+              {dailyLimitReached && (
+                <div className="flex items-center gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 mb-2">
+                  <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                  <p className="text-xs font-semibold text-amber-700">Daily limit reached — free users can send up to 5 messages per day. Upgrade to Pro for unlimited!</p>
+                </div>
+              )}
+
               <form onSubmit={e => { e.preventDefault(); sendMessage(input); }} className="flex gap-2 items-end">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept="image/*,.pdf" className="hidden" />
-                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading || dailyLimitReached}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-500 transition hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40">
                   <Upload className="h-4 w-4" />
                 </button>
@@ -692,14 +710,14 @@ const AITutor = () => {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                  placeholder="Ask me anything about USAT or HAT preparation..."
-                  disabled={loading}
+                  placeholder={dailyLimitReached ? "Daily message limit reached — upgrade to Pro" : "Ask me anything about USAT or HAT preparation..."}
+                  disabled={loading || dailyLimitReached}
                   rows={1}
                   className="flex-1 min-h-[40px] max-h-[160px] resize-none rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition disabled:opacity-50"
                 />
-                <button type="submit" disabled={!input.trim() || loading}
+                <button type="submit" disabled={!input.trim() || loading || dailyLimitReached}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-300/40 transition hover:from-blue-500 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : dailyLimitReached ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>
             </div>

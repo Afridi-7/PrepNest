@@ -1,12 +1,14 @@
 from pathlib import Path
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, rate_limit
+from app.api.deps import get_current_user, rate_limit, is_user_pro
 from app.core.config import get_settings
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
@@ -50,6 +52,29 @@ async def list_usat_categories() -> list[USATCategoryRead]:
 import asyncio
 import re
 
+from jose import JWTError, jwt as jose_jwt
+from fastapi import Request
+
+_oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+
+
+async def get_optional_user(
+    token: Optional[str] = Depends(_oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db_session),
+) -> Optional[User]:
+    """Return current user if a valid token is present, else None."""
+    if not token:
+        return None
+    settings = get_settings()
+    try:
+        payload = jose_jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        user_id: str = payload.get("sub", "")
+        if not user_id:
+            return None
+    except JWTError:
+        return None
+    user = await db.get(User, user_id)
+    return user
 
 def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
@@ -71,6 +96,7 @@ async def get_subject_bulk_data(
     category: str,
     slug: str,
     db: AsyncSession = Depends(get_db_session),
+    current_user: Optional[User] = Depends(get_optional_user),
 ) -> SubjectBulkData:
     """Return subject + chapters + papers + tips + resources + user-notes in ONE request."""
     normalized_category = _validate_category(category)
@@ -92,10 +118,13 @@ async def get_subject_bulk_data(
         db.execute(select(UserNote).where(UserNote.subject_id == sid).order_by(UserNote.created_at.desc())),
     )
 
+    # Only pro users (or admins) can see past papers
+    user_is_pro = current_user is not None and is_user_pro(current_user)
+
     return SubjectBulkData(
         subject=SubjectRead.model_validate(matched),
         chapters=[TopicRead.model_validate(t) for t in chapters_q.scalars().all()],
-        papers=[PastPaperRead.model_validate(p) for p in papers_q.scalars().all()],
+        papers=[PastPaperRead.model_validate(p) for p in papers_q.scalars().all()] if user_is_pro else [],
         tips=[TipRead.model_validate(t) for t in tips_q.scalars().all()],
         resources=[SubjectResourceRead.model_validate(r) for r in resources_q.scalars().all()],
         user_notes=[UserNoteRead.model_validate(n) for n in notes_q.scalars().all()],
@@ -274,8 +303,12 @@ async def list_chapter_notes(
 
 @router.get("/subjects/{subject_id}/papers", response_model=list[PastPaperRead])
 async def list_subject_papers(
-    subject_id: int, db: AsyncSession = Depends(get_db_session)
+    subject_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> list[PastPaperRead]:
+    if not is_user_pro(current_user):
+        raise HTTPException(status_code=403, detail="Past papers require a Pro subscription.")
     subject = await db.get(Subject, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -374,6 +407,29 @@ async def list_subject_practice_mcqs(
 
 # ── Practice result submission ───────────────────────────────────────────────
 
+@router.get("/practice-status", response_model=dict)
+async def get_practice_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Return how many practice tests the user has taken today and their pro status."""
+    from app.db.models import PracticeResult
+    from datetime import datetime, timezone
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    count_result = await db.execute(
+        select(func.count()).select_from(PracticeResult).where(
+            PracticeResult.user_id == current_user.id,
+            PracticeResult.created_at >= today_start,
+        )
+    )
+    today_count = count_result.scalar() or 0
+    return {
+        "tests_today": today_count,
+        "is_pro": is_user_pro(current_user),
+    }
+
+
 @router.post("/practice-results", status_code=201)
 async def submit_practice_result(
     payload: PracticeResultCreate,
@@ -382,9 +438,25 @@ async def submit_practice_result(
 ):
     """Persist a completed practice quiz result for leaderboard tracking."""
     from app.db.models import PracticeResult
+    from datetime import datetime, timezone
 
     if payload.correct_answers > payload.total_questions:
         raise HTTPException(status_code=422, detail="correct_answers cannot exceed total_questions")
+
+    # Free users: max 1 practice test per day, max 10 MCQs per test
+    if not is_user_pro(current_user):
+        if payload.total_questions > 10:
+            raise HTTPException(status_code=403, detail="Free users can only take tests with up to 10 MCQs. Upgrade to Pro for more!")
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        count_result = await db.execute(
+            select(func.count()).select_from(PracticeResult).where(
+                PracticeResult.user_id == current_user.id,
+                PracticeResult.created_at >= today_start,
+            )
+        )
+        today_count = count_result.scalar() or 0
+        if today_count >= 1:
+            raise HTTPException(status_code=403, detail="Free users can take only 1 practice test per day. Upgrade to Pro for unlimited!")
 
     row = PracticeResult(
         user_id=current_user.id,

@@ -326,6 +326,7 @@ class SubjectAttemptedStat(BaseModel):
 
 class DashboardStats(BaseModel):
     user_name: str
+    is_pro: bool = False
     total_subjects: int
     total_topics: int
     total_mcqs: int

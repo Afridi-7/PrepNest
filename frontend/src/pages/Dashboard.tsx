@@ -37,8 +37,8 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Pro user (safe placeholder — defaults false if field missing) ──
-  const isProUser = (stats as any)?.is_pro === true;
+  // ── Pro user (admin always gets pro) ──
+  const isProUser = stats?.is_pro === true;
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
 
@@ -290,6 +290,7 @@ const Dashboard = () => {
 
               <div className="space-y-6">
                 {/* ── Daily Streak ── */}
+                {isProUser ? (
                 <motion.div
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -316,15 +317,27 @@ const Dashboard = () => {
                   <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
                     {streakData.current > 0 ? "🚀 Keep your streak alive! Miss a day and it resets." : "Start solving MCQs to build your streak!"}
                   </p>
-                  <ProFeatureLocked locked={!isProUser} label="Streak Insights · Pro">
                     <div className="mt-3 flex gap-1">
                       {[...Array(7)].map((_, i) => (
                         <div key={i} className={`h-5 flex-1 rounded ${i < streakData.current ? "bg-gradient-to-t from-orange-500 to-amber-400" : "bg-slate-100 dark:bg-slate-800"}`} />
                       ))}
                     </div>
                     <p className="mt-1 text-[10px] text-slate-400">Weekly activity</p>
-                  </ProFeatureLocked>
                 </motion.div>
+                ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="overflow-hidden rounded-2xl border border-amber-200/60 bg-white/90 p-5 shadow-lg backdrop-blur-sm dark:border-amber-500/20 dark:bg-slate-900/90 dark:shadow-black/20"
+                >
+                  <div className="flex flex-col items-center gap-2 py-3">
+                    <span className="text-2xl">🔒</span>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Streak Insights</p>
+                    <p className="text-xs text-slate-400 text-center">Upgrade to Pro to track your daily streak and build study habits!</p>
+                  </div>
+                </motion.div>
+                )}
 
                 <motion.div
                   initial={{ opacity: 0, y: 18 }}

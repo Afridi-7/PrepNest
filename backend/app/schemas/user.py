@@ -60,6 +60,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str | None
     is_admin: bool = False
+    is_pro: bool = False
     is_verified: bool = False
     preferences: dict
     created_at: datetime

@@ -1,10 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { PlusCircle, Trash2, Layers, FolderOpen, Pencil, Upload } from "lucide-react";
+import { PlusCircle, Trash2, Layers, FolderOpen, Pencil, Upload, Shield, Crown, Users, Search } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient, Material, Note, Resource, Subject, Topic } from "@/services/api";
+import { apiClient, Material, Note, Resource, Subject, Topic, type UserAdminView } from "@/services/api";
 
 const AdminContent = () => {
   const { toast } = useToast();
@@ -87,6 +87,19 @@ const AdminContent = () => {
   const [subjectNotesList, setSubjectNotesList] = useState<Note[]>([]);
   const [chapterNotesList, setChapterNotesList] = useState<Note[]>([]);
 
+  // ── User management state ──
+  const [allUsers, setAllUsers] = useState<UserAdminView[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [togglingPro, setTogglingPro] = useState<string | null>(null);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return allUsers;
+    const q = userSearch.toLowerCase();
+    return allUsers.filter(
+      (u) => u.email.toLowerCase().includes(q) || (u.full_name ?? "").toLowerCase().includes(q)
+    );
+  }, [allUsers, userSearch]);
+
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => a.name.localeCompare(b.name)),
     [subjects]
@@ -105,6 +118,11 @@ const AdminContent = () => {
 
     const topicCollections = await Promise.all(fetchedSubjects.map((s) => apiClient.listTopics(s.id)));
     setTopics(topicCollections.flat());
+
+    // Load user list for pro management
+    if (profile.is_admin) {
+      apiClient.listAllUsers().then(setAllUsers).catch(() => {});
+    }
   };
 
   const fetchedRef = useRef(false);
@@ -581,6 +599,17 @@ const AdminContent = () => {
     } finally {
       setActionBusy(null);
     }
+  };
+
+  const toggleProStatus = async (user: UserAdminView) => {
+    setTogglingPro(user.id);
+    try {
+      const updated = await apiClient.setUserProStatus(user.id, !user.is_pro);
+      setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
+      toast({ description: `${user.email} is now ${updated.is_pro ? "Pro" : "Free"}` });
+    } catch {
+      toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+    } finally { setTogglingPro(null); }
   };
 
   if (!apiClient.isAuthenticated()) {
@@ -1101,6 +1130,96 @@ const AdminContent = () => {
               </div>
             </section>
           </div>
+
+          {/* ═══════════════════════════════ USER / PRO MANAGEMENT ═══════════════════════════════ */}
+          <section className="mt-10 rounded-2xl border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 p-6 shadow-sm">
+            <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-xl font-bold">User Management</h2>
+                <span className="ml-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-600">{allUsers.length} users</span>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent transition"
+                  placeholder="Search by name or email..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {allUsers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Loading users...</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3 text-center">Role</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                      <th className="px-4 py-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id} className="bg-white hover:bg-slate-50/80 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-700">{u.full_name || "—"}</span>
+                            <span className="text-xs text-slate-400">{u.email}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {u.is_admin ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                              <Shield className="h-3 w-3" /> Admin
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">User</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {u.is_admin ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-100 to-blue-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                              <Crown className="h-3 w-3" /> Pro (Admin)
+                            </span>
+                          ) : u.is_pro ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-100 to-cyan-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                              <Crown className="h-3 w-3" /> Pro
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">Free</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {u.is_admin ? (
+                            <span className="text-xs text-slate-300">—</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant={u.is_pro ? "outline" : "default"}
+                              className={u.is_pro
+                                ? "border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                : "bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
+                              }
+                              disabled={togglingPro === u.id}
+                              onClick={() => toggleProStatus(u)}
+                            >
+                              {togglingPro === u.id ? "..." : u.is_pro ? "Revoke Pro" : "Grant Pro"}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
         </div>
       </div>
     </>

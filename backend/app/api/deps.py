@@ -55,3 +55,17 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
     return current_user
+
+
+def is_user_pro(user: User) -> bool:
+    """Return True if the user has pro access (paid or admin)."""
+    return bool(user.is_pro or user.is_admin)
+
+
+async def get_current_pro_user(current_user: User = Depends(get_current_user)) -> User:
+    if not is_user_pro(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This feature requires a Pro subscription.",
+        )
+    return current_user

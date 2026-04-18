@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ChevronDown, Download, Eye, FileText, Flame, Globe, Layers,
-  Lightbulb, Link2, ListChecks, Loader2, Plus, Trash2, Upload, X,
+  Lightbulb, Link2, ListChecks, Loader2, Lock, Plus, Trash2, Upload, X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
@@ -248,11 +248,13 @@ const USATSubjectChapters = () => {
   const [subjResUrl, setSubjResUrl] = useState("");
   const fetchedRef = useRef(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
+    apiClient.checkIsPro().then(setIsPro).catch(() => {});
   }, []);
 
   const lastFetchKey = useRef("");
@@ -819,7 +821,13 @@ const USATSubjectChapters = () => {
                   borderColor="border-orange-100"
                   shadowColor="shadow-orange-100/30"
                 >
-                  {subjectPapers.length === 0 ? (
+                  {!isPro && !isAdmin ? (
+                    <div className="flex flex-col items-center gap-2 py-4">
+                      <Lock className="h-6 w-6 text-amber-500" />
+                      <p className="text-sm font-bold text-slate-700">Pro Feature</p>
+                      <p className="text-xs text-slate-400 text-center">Past papers are available for Pro users only. Upgrade to unlock!</p>
+                    </div>
+                  ) : subjectPapers.length === 0 ? (
                     <p className="text-xs text-slate-400 mb-2">No past papers yet.</p>
                   ) : (
                     <div className="space-y-2 mb-2">

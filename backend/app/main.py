@@ -108,6 +108,7 @@ async def on_startup() -> None:
                 for table, column, col_def in [
                     ("contact_info", "whatsapp_url", "TEXT"),
                     ("users", "is_verified", "BOOLEAN DEFAULT FALSE"),
+                    ("users", "is_pro", "BOOLEAN DEFAULT FALSE"),
                     ("users", "google_id", "VARCHAR(255)"),
                     ("users", "verification_token", "VARCHAR(512)"),
                     ("users", "reset_password_token_hash", "VARCHAR(128)"),
@@ -128,6 +129,9 @@ async def on_startup() -> None:
                 )
                 await conn.execute(
                     text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
+                )
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_pro BOOLEAN DEFAULT FALSE")
                 )
                 await conn.execute(
                     text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE")
