@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +19,7 @@ import {
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/services/api";
 
 const features = [
   { icon: BookOpen, title: "Subject-Wise Learning", desc: "Structured content for USAT & HAT covering all subjects with topic breakdowns and curated resources." },
@@ -28,12 +30,10 @@ const features = [
   { icon: Layers, title: "Curated Materials", desc: "Notes, video links, cheat sheets, and resources aggregated from top educational sources." },
 ];
 
-const stats = [
-  { value: "10K+", label: "Students", icon: Users },
-  { value: "2000+", label: "Practice MCQs", icon: Target },
-  { value: "95%", label: "Success Rate", icon: Award },
-  { value: "24/7", label: "AI Support", icon: Zap },
-];
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}K+`;
+  return `${n}+`;
+}
 
 const testimonials = [
   { name: "Ayaan", exam: "USAT", quote: "PrepNest helped me score in the top 5%. The AI tutor explained concepts better than any textbook.", rating: 5 },
@@ -56,7 +56,25 @@ const fadeUp = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } }),
 };
 
-const Landing = () => (
+const Landing = () => {
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [mcqCount, setMcqCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    apiClient.getPublicStats().then((s) => {
+      setUserCount(s.users);
+      setMcqCount(s.mcqs);
+    }).catch(() => {});
+  }, []);
+
+  const stats = [
+    { value: userCount !== null ? formatCount(userCount) : "—", label: "Students", icon: Users },
+    { value: mcqCount !== null ? formatCount(mcqCount) : "—", label: "Practice MCQs", icon: Target },
+    { value: "95%", label: "Success Rate", icon: Award },
+    { value: "24/7", label: "AI Support", icon: Zap },
+  ];
+
+  return (
   <div className="min-h-screen bg-background text-foreground">
     <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-cyan-50/40 pb-16 pt-24 sm:pb-24 sm:pt-32 dark:from-slate-950 dark:to-slate-900">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_-20%,hsl(217_91%_60%/0.08),transparent)] dark:bg-[radial-gradient(ellipse_60%_50%_at_50%_-20%,hsl(213_94%_68%/0.12),transparent)]" />
@@ -259,6 +277,7 @@ const Landing = () => (
       </div>
     </footer>
   </div>
-);
+  );
+};
 
 export default Landing;

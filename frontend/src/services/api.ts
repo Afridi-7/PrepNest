@@ -431,6 +431,13 @@ class ApiClient {
     return res;
   }
 
+  /** Get real-time public platform stats (no auth needed) */
+  async getPublicStats(): Promise<{ users: number; mcqs: number }> {
+    const res = await fetch(`${API_BASE_URL}/public/stats`);
+    if (!res.ok) throw new Error("Failed to fetch stats");
+    return res.json();
+  }
+
   private isTokenExpired(token: string): boolean {
     try {
       const payloadBase64 = token.split(".")[1];

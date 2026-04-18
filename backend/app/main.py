@@ -5,12 +5,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, usat, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
+from app.db.models import MCQ, User
 from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
 from app.db.session import SessionLocal, database_url, engine
 from app.services.cache_service import cache_service
@@ -219,6 +220,18 @@ async def root() -> dict:
         "status": "ok",
         "docs": "/docs",
     }
+
+
+@app.get(f"{settings.api_prefix}/public/stats")
+async def public_stats() -> dict:
+    """Return real-time platform stats (public, no auth)."""
+    async with SessionLocal() as db:
+        user_count, mcq_count = (
+            await db.execute(select(func.count()).select_from(User))
+        ).scalar(), (
+            await db.execute(select(func.count()).select_from(MCQ))
+        ).scalar()
+    return {"users": user_count or 0, "mcqs": mcq_count or 0}
 
 
 app.include_router(auth.router, prefix=settings.api_prefix)
