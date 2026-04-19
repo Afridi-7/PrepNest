@@ -17,6 +17,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_pro: Mapped[bool] = mapped_column(Boolean, default=False)
+    subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    granted_by_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     verification_token: Mapped[str | None] = mapped_column(String(512), nullable=True)

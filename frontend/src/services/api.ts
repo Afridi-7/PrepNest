@@ -646,6 +646,14 @@ class ApiClient {
     return this.request<UserAdminView>(`/users/${userId}/pro`, "PATCH", { is_pro: isPro });
   }
 
+  async grantProByEmail(email: string, days: number = 30): Promise<{ success: boolean; email: string; expires_at: string; message: string }> {
+    return this.request("/admin/grant-pro-by-email", "POST", { email, days });
+  }
+
+  async revokeProByEmail(email: string): Promise<{ success: boolean; email: string; message: string }> {
+    return this.request("/admin/revoke-pro-by-email", "POST", { email });
+  }
+
   async listSubjects(): Promise<Subject[]> {
     return this.request<Subject[]>("/usat/subjects");
   }

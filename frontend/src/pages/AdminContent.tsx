@@ -92,6 +92,11 @@ const AdminContent = () => {
   const [userSearch, setUserSearch] = useState("");
   const [togglingPro, setTogglingPro] = useState<string | null>(null);
 
+  // ── Grant Pro by Email state ──
+  const [grantEmail, setGrantEmail] = useState("");
+  const [grantDays, setGrantDays] = useState(30);
+  const [grantLoading, setGrantLoading] = useState(false);
+
   const filteredUsers = useMemo(() => {
     if (!userSearch.trim()) return allUsers;
     const q = userSearch.toLowerCase();
@@ -612,6 +617,39 @@ const AdminContent = () => {
     } finally { setTogglingPro(null); }
   };
 
+  const handleGrantProByEmail = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = grantEmail.trim();
+    if (!trimmed || grantLoading) return;
+    setGrantLoading(true);
+    try {
+      const res = await apiClient.grantProByEmail(trimmed, grantDays);
+      toast({ description: res.message });
+      setGrantEmail("");
+      setGrantDays(30);
+      // refresh user list
+      try { setAllUsers(await apiClient.listAllUsers()); } catch { /* ignore */ }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to grant pro";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally { setGrantLoading(false); }
+  };
+
+  const handleRevokeProByEmail = async () => {
+    const trimmed = grantEmail.trim();
+    if (!trimmed || grantLoading) return;
+    setGrantLoading(true);
+    try {
+      const res = await apiClient.revokeProByEmail(trimmed);
+      toast({ description: res.message });
+      setGrantEmail("");
+      try { setAllUsers(await apiClient.listAllUsers()); } catch { /* ignore */ }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to revoke pro";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally { setGrantLoading(false); }
+  };
+
   if (!apiClient.isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
@@ -1130,6 +1168,53 @@ const AdminContent = () => {
               </div>
             </section>
           </div>
+
+          {/* ═══════════════════════════════ GRANT PRO BY EMAIL ═══════════════════════════════ */}
+          {isAdmin && (
+            <section className="mt-10 rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-white to-blue-50/40 p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-xl font-bold">Grant Pro Access</h2>
+                  <span className="rounded-full bg-gradient-to-r from-blue-100 to-cyan-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">Admin Only</span>
+                </div>
+                <p className="mb-4 text-sm text-muted-foreground">Grant or revoke Pro subscription by entering the user's email address.</p>
+                <form onSubmit={handleGrantProByEmail} className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
+                    type="email"
+                    placeholder="Enter user email"
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    required
+                  />
+                  <input
+                    className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    placeholder="Days"
+                    value={grantDays}
+                    onChange={(e) => setGrantDays(Number(e.target.value) || 30)}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={grantLoading || !grantEmail.trim()}
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50"
+                  >
+                    {grantLoading ? "Processing..." : "Grant Pro"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={grantLoading || !grantEmail.trim()}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleRevokeProByEmail}
+                  >
+                    {grantLoading ? "..." : "Revoke Pro"}
+                  </Button>
+                </form>
+            </section>
+          )}
 
           {/* ═══════════════════════════════ USER / PRO MANAGEMENT ═══════════════════════════════ */}
           <section className="mt-10 rounded-2xl border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 p-6 shadow-sm">

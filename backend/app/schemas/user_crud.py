@@ -29,5 +29,21 @@ class SetProRequest(BaseModel):
     is_pro: bool
 
 
+class GrantProByEmailRequest(BaseModel):
+    email: EmailStr
+    days: int = Field(default=30, ge=1, le=3650)
+
+
+class RevokeProByEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class GrantProResponse(BaseModel):
+    success: bool = True
+    email: str
+    expires_at: datetime
+    message: str
+
+
 class DeleteUserResponse(BaseModel):
     message: str

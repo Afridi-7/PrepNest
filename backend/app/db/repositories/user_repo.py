@@ -104,6 +104,24 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
+    async def grant_pro(
+        self, user: User, *, expires_at: datetime, granted_by_admin: bool = True
+    ) -> User:
+        user.is_pro = True
+        user.subscription_expires_at = expires_at
+        user.granted_by_admin = granted_by_admin
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def revoke_pro(self, user: User) -> User:
+        user.is_pro = False
+        user.subscription_expires_at = None
+        user.granted_by_admin = False
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
     async def list_all(self, *, skip: int = 0, limit: int = 100) -> list[User]:
         result = await self.db.execute(
             select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)

@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.services.supabase_storage import async_upload_bytes, make_key
 from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, User, EssayPrompt
 from app.db.session import get_db_session
+from app.db.repositories.user_repo import UserRepository
 from app.schemas.content import (
     MCQCreate,
     MCQRead,
@@ -1251,3 +1252,49 @@ async def mcq_stats(
     )
     rows = result.all()
     return [{"subject": s, "chapter": c, "mcqs": n} for s, c, n in rows]
+
+
+# ═══════════════════════════════ GRANT / REVOKE PRO ═══════════════════════════════
+
+from datetime import timedelta, timezone
+from app.schemas.user_crud import GrantProByEmailRequest, GrantProResponse, RevokeProByEmailRequest
+
+
+@router.post("/grant-pro-by-email", response_model=GrantProResponse)
+async def grant_pro_by_email(
+    body: GrantProByEmailRequest,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> GrantProResponse:
+    """Admin-only: grant Pro subscription to a user by email."""
+    repo = UserRepository(db)
+    user = await repo.get_by_email(body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from datetime import datetime as _dt
+
+    expires_at = _dt.now(timezone.utc) + timedelta(days=body.days)
+    await repo.grant_pro(user, expires_at=expires_at, granted_by_admin=True)
+
+    return GrantProResponse(
+        email=user.email,
+        expires_at=expires_at,
+        message=f"Pro access granted for {body.days} days",
+    )
+
+
+@router.post("/revoke-pro-by-email")
+async def revoke_pro_by_email(
+    body: RevokeProByEmailRequest,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Admin-only: revoke Pro subscription from a user by email."""
+    repo = UserRepository(db)
+    user = await repo.get_by_email(body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await repo.revoke_pro(user)
+    return {"success": True, "email": user.email, "message": "Pro access revoked"}

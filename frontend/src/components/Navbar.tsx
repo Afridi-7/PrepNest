@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Sparkles, Moon, Sun } from "lucide-react";
+import { Menu, X, Sparkles, Moon, Sun, Shield } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
@@ -19,6 +19,7 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { resolvedTheme, setTheme } = useTheme();
@@ -34,6 +35,14 @@ const Navbar = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiClient.checkIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false));
+    } else {
+      setIsAdmin(false);
+    }
+  }, [isAuthenticated]);
 
   const handleNav = (path: string) => {
     navigate(path);
@@ -91,6 +100,18 @@ const Navbar = () => {
               </button>
             );
           })}
+          {isAdmin && (
+            <button
+              onClick={() => handleNav("/admin")}
+              className={`flex items-center gap-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                location.pathname === "/admin"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-300/40 dark:shadow-amber-950/60"
+                  : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-amber-300"
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5" /> Admin
+            </button>
+          )}
         </div>
 
         <div className="hidden items-center gap-2.5 md:flex">
@@ -162,6 +183,18 @@ const Navbar = () => {
                   </button>
                 );
               })}
+              {isAdmin && (
+                <button
+                  onClick={() => handleNav("/admin")}
+                  className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all ${
+                    location.pathname === "/admin"
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-200 dark:shadow-amber-950/50"
+                      : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-amber-300"
+                  }`}
+                >
+                  <Shield className="h-4 w-4" /> Admin Panel
+                </button>
+              )}
               <button
                 onClick={toggleTheme}
                 className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:text-slate-100 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-100"
