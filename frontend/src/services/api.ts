@@ -681,6 +681,10 @@ class ApiClient {
     return this.request<Topic[]>(`/usat/subjects/${subjectId}/chapters`);
   }
 
+  async listAllTopics(): Promise<Topic[]> {
+    return this.request<Topic[]>(`/usat/all-topics`);
+  }
+
   async listMaterials(topicId: number): Promise<Material[]> {
     return this.request<Material[]>(`/usat/chapters/${topicId}/materials`);
   }

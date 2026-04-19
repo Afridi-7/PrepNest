@@ -40,7 +40,9 @@ if settings.cors_origin_regex:
 if settings.cors_origins:
     _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 else:
-    _origins = _default_origins
+    _origins = []
+# Always include production origins regardless of CORS_ORIGINS env var
+_origins = list(dict.fromkeys(_default_origins + _origins))
 if settings.app_env == "development":
     _origins = list(dict.fromkeys(_origins + _dev_origins))
 _cors_kwargs["allow_origins"] = _origins

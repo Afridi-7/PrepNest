@@ -121,8 +121,8 @@ const AdminContent = () => {
     const fetchedSubjects = await apiClient.listSubjects();
     setSubjects(fetchedSubjects);
 
-    const topicCollections = await Promise.all(fetchedSubjects.map((s) => apiClient.listTopics(s.id)));
-    setTopics(topicCollections.flat());
+    const allTopics = await apiClient.listAllTopics();
+    setTopics(allTopics);
 
     // Load user list for pro management
     if (profile.is_admin) {

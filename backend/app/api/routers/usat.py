@@ -156,6 +156,18 @@ async def list_all_usat_subjects(db: AsyncSession = Depends(get_db_session)) -> 
     return [SubjectRead.model_validate(item) for item in result.scalars().all()]
 
 
+@router.get("/all-topics", response_model=list[TopicRead])
+async def list_all_topics(db: AsyncSession = Depends(get_db_session)) -> list[TopicRead]:
+    """Return every topic (chapter) across all USAT subjects in one request."""
+    result = await db.execute(
+        select(Topic)
+        .join(Subject, Topic.subject_id == Subject.id)
+        .where(Subject.exam_type.in_(list(USAT_CATEGORIES.keys())))
+        .order_by(Topic.subject_id.asc(), Topic.created_at.desc())
+    )
+    return [TopicRead.model_validate(item) for item in result.scalars().all()]
+
+
 @router.get("/subjects/{subject_id}/chapters", response_model=list[TopicRead])
 async def list_subject_chapters(subject_id: int, db: AsyncSession = Depends(get_db_session)) -> list[TopicRead]:
     subject = await db.get(Subject, subject_id)
