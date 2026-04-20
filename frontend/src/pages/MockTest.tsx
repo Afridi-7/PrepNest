@@ -8,6 +8,7 @@ import {
   TrendingUp, AlertTriangle, Lightbulb, Sparkles, Star,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import ContentProtection from "@/components/ContentProtection";
 import {
   apiClient,
   type USATCategory,
@@ -184,6 +185,7 @@ const MockTestPage = () => {
       <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}
         message="Please log in to take a mock test." />
 
+      <ContentProtection>
       <div className="relative min-h-screen bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4 max-w-6xl">
@@ -740,6 +742,7 @@ const MockTestPage = () => {
 
         </div>
       </div>
+      </ContentProtection>
     </>
   );
 };

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
+import ContentProtection from "@/components/ContentProtection";
 import { apiClient, MCQ, PastPaper, Subject, SubjectResource, Tip, Topic, UserNote, API_ORIGIN } from "@/services/api";
 
 const slugify = (value: string) =>
@@ -451,6 +452,7 @@ const USATSubjectChapters = () => {
   return (
     <>
       <Navbar />
+      <ContentProtection>
       <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4">
@@ -965,6 +967,7 @@ const USATSubjectChapters = () => {
         )}
       </AnimatePresence>
 
+      </ContentProtection>
       <AuthRequiredDialog
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}

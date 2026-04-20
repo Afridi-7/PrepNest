@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { apiClient, MCQ, type Subject, type USATCategory } from "@/services/api";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
+import ContentProtection from "@/components/ContentProtection";
 
 /* ── Map DB MCQ → quiz-friendly shape ── */
 interface QuizQuestion {
@@ -286,6 +287,7 @@ const Practice = () => {
       <AuthRequiredDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}
         message="Please log in first to start a practice test." />
 
+      <ContentProtection>
       <div className="relative min-h-screen overflow-hidden bg-slate-50 pt-24 pb-20 dark:bg-background">
 
         <div className="container relative z-10 mx-auto px-4 max-w-6xl">
@@ -1194,6 +1196,7 @@ const Practice = () => {
           })()}
         </div>
       </div>
+      </ContentProtection>
     </>
   );
 };
