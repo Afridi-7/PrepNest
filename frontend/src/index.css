@@ -615,35 +615,6 @@
     --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   }
-}
-
-/* ═══════════════ Content Protection ═══════════════ */
-.content-protected {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-
-.content-protected img {
-  pointer-events: none;
-  -webkit-user-drag: none;
-}
-
-@media print {
-  .content-protected {
-    display: none !important;
-  }
-  body::after {
-    content: "Printing is not allowed for this content.";
-    display: block;
-    font-size: 2rem;
-    text-align: center;
-    padding: 4rem;
-    color: #666;
-  }
-}
   .dark .to-white { --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position); }
   .dark .from-blue-50,
   .dark .from-blue-50\/50 {
