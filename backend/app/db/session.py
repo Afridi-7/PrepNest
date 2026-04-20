@@ -36,6 +36,9 @@ database_url, connect_args = resolve_database_url(settings.database_url)
 engine = create_async_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
 SessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False, class_=AsyncSession)
 
+# Alias for use in non-FastAPI contexts (e.g. orchestrator agents)
+async_session_factory = SessionLocal
+
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:

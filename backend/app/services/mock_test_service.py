@@ -322,26 +322,61 @@ async def evaluate_mock_test(
     return result
 
 
-async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay: str, max_score: float = 10.0) -> tuple[float, str]:
-    """Use LLM to evaluate an essay. Returns (score, feedback_text).
+async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay: str, max_score: float = 10.0) -> tuple[float, str | dict]:
+    """Use LLM to evaluate an essay. Returns (score, feedback).
 
+    feedback is a rich dict with criteria scores, mistakes, and tips.
     Argumentative essays are scored out of 15, narrative out of 10.
     """
+    criteria_arg = (
+        '    "criteria": [\n'
+        '      {"name": "Thesis & Argument Strength", "score": <0-5>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Evidence & Support", "score": <0-3>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Structure & Organization", "score": <0-3>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Language & Grammar", "score": <0-2>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Critical Thinking", "score": <0-2>, "comment": "<1-2 sentences>"}\n'
+        "    ]"
+    )
+    criteria_nar = (
+        '    "criteria": [\n'
+        '      {"name": "Narrative & Storytelling", "score": <0-3>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Creativity & Imagination", "score": <0-2>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Structure & Flow", "score": <0-2>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Language & Grammar", "score": <0-2>, "comment": "<1-2 sentences>"},\n'
+        '      {"name": "Emotional Impact", "score": <0-1>, "comment": "<1-2 sentences>"}\n'
+        "    ]"
+    )
+    criteria_block = criteria_arg if essay_type == "argumentative" else criteria_nar
+
     system_prompt = (
-        "You are an expert exam evaluator for university entrance tests. "
-        "Evaluate the student's essay based on: relevance to the prompt, "
-        "coherence and structure, grammar and language quality, and argument quality. "
-        "Return ONLY a JSON object with two keys: "
-        f'"score" (a number from 0 to {max_score}, can use decimals like {max_score * 0.75:.1f}) and '
-        '"feedback" (a concise 2-4 sentence evaluation). '
-        "Do not include markdown formatting or code blocks."
+        "You are an expert USAT/HAT essay examiner. You give brutally honest but encouraging feedback. "
+        "Your job is to help students improve by identifying EXACT mistakes and giving actionable advice.\n\n"
+        "Return ONLY valid JSON (no markdown, no code blocks) with this structure:\n"
+        "{\n"
+        f'    "score": <number 0-{max_score}>,\n'
+        '    "overall_feedback": "<3-4 sentence overall assessment>",\n'
+        f"{criteria_block},\n"
+        '    "mistakes": [\n'
+        '      {"type": "grammar|spelling|logic|structure|style|vocabulary|coherence", '
+        '"quote": "<exact quote from essay>", "issue": "<what is wrong>", "fix": "<how to fix it>"}\n'
+        "    ],\n"
+        '    "strengths": ["<specific strength 1>", "<specific strength 2>"],\n'
+        '    "improvement_tips": ["<actionable tip 1>", "<actionable tip 2>", "<actionable tip 3>"]\n'
+        "}\n\n"
+        "IMPORTANT:\n"
+        "- In 'mistakes', quote the EXACT text from the essay that contains the error (max 15 words per quote).\n"
+        "- Include 3-8 mistakes sorted by severity. Cover grammar, spelling, logic, and style issues.\n"
+        "- 'strengths' should list 2-4 specific things the student did well.\n"
+        "- 'improvement_tips' should give 3-5 concrete, actionable tips for next time.\n"
+        "- Criteria scores must sum up to the overall score.\n"
+        "- Be specific, not vague. Say 'Your thesis lacks a clear counter-argument' not 'Could be better'."
     )
     user_prompt = (
         f"Essay type: {essay_type}\n"
         f"Maximum score: {max_score}\n\n"
-        f"Prompt: {prompt_text}\n\n"
-        f"Student's response:\n{user_essay[:3000]}\n\n"
-        f"Evaluate and return JSON with score (out of {max_score}) and feedback."
+        f"Prompt given to the student:\n\"{prompt_text}\"\n\n"
+        f"Student's essay:\n\"\"\"\n{user_essay[:4000]}\n\"\"\"\n\n"
+        "Evaluate thoroughly and return JSON."
     )
 
     try:
@@ -355,7 +390,15 @@ async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay:
             cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         data = json.loads(cleaned)
         score = min(max_score, max(0.0, float(data.get("score", 0))))
-        feedback = str(data.get("feedback", "Evaluation complete."))
+
+        # Build rich feedback dict
+        feedback = {
+            "overall_feedback": str(data.get("overall_feedback", "Evaluation complete.")),
+            "criteria": data.get("criteria", []),
+            "mistakes": data.get("mistakes", []),
+            "strengths": data.get("strengths", []),
+            "improvement_tips": data.get("improvement_tips", []),
+        }
         return score, feedback
     except Exception as e:
         logger.warning("AI essay evaluation failed: %s", e)

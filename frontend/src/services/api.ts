@@ -794,6 +794,36 @@ class ApiClient {
     await this.request<unknown>("/usat/practice-results", "POST", payload);
   }
 
+  // ── Essay Practice ───────────────────────────────────────────────────────
+
+  async getRandomEssayPrompt(essayType: "argumentative" | "narrative"): Promise<{
+    id: number;
+    essay_type: string;
+    prompt_text: string;
+    max_score: number;
+  }> {
+    return this.request(`/usat/essay-prompts/random?essay_type=${essayType}`);
+  }
+
+  async evaluateEssay(payload: {
+    essay_type: string;
+    prompt_text: string;
+    user_essay: string;
+  }): Promise<{
+    score: number;
+    max_score: number;
+    feedback: string | {
+      overall_feedback: string;
+      criteria: Array<{ name: string; score: number; comment: string }>;
+      mistakes: Array<{ type: string; quote: string; issue: string; fix: string }>;
+      strengths: string[];
+      improvement_tips: string[];
+    };
+    essay_type: string;
+  }> {
+    return this.request("/usat/essay-evaluate", "POST", payload);
+  }
+
   // ── Interactive Mock Tests ───────────────────────────────────────────────
 
   async generateMockTest(categoryCode: string): Promise<MockTestGenerated> {
@@ -1161,6 +1191,33 @@ class ApiClient {
 
   getToken(): string | null {
     return this.token || localStorage.getItem("access_token");
+  }
+
+  // ── Conversations (server-side history) ──────────────────────────────────
+
+  async listConversations(): Promise<Array<{
+    id: string;
+    title: string;
+    created_at: string;
+    updated_at: string | null;
+  }>> {
+    return this.request("/conversations");
+  }
+
+  async getConversation(conversationId: string): Promise<{
+    id: string;
+    title: string;
+    created_at: string;
+    updated_at: string | null;
+    messages: Array<{
+      id: string;
+      role: string;
+      content: string;
+      created_at: string;
+      metadata: Record<string, unknown>;
+    }>;
+  }> {
+    return this.request(`/conversations/${conversationId}`);
   }
 
   // ── Dashboard ────────────────────────────────────────────────────────────

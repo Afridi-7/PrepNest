@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, rate_limit, is_user_pro
 from app.core.config import get_settings
-from app.db.models import MCQ, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
+from app.db.models import MCQ, EssayPrompt, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
 from app.models import User
 from app.services.supabase_storage import async_upload_bytes, make_key
@@ -629,4 +629,70 @@ async def get_user_note_url(
 
     # Local file — fall back to the /view redirect endpoint
     return {"url": f"/api/usat/user-notes/{note_id}/view?token={token}"}
+
+
+# ── Essay Practice ───────────────────────────────────────────────────────────
+
+@router.get("/essay-prompts/random")
+async def get_random_essay_prompt(
+    essay_type: str = Query(..., description="argumentative or narrative"),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "essay_prompt")),
+):
+    """Return a random essay prompt of the given type."""
+    if essay_type not in ("argumentative", "narrative"):
+        raise HTTPException(status_code=400, detail="essay_type must be 'argumentative' or 'narrative'")
+
+    result = await db.execute(
+        select(EssayPrompt)
+        .where(EssayPrompt.essay_type == essay_type)
+        .order_by(func.random())
+        .limit(1)
+    )
+    prompt = result.scalars().first()
+    if not prompt:
+        raise HTTPException(status_code=404, detail="No essay prompts found for this type")
+
+    return {
+        "id": prompt.id,
+        "essay_type": prompt.essay_type,
+        "prompt_text": prompt.prompt_text,
+        "max_score": 15.0 if essay_type == "argumentative" else 10.0,
+    }
+
+
+@router.post("/essay-evaluate")
+async def evaluate_essay(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(20, "essay_eval")),
+):
+    """Evaluate a standalone essay submission with AI.
+
+    Expects: { essay_type, prompt_text, user_essay }
+    Returns: { score, max_score, feedback }
+    """
+    essay_type = payload.get("essay_type", "")
+    prompt_text = payload.get("prompt_text", "")
+    user_essay = payload.get("user_essay", "")
+
+    if essay_type not in ("argumentative", "narrative"):
+        raise HTTPException(status_code=400, detail="essay_type must be 'argumentative' or 'narrative'")
+    if not prompt_text.strip():
+        raise HTTPException(status_code=400, detail="prompt_text is required")
+    if not user_essay.strip():
+        raise HTTPException(status_code=400, detail="user_essay is required")
+
+    max_score = 15.0 if essay_type == "argumentative" else 10.0
+
+    from app.services.mock_test_service import _evaluate_essay_with_ai
+    score, feedback = await _evaluate_essay_with_ai(essay_type, prompt_text, user_essay, max_score)
+
+    return {
+        "score": score,
+        "max_score": max_score,
+        "feedback": feedback,
+        "essay_type": essay_type,
+    }
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings,
   Play, Target, BookOpen, AlertCircle, ArrowLeft, LogOut, Loader2, ChevronDown, FileText, Lock,
+  PenTool, Send, Star, MessageSquare, TrendingUp, Quote, Lightbulb, Award, Zap, AlertTriangle,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
@@ -63,7 +64,7 @@ const subjectPill = (s: string) => SUBJECT_PILLS[s]?.pill ?? "bg-slate-100 text-
 
 const Practice = () => {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<"config" | "quiz" | "result">("config");
+  const [phase, setPhase] = useState<"config" | "quiz" | "result" | "essay" | "essay-result">("config");
 
   const [categories, setCategories] = useState<USATCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<USATCategory | null>(null);
@@ -86,6 +87,25 @@ const Practice = () => {
   const [isPro, setIsPro] = useState(true); // default true to avoid flash
   const [testsToday, setTestsToday] = useState(0);
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
+
+  // Essay practice state
+  const [essayType, setEssayType] = useState<"argumentative" | "narrative">("argumentative");
+  const [essayPrompt, setEssayPrompt] = useState<{ id: number; essay_type: string; prompt_text: string; max_score: number } | null>(null);
+  const [essayText, setEssayText] = useState("");
+  const [essayResult, setEssayResult] = useState<{
+    score: number;
+    max_score: number;
+    feedback: string | {
+      overall_feedback: string;
+      criteria: Array<{ name: string; score: number; comment: string }>;
+      mistakes: Array<{ type: string; quote: string; issue: string; fix: string }>;
+      strengths: string[];
+      improvement_tips: string[];
+    };
+    essay_type: string;
+  } | null>(null);
+  const [essayLoading, setEssayLoading] = useState(false);
+  const [essayEvaluating, setEssayEvaluating] = useState(false);
 
   // Pre-fetched subjects per category for instant switching
   const subjectsCacheRef = useRef<Record<string, Subject[]>>({});
@@ -203,7 +223,7 @@ const Practice = () => {
   }, [phase, timeLeft, timeLimit, finishQuiz]);
 
   useEffect(() => {
-    if (phase === "quiz") window.scrollTo({ top: 0, behavior: "auto" });
+    if (phase === "quiz" || phase === "essay" || phase === "essay-result") window.scrollTo({ top: 0, behavior: "auto" });
   }, [phase]);
 
   const handleSelect = (i: number) => {
@@ -216,6 +236,41 @@ const Practice = () => {
   const nextQ = () => { if (currentQ < questions.length - 1) setCurrentQ(c => c + 1); };
   const prevQ = () => { if (currentQ > 0) setCurrentQ(c => c - 1); };
   const restart = () => setPhase("config");
+
+  const startEssay = async (type: "argumentative" | "narrative") => {
+    if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
+    setEssayType(type);
+    setEssayLoading(true);
+    setEssayText("");
+    setEssayResult(null);
+    try {
+      const prompt = await apiClient.getRandomEssayPrompt(type);
+      setEssayPrompt(prompt);
+      setPhase("essay");
+    } catch (err: any) {
+      alert(err.message || "Failed to load essay prompt");
+    } finally {
+      setEssayLoading(false);
+    }
+  };
+
+  const submitEssay = async () => {
+    if (!essayPrompt || !essayText.trim()) return;
+    setEssayEvaluating(true);
+    try {
+      const result = await apiClient.evaluateEssay({
+        essay_type: essayPrompt.essay_type,
+        prompt_text: essayPrompt.prompt_text,
+        user_essay: essayText,
+      });
+      setEssayResult(result);
+      setPhase("essay-result");
+    } catch (err: any) {
+      alert(err.message || "Failed to evaluate essay");
+    } finally {
+      setEssayEvaluating(false);
+    }
+  };
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
@@ -430,6 +485,64 @@ const Practice = () => {
                     </div>
                   </div>
                 </div>
+
+              {/* ── Essay Practice Card ── */}
+              <div className="mt-6 rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/30">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-200/40">
+                    <PenTool className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-extrabold text-slate-800">Essay Practice</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Write an essay and get instant AI feedback with detailed scoring.
+                    </p>
+                  </div>
+                </div>
+                {!isPro ? (
+                  <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-4">
+                    <Lock className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Pro Feature</p>
+                      <p className="text-xs text-amber-600">AI-evaluated essay practice is available for Pro users only. Upgrade to unlock!</p>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button onClick={() => startEssay("argumentative")} disabled={essayLoading}
+                    className="group relative rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-5 text-left transition-all duration-200 hover:border-violet-400 hover:shadow-lg hover:shadow-violet-200/40 hover:-translate-y-0.5 active:scale-[0.98]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-200 text-sm font-black text-violet-700">A</span>
+                      <span className="text-sm font-extrabold text-violet-800">Argumentative</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-3">Present and defend a position with evidence and reasoning.</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-violet-600">Max Score: 15</span>
+                      <ArrowRight className="h-4 w-4 text-violet-400 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </button>
+                  <button onClick={() => startEssay("narrative")} disabled={essayLoading}
+                    className="group relative rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 text-left transition-all duration-200 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-200/40 hover:-translate-y-0.5 active:scale-[0.98]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-200 text-sm font-black text-emerald-700">N</span>
+                      <span className="text-sm font-extrabold text-emerald-800">Narrative</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-3">Tell a story with vivid details, characters, and plot development.</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-600">Max Score: 10</span>
+                      <ArrowRight className="h-4 w-4 text-emerald-400 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </button>
+                </div>
+                {essayLoading && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-violet-600 font-semibold">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading essay prompt…
+                  </div>
+                )}
+                </>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -773,6 +886,312 @@ const Practice = () => {
               </div>
             </motion.div>
           )}
+
+          {/* ══════════ ESSAY WRITING ══════════ */}
+          {phase === "essay" && essayPrompt && (
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+
+              {/* header */}
+              <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-500 to-fuchsia-500 p-8 shadow-xl shadow-violet-400/20">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-3">
+                    <button onClick={restart}
+                      className="inline-flex items-center gap-1.5 rounded-xl border-2 border-white/25 bg-white/15 backdrop-blur-sm px-3 py-2 text-xs font-bold text-white transition hover:bg-white/25">
+                      <ArrowLeft className="h-3.5 w-3.5" /> Back
+                    </button>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-purple-100 backdrop-blur-sm">
+                      <PenTool className="h-3.5 w-3.5" /> {essayType === "argumentative" ? "Argumentative" : "Narrative"} Essay
+                    </span>
+                    <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-xs font-semibold text-purple-100 backdrop-blur-sm">
+                      <Star className="h-3.5 w-3.5" /> Max Score: {essayPrompt.max_score}
+                    </span>
+                  </div>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">Write Your Essay</h1>
+                  <p className="mt-1.5 text-sm text-purple-200">Read the prompt carefully, then write your response below.</p>
+                </div>
+              </div>
+
+              {/* prompt card */}
+              <div className="rounded-3xl border-2 border-violet-200 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="h-5 w-5 text-violet-500" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-violet-500">Essay Prompt</h3>
+                </div>
+                <p className="text-lg font-bold text-slate-900 leading-relaxed border-l-4 border-violet-400 pl-4">
+                  {essayPrompt.prompt_text}
+                </p>
+              </div>
+
+              {/* writing area */}
+              <div className="rounded-3xl border-2 border-slate-200 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Your Response</h3>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {essayText.trim().split(/\s+/).filter(Boolean).length} words
+                  </span>
+                </div>
+                <textarea
+                  value={essayText}
+                  onChange={(e) => setEssayText(e.target.value)}
+                  placeholder="Start writing your essay here…"
+                  className="w-full min-h-[320px] rounded-2xl border-2 border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200 transition-all resize-y"
+                />
+                <div className="mt-5 flex items-center gap-3">
+                  <button onClick={restart}
+                    className="flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100">
+                    <ArrowLeft className="h-4 w-4" /> Cancel
+                  </button>
+                  <div className="flex-1" />
+                  <button onClick={submitEssay}
+                    disabled={essayEvaluating || essayText.trim().split(/\s+/).filter(Boolean).length < 20}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-violet-300/40 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                    {essayEvaluating ? <><Loader2 className="h-4 w-4 animate-spin" /> Evaluating…</> : <><Send className="h-4 w-4" /> Submit for AI Evaluation</>}
+                  </button>
+                </div>
+                {essayText.trim().length > 0 && essayText.trim().split(/\s+/).filter(Boolean).length < 20 && (
+                  <p className="mt-3 text-xs text-amber-600 font-medium">Write at least 20 words to submit your essay.</p>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ══════════ ESSAY RESULT ══════════ */}
+          {phase === "essay-result" && essayResult && essayPrompt && (() => {
+            const fb = typeof essayResult.feedback === "object" ? essayResult.feedback : null;
+            const pctScore = (essayResult.score / essayResult.max_score) * 100;
+            const mistakeColors: Record<string, { bg: string; text: string; border: string }> = {
+              grammar: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+              spelling: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+              logic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+              structure: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+              style: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
+              vocabulary: { bg: "bg-cyan-50", text: "text-cyan-700", border: "border-cyan-200" },
+              coherence: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+            };
+            return (
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
+
+              {/* score hero */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-500 to-fuchsia-500 p-8 sm:p-12 text-center mb-6 shadow-xl shadow-violet-400/20">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_70%)]" />
+                <div className="relative z-10">
+                  {/* animated ring gauge */}
+                  <div className="mx-auto mb-6 relative h-44 w-44 sm:h-52 sm:w-52">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="12" />
+                      <motion.circle cx="60" cy="60" r="52" fill="none" stroke="white" strokeWidth="12"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 52}
+                        initial={{ strokeDashoffset: 2 * Math.PI * 52 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 52 * (1 - essayResult.score / essayResult.max_score) }}
+                        transition={{ duration: 1.4, ease: "easeOut", delay: 0.3 }} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <motion.span className="text-5xl sm:text-6xl font-black text-white drop-shadow-lg"
+                        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.7 }}>
+                        {essayResult.score}
+                      </motion.span>
+                      <span className="text-xs text-purple-200 mt-1 font-semibold">out of {essayResult.max_score}</span>
+                    </div>
+                  </div>
+
+                  <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
+                    className="text-2xl sm:text-3xl font-extrabold text-white mb-1">
+                    {pctScore >= 80 ? "🎉 Excellent Essay!" : pctScore >= 60 ? "👍 Good Work!" : pctScore >= 40 ? "💪 Keep Improving!" : "🔥 Keep Practicing!"}
+                  </motion.h2>
+                  <p className="text-purple-200 text-sm mb-3 capitalize">{essayResult.essay_type} Essay</p>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                    <button onClick={restart}
+                      className="flex items-center justify-center gap-2 rounded-2xl border-2 border-white/25 bg-white/15 backdrop-blur-sm px-6 py-3 text-sm font-bold text-white transition hover:bg-white/25">
+                      <Settings className="h-4 w-4" /> Back to Practice
+                    </button>
+                    <button onClick={() => startEssay(essayType)}
+                      className="flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-violet-700 shadow-xl transition hover:bg-violet-50">
+                      <RotateCcw className="h-4 w-4" /> Try Another
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overall AI Feedback */}
+              <div className="rounded-3xl border-2 border-violet-200 bg-white p-6 sm:p-8 shadow-lg shadow-violet-100/30 mb-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-200/40">
+                    <Star className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-extrabold text-slate-800">AI Feedback</h3>
+                    <p className="text-xs text-slate-400">Detailed evaluation of your essay</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-5 text-sm text-slate-700 leading-relaxed">
+                  {fb ? fb.overall_feedback : (typeof essayResult.feedback === "string" ? essayResult.feedback : "Evaluation complete.")}
+                </div>
+              </div>
+
+              {/* Criteria Breakdown */}
+              {fb && fb.criteria.length > 0 && (
+                <div className="rounded-3xl border-2 border-blue-200 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/20 mb-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-blue-200/40">
+                      <Target className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-800">Score Breakdown</h3>
+                      <p className="text-xs text-slate-400">Performance across each criteria</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {fb.criteria.map((c, i) => {
+                      const maxC = essayResult.essay_type === "argumentative"
+                        ? [5, 3, 3, 2, 2][i] ?? 3
+                        : [3, 2, 2, 2, 1][i] ?? 2;
+                      const pct = maxC > 0 ? (c.score / maxC) * 100 : 0;
+                      const barColor = pct >= 75 ? "from-emerald-400 to-emerald-500" : pct >= 50 ? "from-amber-400 to-amber-500" : "from-rose-400 to-rose-500";
+                      return (
+                        <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i + 0.3 }}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                            <span className={`text-sm font-black ${pct >= 75 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-rose-600"}`}>
+                              {c.score}/{maxC}
+                            </span>
+                          </div>
+                          <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden mb-2">
+                            <motion.div
+                              className={`h-full rounded-full bg-gradient-to-r ${barColor}`}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              transition={{ duration: 0.8, delay: 0.1 * i + 0.5, ease: "easeOut" }}
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">{c.comment}</p>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Strengths */}
+              {fb && fb.strengths.length > 0 && (
+                <div className="rounded-3xl border-2 border-emerald-200 bg-white p-6 sm:p-8 shadow-lg shadow-emerald-100/20 mb-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md shadow-emerald-200/40">
+                      <Award className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-800">What You Did Well</h3>
+                      <p className="text-xs text-slate-400">Keep doing these</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {fb.strengths.map((s, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i + 0.3 }}
+                        className="flex gap-3 items-start rounded-2xl border-2 border-emerald-100 bg-emerald-50/50 p-4">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                        <p className="text-sm text-slate-700 leading-relaxed">{s}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mistakes */}
+              {fb && fb.mistakes.length > 0 && (
+                <div className="rounded-3xl border-2 border-rose-200 bg-white p-6 sm:p-8 shadow-lg shadow-rose-100/20 mb-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-500 shadow-md shadow-rose-200/40">
+                      <AlertTriangle className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-800">Mistakes Found</h3>
+                      <p className="text-xs text-slate-400">Specific issues in your essay with fixes</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {fb.mistakes.map((m, i) => {
+                      const mColor = mistakeColors[m.type] || mistakeColors.grammar;
+                      return (
+                        <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * i + 0.3 }}
+                          className={`rounded-2xl border-2 ${mColor.border} ${mColor.bg} p-5`}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${mColor.bg} ${mColor.text} border ${mColor.border}`}>
+                              {m.type}
+                            </span>
+                          </div>
+                          {m.quote && (
+                            <div className="flex gap-2 items-start mb-3 rounded-xl bg-white/70 border border-slate-200 p-3">
+                              <Quote className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                              <p className="text-sm text-slate-600 italic">"{m.quote}"</p>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <div className="flex gap-2 items-start">
+                              <XCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                              <p className="text-sm text-slate-700"><span className="font-bold">Issue:</span> {m.issue}</p>
+                            </div>
+                            <div className="flex gap-2 items-start">
+                              <Zap className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                              <p className="text-sm text-slate-700"><span className="font-bold">Fix:</span> {m.fix}</p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Improvement Tips */}
+              {fb && fb.improvement_tips.length > 0 && (
+                <div className="rounded-3xl border-2 border-amber-200 bg-white p-6 sm:p-8 shadow-lg shadow-amber-100/20 mb-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-200/40">
+                      <Lightbulb className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-800">How to Improve</h3>
+                      <p className="text-xs text-slate-400">Actionable tips for your next essay</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {fb.improvement_tips.map((tip, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i + 0.3 }}
+                        className="flex gap-3 items-start rounded-2xl border-2 border-amber-100 bg-amber-50/50 p-4">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-[10px] font-black text-white mt-0.5">
+                          {i + 1}
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">{tip}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Prompt & Essay Review */}
+              <div className="rounded-3xl border-2 border-slate-100 bg-white p-6 sm:p-8 shadow-lg shadow-blue-100/20">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4">Your Submission</h3>
+
+                <div className="rounded-2xl border-2 border-violet-200 bg-violet-50/50 p-4 mb-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-violet-500 mb-2">Prompt</p>
+                  <p className="text-sm font-semibold text-slate-800 leading-relaxed">{essayPrompt.prompt_text}</p>
+                </div>
+
+                <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Your Essay</p>
+                    <span className="text-xs font-semibold text-slate-400">
+                      {essayText.trim().split(/\s+/).filter(Boolean).length} words
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{essayText}</p>
+                </div>
+              </div>
+            </motion.div>
+            );
+          })()}
         </div>
       </div>
     </>

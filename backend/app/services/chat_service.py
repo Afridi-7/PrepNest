@@ -52,6 +52,8 @@ class ChatService:
             recent_messages=[{"role": m.role, "content": m.content} for m in recent_messages],
             user_preferences=user.preferences if user else {},
             attachments=attachments or [],
+            user_name=user.full_name or "" if user else "",
+            user_email=user.email or "" if user else "",
         )
 
         result = await orchestrator.run(ctx)
@@ -98,22 +100,32 @@ class ChatService:
             recent_messages=[{"role": m.role, "content": m.content} for m in recent_messages],
             user_preferences=user.preferences if user else {},
             attachments=attachments or [],
+            user_name=user.full_name or "" if user else "",
+            user_email=user.email or "" if user else "",
         )
 
-        token_stream, metadata = await orchestrator.stream(ctx)
+        try:
+            token_stream, metadata = await orchestrator.stream(ctx)
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            return
 
         collected = []
-        async for token in token_stream:
-            collected.append(token)
-            yield f"data: {json.dumps({'type': 'token', 'value': token})}\n\n"
+        try:
+            async for token in token_stream:
+                collected.append(token)
+                yield f"data: {json.dumps({'type': 'token', 'value': token})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 
         answer = "".join(collected)
-        await self.message_repo.create(
-            conversation_id=conversation_id,
-            role="assistant",
-            content=answer,
-            metadata_json={"used_agents": metadata["used_agents"], "references": metadata["references"], "visuals": metadata["visuals"]},
-        )
+        if answer:
+            await self.message_repo.create(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=answer,
+                metadata_json={"used_agents": metadata["used_agents"], "references": metadata["references"], "visuals": metadata["visuals"]},
+            )
 
         done_payload = {
             "type": "done",

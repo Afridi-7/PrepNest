@@ -10,6 +10,8 @@ class AgentContext:
     recent_messages: list[dict] = field(default_factory=list)
     user_preferences: dict = field(default_factory=dict)
     attachments: list[dict] = field(default_factory=list)
+    user_name: str = ""
+    user_email: str = ""
 
 
 @dataclass

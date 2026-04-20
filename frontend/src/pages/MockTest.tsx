@@ -587,7 +587,35 @@ const MockTestPage = () => {
                         <p className="text-sm font-semibold text-slate-700 mb-3">{essay.prompt}</p>
                         <div className="rounded-lg bg-white border border-amber-200 p-4">
                           <div className="text-xs font-bold text-slate-500 mb-1">AI Feedback:</div>
-                          <p className="text-sm text-slate-700 leading-relaxed">{essay.feedback}</p>
+                          {typeof essay.feedback === "object" && essay.feedback !== null ? (
+                            <div className="space-y-2">
+                              <p className="text-sm text-slate-700 leading-relaxed">{essay.feedback.overall_feedback}</p>
+                              {essay.feedback.mistakes?.length > 0 && (
+                                <div className="mt-2 space-y-1.5">
+                                  <div className="text-xs font-bold text-rose-600">Key Mistakes:</div>
+                                  {essay.feedback.mistakes.slice(0, 3).map((m: any, mi: number) => (
+                                    <div key={mi} className="text-xs text-slate-600 flex gap-1.5 items-start">
+                                      <span className="text-rose-400 mt-px">•</span>
+                                      <span><span className="font-semibold capitalize">{m.type}:</span> {m.issue}{m.fix ? ` → ${m.fix}` : ""}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {essay.feedback.improvement_tips?.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  <div className="text-xs font-bold text-blue-600">Tips:</div>
+                                  {essay.feedback.improvement_tips.slice(0, 2).map((tip: string, ti: number) => (
+                                    <div key={ti} className="text-xs text-slate-600 flex gap-1.5 items-start">
+                                      <span className="text-blue-400 mt-px">•</span>
+                                      <span>{tip}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-700 leading-relaxed">{typeof essay.feedback === "string" ? essay.feedback : "Evaluation complete."}</p>
+                          )}
                         </div>
                         {essay.user_answer && (
                           <details className="mt-3">
