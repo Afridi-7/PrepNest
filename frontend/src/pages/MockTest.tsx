@@ -5,6 +5,7 @@ import {
   Clock, ArrowRight, ArrowLeft, Play, Target, BookOpen, AlertCircle,
   Loader2, ChevronDown, CheckCircle2, XCircle, FileText, Send,
   RotateCcw, Award, BarChart3, MessageSquare, PenLine, Lock,
+  TrendingUp, AlertTriangle, Lightbulb, Sparkles, Star,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import {
@@ -244,7 +245,7 @@ const MockTestPage = () => {
 
                 {/* Test info */}
                 {selectedCategory && (
-                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-blue-300 bg-blue-50 px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200/80 bg-blue-50 px-5 py-4">
                     <div className="flex items-center gap-2">
                       <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-200 text-[10px] font-black text-blue-800">{selectedCategory.code.split("-")[1]}</span>
                       <span className="text-sm font-bold text-blue-800">{selectedCategory.code}</span>
@@ -527,6 +528,100 @@ const MockTestPage = () => {
               </div>
 
               {/* MCQ Results */}
+              {/* AI Summary */}
+              {result.ai_summary && (
+                <div className="mb-6 rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-blue-50 p-6 shadow-lg">
+                  <h3 className="text-lg font-extrabold text-slate-800 mb-5 flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-violet-500" /> AI Performance Analysis
+                  </h3>
+
+                  {/* Overall verdict + performance level badge */}
+                  <div className="flex flex-wrap items-start gap-3 mb-5">
+                    <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                      result.ai_summary.performance_level === "Excellent" ? "bg-emerald-100 text-emerald-700 border border-emerald-300" :
+                      result.ai_summary.performance_level === "Good" ? "bg-blue-100 text-blue-700 border border-blue-300" :
+                      result.ai_summary.performance_level === "Average" ? "bg-amber-100 text-amber-700 border border-amber-300" :
+                      result.ai_summary.performance_level === "Needs Improvement" ? "bg-orange-100 text-orange-700 border border-orange-300" :
+                      "bg-rose-100 text-rose-700 border border-rose-300"
+                    }`}>
+                      <Star className="h-3 w-3" /> {result.ai_summary.performance_level}
+                    </span>
+                    <p className="text-sm text-slate-700 leading-relaxed flex-1">{result.ai_summary.overall_verdict}</p>
+                  </div>
+
+                  {/* Strong & Weak areas grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    {/* Strong areas */}
+                    {result.ai_summary.strong_areas?.length > 0 && (
+                      <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
+                        <h4 className="text-sm font-bold text-emerald-700 mb-3 flex items-center gap-1.5">
+                          <TrendingUp className="h-4 w-4" /> Strong Areas
+                        </h4>
+                        <div className="space-y-2">
+                          {result.ai_summary.strong_areas.map((s: any, i: number) => (
+                            <div key={i} className="flex gap-2 items-start">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="text-xs font-bold text-emerald-800">{s.area}</span>
+                                <p className="text-xs text-slate-600 mt-0.5">{s.detail}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Weak areas */}
+                    {result.ai_summary.weak_areas?.length > 0 && (
+                      <div className="rounded-2xl border-2 border-rose-200 bg-rose-50/60 p-4">
+                        <h4 className="text-sm font-bold text-rose-700 mb-3 flex items-center gap-1.5">
+                          <AlertTriangle className="h-4 w-4" /> Areas to Improve
+                        </h4>
+                        <div className="space-y-2">
+                          {result.ai_summary.weak_areas.map((w: any, i: number) => (
+                            <div key={i} className="flex gap-2 items-start">
+                              <XCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="text-xs font-bold text-rose-800">{w.area}</span>
+                                <p className="text-xs text-slate-600 mt-0.5">{w.detail}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Study plan */}
+                  {result.ai_summary.study_plan?.length > 0 && (
+                    <div className="rounded-2xl border border-slate-200/80 bg-blue-50/60 p-4 mb-4">
+                      <h4 className="text-sm font-bold text-blue-700 mb-3 flex items-center gap-1.5">
+                        <Lightbulb className="h-4 w-4" /> Recommended Study Plan
+                      </h4>
+                      <div className="space-y-2">
+                        {result.ai_summary.study_plan.map((tip: string, i: number) => (
+                          <div key={i} className="flex gap-2.5 items-start">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-200 text-[10px] font-black text-blue-800 mt-0.5">
+                              {i + 1}
+                            </span>
+                            <p className="text-xs text-slate-700 leading-relaxed">{tip}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Motivational note */}
+                  {result.ai_summary.motivational_note && (
+                    <div className="rounded-xl bg-gradient-to-r from-violet-100 to-blue-100 border border-violet-200 px-4 py-3">
+                      <p className="text-sm text-violet-800 font-medium italic text-center">
+                        "{result.ai_summary.motivational_note}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-lg">
                 <h3 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center gap-2">
                   <Target className="h-5 w-5 text-blue-500" /> MCQ Results

@@ -254,6 +254,7 @@ async def evaluate_mock_test(
                 mcq_results.append({
                     "question_id": q["id"],
                     "question": q["question"],
+                    "subject": q.get("subject", ""),
                     "selected": selected,
                     "correct": correct,
                     "is_correct": is_correct,
@@ -296,6 +297,18 @@ async def evaluate_mock_test(
     max_score = mcq_total + essay_max_sum
     percentage = round((total_score / max_score) * 100, 1) if max_score > 0 else 0
 
+    # Generate AI overall summary
+    ai_summary = await _generate_mock_test_summary(
+        category=mock_test.category,
+        mcq_results=mcq_results,
+        essay_results=essay_results,
+        mcq_correct=mcq_correct,
+        mcq_total=mcq_total,
+        essay_score_sum=essay_score_sum,
+        essay_max_sum=essay_max_sum,
+        percentage=percentage,
+    )
+
     result = {
         "mock_test_id": mock_test.id,
         "category": mock_test.category,
@@ -309,6 +322,7 @@ async def evaluate_mock_test(
         "essay_total": round(essay_max_sum, 1),
         "mcq_results": mcq_results,
         "essay_results": essay_results,
+        "ai_summary": ai_summary,
         "created_at": mock_test.created_at.isoformat() if mock_test.created_at else None,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -320,6 +334,110 @@ async def evaluate_mock_test(
     await db.commit()
 
     return result
+
+
+async def _generate_mock_test_summary(
+    *,
+    category: str,
+    mcq_results: list[dict],
+    essay_results: list[dict],
+    mcq_correct: int,
+    mcq_total: int,
+    essay_score_sum: float,
+    essay_max_sum: float,
+    percentage: float,
+) -> dict | None:
+    """Call LLM to produce an overall mock-test performance summary."""
+
+    # Build subject-wise MCQ breakdown
+    subject_stats: dict[str, dict] = {}
+    for r in mcq_results:
+        # Subject is not stored on result; derive from section label via question index
+        subj = "General"
+        subject_stats.setdefault(subj, {"correct": 0, "total": 0})
+        subject_stats[subj]["total"] += 1
+        if r["is_correct"]:
+            subject_stats[subj]["correct"] += 1
+
+    # Try to get per-subject data from the MCQ results
+    # Group by looking at question subjects if available
+    subject_stats_clean: dict[str, dict] = {}
+    for r in mcq_results:
+        subj = r.get("subject", "General")
+        if not subj:
+            subj = "General"
+        subject_stats_clean.setdefault(subj, {"correct": 0, "total": 0})
+        subject_stats_clean[subj]["total"] += 1
+        if r["is_correct"]:
+            subject_stats_clean[subj]["correct"] += 1
+
+    subject_summary = "\n".join(
+        f"- {subj}: {s['correct']}/{s['total']} correct ({round(s['correct']/s['total']*100) if s['total'] else 0}%)"
+        for subj, s in subject_stats_clean.items()
+    )
+
+    essay_summary = "\n".join(
+        f"- {e['essay_type'].capitalize()} essay: {e['score']}/{e['max_score']} "
+        f"({'skipped' if not e.get('user_answer', '').strip() else 'submitted'})"
+        for e in essay_results
+    )
+
+    system_prompt = (
+        "You are a supportive but honest exam performance analyst for USAT/HAT exam prep. "
+        "Given a student's mock test results, produce a helpful summary that identifies strengths, "
+        "weaknesses, and gives a concrete study plan.\n\n"
+        "Return ONLY valid JSON (no markdown, no code blocks) with this structure:\n"
+        "{\n"
+        '  "overall_verdict": "<2-3 sentence summary of overall performance>",\n'
+        '  "performance_level": "<one of: Excellent, Good, Average, Needs Improvement, Critical>",\n'
+        '  "strong_areas": [\n'
+        '    {"area": "<subject or skill>", "detail": "<why this is a strength>"}\n'
+        "  ],\n"
+        '  "weak_areas": [\n'
+        '    {"area": "<subject or skill>", "detail": "<what needs improvement and why>"}\n'
+        "  ],\n"
+        '  "study_plan": [\n'
+        '    "<specific actionable recommendation 1>",\n'
+        '    "<specific actionable recommendation 2>",\n'
+        '    "<specific actionable recommendation 3>"\n'
+        "  ],\n"
+        '  "motivational_note": "<a short encouraging message>"\n'
+        "}\n\n"
+        "IMPORTANT:\n"
+        "- Identify 2-4 strong areas and 2-4 weak areas based on the data.\n"
+        "- Study plan should have 3-5 specific, actionable items.\n"
+        "- Be specific: reference actual subjects and scores, not generic advice.\n"
+        "- If essay was skipped, mention the importance of attempting it."
+    )
+
+    user_prompt = (
+        f"Exam category: {category}\n"
+        f"Overall score: {percentage}%\n\n"
+        f"MCQ Performance ({mcq_correct}/{mcq_total}):\n{subject_summary}\n\n"
+        f"Essay Performance ({essay_score_sum}/{essay_max_sum}):\n{essay_summary}\n\n"
+        "Analyze and return JSON."
+    )
+
+    try:
+        raw = await llm_service.complete(
+            [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+            temperature=0.4,
+        )
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        data = json.loads(cleaned)
+        return {
+            "overall_verdict": str(data.get("overall_verdict", "")),
+            "performance_level": str(data.get("performance_level", "Average")),
+            "strong_areas": data.get("strong_areas", []),
+            "weak_areas": data.get("weak_areas", []),
+            "study_plan": data.get("study_plan", []),
+            "motivational_note": str(data.get("motivational_note", "")),
+        }
+    except Exception as e:
+        logger.warning("AI mock test summary generation failed: %s", e)
+        return None
 
 
 async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay: str, max_score: float = 10.0) -> tuple[float, str | dict]:

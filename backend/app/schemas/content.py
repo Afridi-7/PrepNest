@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -421,6 +421,7 @@ class MockTestSubmit(BaseModel):
 class MCQResult(BaseModel):
     question_id: int
     question: str
+    subject: str | None = None
     selected: str | None
     correct: str
     is_correct: bool
@@ -434,7 +435,7 @@ class EssayResult(BaseModel):
     user_answer: str
     score: float  # argumentative out of 15, narrative out of 10
     max_score: float
-    feedback: str
+    feedback: Any  # str (legacy) or dict with rich evaluation
 
 
 class MockTestResult(BaseModel):
@@ -450,5 +451,6 @@ class MockTestResult(BaseModel):
     essay_total: float
     mcq_results: list[MCQResult]
     essay_results: list[EssayResult]
+    ai_summary: Any | None = None
     created_at: str
     submitted_at: str | None

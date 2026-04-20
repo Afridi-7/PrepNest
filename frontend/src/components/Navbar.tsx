@@ -62,10 +62,10 @@ const Navbar = () => {
   return (
     <motion.nav
       initial={false}
-      className={`fixed top-0 left-0 right-0 z-50 border-b transition-shadow duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 border-b transition-all duration-300 ${
         scrolled
-          ? "border-blue-100 bg-white shadow-lg shadow-blue-100/30 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30"
-          : "border-blue-100 bg-white shadow-sm shadow-blue-100/20 dark:border-slate-900 dark:bg-slate-950 dark:shadow-black/20"
+          ? "border-slate-200/60 bg-white/80 shadow-lg shadow-slate-200/30 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80 dark:shadow-black/30 dark:backdrop-blur-xl"
+          : "border-slate-100/40 bg-white/60 shadow-sm backdrop-blur-lg dark:border-slate-900/40 dark:bg-slate-950/60 dark:shadow-black/20 dark:backdrop-blur-lg"
       }`}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -73,7 +73,7 @@ const Navbar = () => {
           <motion.div
             whileHover={{ scale: 1.08, rotate: 3 }}
             whileTap={{ scale: 0.95 }}
-            className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-lg shadow-blue-300/50"
+            className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-lg shadow-blue-400/40 transition-shadow hover:shadow-blue-400/60"
           >
             <img src="/logo.png" alt="PrepNest AI" className="h-full w-full rounded-lg object-contain" />
           </motion.div>
@@ -83,7 +83,7 @@ const Navbar = () => {
           </div>
         </Link>
 
-        <div className="hidden items-center gap-0.5 rounded-2xl border border-slate-100 bg-slate-50 px-1.5 py-1 dark:border-slate-800 dark:bg-slate-900 md:flex">
+        <div className="hidden items-center gap-0.5 rounded-2xl border border-slate-200/60 bg-slate-50/80 px-1.5 py-1 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-900/80 md:flex">
           {navLinks.map((link) => {
             const isActive = location.pathname === link.path;
             return (

@@ -362,6 +362,15 @@ export interface EssayResultItem {
   feedback: string;
 }
 
+export interface MockTestAISummary {
+  overall_verdict: string;
+  performance_level: string;
+  strong_areas: { area: string; detail: string }[];
+  weak_areas: { area: string; detail: string }[];
+  study_plan: string[];
+  motivational_note: string;
+}
+
 export interface MockTestResult {
   mock_test_id: string;
   category: string;
@@ -375,6 +384,7 @@ export interface MockTestResult {
   essay_total: number;
   mcq_results: MCQResultItem[];
   essay_results: EssayResultItem[];
+  ai_summary: MockTestAISummary | null;
   created_at: string;
   submitted_at: string | null;
 }

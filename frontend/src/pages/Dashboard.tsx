@@ -159,8 +159,11 @@ const Dashboard = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-7 shadow-xl shadow-blue-400/20"
+              className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-7 shadow-xl shadow-blue-500/20"
             >
+              {/* Decorative orbs */}
+              <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl" />
 
               <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -213,7 +216,7 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
+                  className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg hover-glow dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"
                 >
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-100">
@@ -258,7 +261,7 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="rounded-2xl border-2 border-amber-200 bg-white p-6 shadow-lg dark:border-amber-500/20 dark:bg-slate-900 dark:shadow-black/20"
+                  className="rounded-2xl border border-amber-200/80 bg-white p-6 shadow-lg hover-glow dark:border-amber-500/20 dark:bg-slate-900 dark:shadow-black/20"
                 >
                   <h2 className="mb-5 flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-100">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-500/15">
@@ -343,9 +346,9 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="overflow-hidden rounded-2xl border-2 border-cyan-200 bg-white shadow-lg dark:border-cyan-500/20 dark:bg-slate-900 dark:shadow-black/20"
+                  className="overflow-hidden rounded-2xl border border-cyan-200/80 bg-white shadow-lg hover-glow dark:border-cyan-500/20 dark:bg-slate-900 dark:shadow-black/20"
                 >
-                  <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3.5">
+                  <div className="bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 px-5 py-3.5">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-white">
                       <Brain className="h-4 w-4" /> Smart Suggestions
                     </h2>
@@ -370,9 +373,9 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-lg dark:border-amber-500/25 dark:bg-slate-900 dark:shadow-black/20"
+                  className="overflow-hidden rounded-2xl border border-amber-300/80 bg-white shadow-lg hover-glow dark:border-amber-500/25 dark:bg-slate-900 dark:shadow-black/20"
                 >
-                  <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 px-5 py-3.5">
+                  <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-5 py-3.5">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-white">
                       <Trophy className="h-4 w-4" /> Top Students Leaderboard
                     </h2>

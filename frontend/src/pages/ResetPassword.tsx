@@ -120,9 +120,9 @@ const ResetPassword = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-blue-200 bg-white/95 p-6 shadow-2xl shadow-blue-200/30 dark:border-blue-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-2xl shadow-slate-200/40 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
         >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-cyan-500" />
 
           <div className="mb-8">
             <button

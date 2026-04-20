@@ -119,8 +119,10 @@ const Signup = () => {
     <div className="relative flex min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 items-center justify-center p-12 gradient-primary">
-        <div className="absolute inset-0 pattern-dots opacity-20" />
-        <div className="absolute inset-0 pattern-grid opacity-10" />
+        <div className="absolute inset-0 pattern-dots opacity-15" />
+        <div className="absolute inset-0 pattern-grid opacity-8" />
+        <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-white/10 blur-3xl blob-float-1" />
+        <div className="absolute bottom-1/4 right-1/4 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl blob-float-2" />
         <div className="absolute top-10 left-10 rounded-full border border-white/40 bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
           Built for USAT/HAT
         </div>
@@ -144,20 +146,21 @@ const Signup = () => {
           <h2 className="mb-4 font-heading text-4xl font-bold text-white drop-shadow-lg">Join PrepNest</h2>
           <p className="mx-auto max-w-sm text-lg text-white/90">Start your journey to ace the USAT & HAT exams with personalized AI assistance.</p>
           <div className="mt-8 grid grid-cols-3 gap-2 text-xs text-white/95">
-            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><Rocket className="mx-auto mb-1 h-4 w-4" />Momentum</div>
-            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><Target className="mx-auto mb-1 h-4 w-4" />Focus</div>
-            <div className="rounded-xl border border-white/30 bg-white/15 p-3 backdrop-blur"><Sparkles className="mx-auto mb-1 h-4 w-4" />Growth</div>
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm transition-all hover:bg-white/20"><Rocket className="mx-auto mb-1 h-4 w-4" />Momentum</div>
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm transition-all hover:bg-white/20"><Target className="mx-auto mb-1 h-4 w-4" />Focus</div>
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm transition-all hover:bg-white/20"><Sparkles className="mx-auto mb-1 h-4 w-4" />Growth</div>
           </div>
         </motion.div>
       </div>
 
       <div className="relative z-10 flex flex-1 items-center justify-center p-4 sm:p-6">
+        <div className="absolute top-1/3 right-0 h-72 w-72 rounded-full bg-blue-100/50 blur-3xl dark:bg-blue-500/5 lg:hidden" />
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-blue-200 bg-white/95 p-6 shadow-2xl shadow-blue-200/30 dark:border-blue-500/20 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-2xl shadow-slate-200/40 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/92 dark:shadow-black/30 sm:p-7"
         >
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-cyan-500" />
           {signupDone ? (
             <div className="py-4 text-center">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" as const, stiffness: 200, damping: 15 }}>
