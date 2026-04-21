@@ -489,6 +489,16 @@ const AdminContent = () => {
     }
   };
 
+  const onPurgeQuantitativeMCQs = async () => {
+    if (!window.confirm("Delete ALL MCQs under every 'Quantitative Reasoning' subject (across all exam types)?\nSubjects and chapters stay — only MCQs are removed. This cannot be undone.")) return;
+    try {
+      const result = await apiClient.purgeSubjectMCQs("Quantitative Reasoning");
+      toast({ description: `Deleted ${result.deleted} MCQs from ${result.subjects} subject(s) / ${result.topics} chapter(s).` });
+    } catch (error: any) {
+      toast({ title: "Purge failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   const onEditSubject = (subject: Subject) => {
     setEditSubjectId(subject.id);
     setEditSubjectName(subject.name);
@@ -679,6 +689,7 @@ const AdminContent = () => {
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="outline" onClick={onDedupeSubjects}>Remove Duplicate Subjects</Button>
               <Button variant="destructive" onClick={onPurgePlaceholderMCQs}>Delete Placeholder MCQs</Button>
+              <Button variant="destructive" onClick={onPurgeQuantitativeMCQs}>Clear Quantitative Reasoning MCQs</Button>
             </div>
           </div>
 

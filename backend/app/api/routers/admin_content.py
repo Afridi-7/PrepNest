@@ -743,6 +743,37 @@ async def purge_placeholder_mcqs(
     return {"deleted": result.rowcount}
 
 
+@router.delete("/purge-subject-mcqs", status_code=status.HTTP_200_OK)
+async def purge_subject_mcqs(
+    subject_name: str,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Delete all MCQs belonging to every subject whose name matches subject_name (case-insensitive)."""
+    # Find matching subject IDs
+    subj_result = await db.execute(
+        select(Subject.id).where(Subject.name.ilike(subject_name.strip()))
+    )
+    subject_ids = [row[0] for row in subj_result.all()]
+    if not subject_ids:
+        raise HTTPException(status_code=404, detail=f"No subjects found with name '{subject_name}'")
+
+    # Find topic IDs under those subjects
+    topic_result = await db.execute(
+        select(Topic.id).where(Topic.subject_id.in_(subject_ids))
+    )
+    topic_ids = [row[0] for row in topic_result.all()]
+    if not topic_ids:
+        return {"deleted": 0, "subjects": len(subject_ids), "topics": 0}
+
+    # Delete all MCQs under those topics
+    del_result = await db.execute(
+        delete(MCQ).where(MCQ.topic_id.in_(topic_ids))
+    )
+    await db.commit()
+    return {"deleted": del_result.rowcount, "subjects": len(subject_ids), "topics": len(topic_ids)}
+
+
 # ── Resource CRUD ─────────────────────────────────────────────────────────────
 
 @router.post("/resources", response_model=ResourceRead, status_code=status.HTTP_201_CREATED)

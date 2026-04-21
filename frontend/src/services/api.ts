@@ -1174,6 +1174,10 @@ class ApiClient {
     return this.request("/admin/purge-placeholder-mcqs", "DELETE");
   }
 
+  async purgeSubjectMCQs(subjectName: string): Promise<{ deleted: number; subjects: number; topics: number }> {
+    return this.request(`/admin/purge-subject-mcqs?subject_name=${encodeURIComponent(subjectName)}`, "DELETE");
+  }
+
   async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {
     return this.request<AIResponse>("/ai/chat", "POST", { question, include_web: includeWeb });
   }
