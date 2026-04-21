@@ -553,6 +553,13 @@ async def create_mcq(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
+    existing_result = await db.execute(
+        select(MCQ).where(MCQ.topic_id == payload.topic_id, MCQ.question == payload.question)
+    )
+    existing_mcq = existing_result.scalars().first()
+    if existing_mcq:
+        return MCQRead.model_validate(existing_mcq)
+
     mcq = MCQ(
         question=payload.question,
         option_a=payload.option_a,
@@ -1056,6 +1063,13 @@ async def upload_mcq_csv(
             continue
 
         topic_id = await resolve_topic(subject_name, chapter_title)
+
+        dup_result = await db.execute(
+            select(MCQ).where(MCQ.topic_id == topic_id, MCQ.question == question)
+        )
+        if dup_result.scalars().first():
+            skipped += 1
+            continue
 
         mcqs_to_insert.append(
             MCQ(
