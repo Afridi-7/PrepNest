@@ -945,16 +945,27 @@ class ApiClient {
     examType = "USAT-E"
   ): Promise<{ created: number; skipped: number; total_rows: number }> {
     const apiUrl = `${API_BASE_URL}/admin/mcqs/upload-csv`;
-    const form = new FormData();
-    form.append("exam_type", examType);
-    form.append("file", file);
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: this.getAuthHeaders(),
-      mode: "cors",
-      body: form,
-    });
+    const doUpload = async () => {
+      const form = new FormData();
+      form.append("exam_type", examType);
+      form.append("file", file);
+      return fetch(apiUrl, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        mode: "cors",
+        body: form,
+      });
+    };
+
+    let response: Response;
+    try {
+      response = await doUpload();
+    } catch {
+      // Server may have been sleeping (Render cold start) — wait and retry once
+      await new Promise((r) => setTimeout(r, 4000));
+      response = await doUpload();
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ message: response.statusText }));
