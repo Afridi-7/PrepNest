@@ -252,22 +252,7 @@ async def _seed_usat_blueprint(db: AsyncSession) -> dict:
                     )
                     created_materials += 1
 
-                question = f"USAT sample MCQ: key concept from {topic_title}?"
-                mcq_result = await db.execute(select(MCQ).where(MCQ.topic_id == topic.id, MCQ.question == question))
-                if not mcq_result.scalars().first():
-                    db.add(
-                        MCQ(
-                            question=question,
-                            option_a="Core principle",
-                            option_b="Secondary detail",
-                            option_c="Unrelated statement",
-                            option_d="Partially correct statement",
-                            correct_answer="A",
-                            explanation=f"The core principle is the most accurate answer for {topic_title}.",
-                            topic_id=topic.id,
-                        )
-                    )
-                    created_mcqs += 1
+                # No placeholder MCQs — real MCQs are uploaded via CSV
 
             for tip_text in subject_entry.get("tips", []):
                 tip_result = await db.execute(
@@ -745,6 +730,19 @@ async def dedupe_subjects(
     }
 
 
+@router.delete("/purge-placeholder-mcqs", status_code=status.HTTP_200_OK)
+async def purge_placeholder_mcqs(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Delete all auto-generated placeholder MCQs created by the seed function."""
+    result = await db.execute(
+        delete(MCQ).where(MCQ.question.like("USAT sample MCQ: key concept from %"))
+    )
+    await db.commit()
+    return {"deleted": result.rowcount}
+
+
 # ── Resource CRUD ─────────────────────────────────────────────────────────────
 
 @router.post("/resources", response_model=ResourceRead, status_code=status.HTTP_201_CREATED)
@@ -1048,7 +1046,10 @@ async def upload_mcq_csv(
 
     # Determine which exam types to target
     exam_type_normalized = exam_type.strip().upper()
-    target_exam_types = ALL_USAT_EXAM_TYPES if exam_type_normalized == "ALL" else [exam_type_normalized]
+    _VALID_UPLOAD_TYPES = frozenset(ALL_USAT_EXAM_TYPES)
+    if exam_type_normalized not in _VALID_UPLOAD_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid exam_type '{exam_type}'. Must be one of: {', '.join(sorted(_VALID_UPLOAD_TYPES))}")
+    target_exam_types = [exam_type_normalized]
 
     # Cache resolved subjects & chapters per exam_type to avoid repeated DB lookups
     subject_cache: dict[tuple[str, str], Subject] = {}  # (exam_type, subject_name_lower) -> Subject

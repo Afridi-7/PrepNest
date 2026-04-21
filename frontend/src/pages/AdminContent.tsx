@@ -69,7 +69,7 @@ const AdminContent = () => {
   const [noteChapterId, setNoteChapterId] = useState<number | "">("");
 
   // MCQ CSV upload form
-  const [csvExamType, setCsvExamType] = useState("ALL");
+  const [csvExamType, setCsvExamType] = useState("USAT-M");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Essay CSV upload form
@@ -479,6 +479,16 @@ const AdminContent = () => {
     }
   };
 
+  const onPurgePlaceholderMCQs = async () => {
+    if (!window.confirm("Delete all auto-generated placeholder MCQs (\"USAT sample MCQ: key concept from...\")?\nThis cannot be undone.")) return;
+    try {
+      const result = await apiClient.purgePlaceholderMCQs();
+      toast({ description: `Deleted ${result.deleted} placeholder MCQs.` });
+    } catch (error: any) {
+      toast({ title: "Purge failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   const onEditSubject = (subject: Subject) => {
     setEditSubjectId(subject.id);
     setEditSubjectName(subject.name);
@@ -668,6 +678,7 @@ const AdminContent = () => {
             <p className="text-muted-foreground">Create subjects, chapters, materials, and MCQs for learners.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="outline" onClick={onDedupeSubjects}>Remove Duplicate Subjects</Button>
+              <Button variant="destructive" onClick={onPurgePlaceholderMCQs}>Delete Placeholder MCQs</Button>
             </div>
           </div>
 
@@ -833,7 +844,6 @@ const AdminContent = () => {
                 Column name aliases are supported (e.g. <code className="bg-slate-100 px-1 rounded text-[11px]">sentence</code> → question, <code className="bg-slate-100 px-1 rounded text-[11px]">topic</code> → chapter, <code className="bg-slate-100 px-1 rounded text-[11px]">answer</code> → correct_answer).
               </p>
               <select className="w-full border rounded-lg px-3 py-2" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
-                <option value="ALL">ALL Categories (add to every category)</option>
                 <option value="USAT-E">USAT-E (Pre-Engineering)</option>
                 <option value="USAT-M">USAT-M (Pre-Medical)</option>
                 <option value="USAT-CS">USAT-CS (Computer Science)</option>

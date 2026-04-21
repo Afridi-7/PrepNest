@@ -114,7 +114,6 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
     _CACHEABLE_PREFIXES = (
         f"{settings.api_prefix}/usat/categories",
-        f"{settings.api_prefix}/usat/",
     )
 
     async def dispatch(self, request: StarletteRequest, call_next):
