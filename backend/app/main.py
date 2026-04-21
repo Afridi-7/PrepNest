@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -28,23 +29,58 @@ _default_origins = [
     "https://prepnestai.app",
     "https://www.prepnestai.app",
 ]
-_dev_origins = ["http://localhost:5173", "http://localhost:8080", "http://localhost:8081"]
+_local_origin_regex = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
+
+
+def _normalize_origin(origin: str | None) -> str | None:
+    if origin is None:
+        return None
+
+    value = origin.strip().rstrip("/")
+    if not value:
+        return None
+
+    if "://" not in value:
+        value = f"http://{value}"
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+
+    if not parsed.scheme or not parsed.netloc:
+        return None
+
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _build_cors_origin_regex(configured_regex: str | None) -> str:
+    loopback_pattern = f"(?:{_local_origin_regex})"
+    if not configured_regex:
+        return loopback_pattern
+
+    return f"(?:{configured_regex})|{loopback_pattern}"
 
 _cors_kwargs: dict = {
     "allow_credentials": True,
     "allow_methods": ["*"],
     "allow_headers": ["*"],
 }
-if settings.cors_origin_regex:
-    _cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+_cors_kwargs["allow_origin_regex"] = _build_cors_origin_regex(settings.cors_origin_regex)
+
+_configured_origins = []
+if settings.frontend_url:
+    _configured_origins.append(settings.frontend_url)
 if settings.cors_origins:
-    _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
-else:
-    _origins = []
-# Always include production origins regardless of CORS_ORIGINS env var
-_origins = list(dict.fromkeys(_default_origins + _origins))
-if settings.app_env == "development":
-    _origins = list(dict.fromkeys(_origins + _dev_origins))
+    _configured_origins.extend(settings.cors_origins.split(","))
+
+_origins = list(
+    dict.fromkeys(
+        origin
+        for origin in (_normalize_origin(origin) for origin in [*_default_origins, *_configured_origins])
+        if origin
+    )
+)
 _cors_kwargs["allow_origins"] = _origins
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
