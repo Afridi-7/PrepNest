@@ -949,6 +949,7 @@ async def delete_paper(
 
 MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option4", "correct_answer", "subject", "chapter"}
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
+ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"]
 
 
 @router.post("/mcqs/upload-csv", status_code=status.HTTP_200_OK)
@@ -996,25 +997,29 @@ async def upload_mcq_csv(
             detail=f"CSV missing required columns: {', '.join(sorted(missing_cols))}",
         )
 
-    # Cache resolved subjects & chapters to avoid repeated DB lookups
-    subject_cache: dict[str, Subject] = {}  # subject_name -> Subject
-    topic_cache: dict[tuple[int, str], Topic] = {}  # (subject_id, chapter_title) -> Topic
+    # Determine which exam types to target
+    exam_type_normalized = exam_type.strip().upper()
+    target_exam_types = ALL_USAT_EXAM_TYPES if exam_type_normalized == "ALL" else [exam_type_normalized]
 
-    async def resolve_topic(subject_name: str, chapter_title: str) -> int:
-        """Return topic_id, creating subject/topic if needed."""
-        s_key = subject_name.lower()
+    # Cache resolved subjects & chapters per exam_type to avoid repeated DB lookups
+    subject_cache: dict[tuple[str, str], Subject] = {}  # (exam_type, subject_name_lower) -> Subject
+    topic_cache: dict[tuple[int, str], Topic] = {}  # (subject_id, chapter_title_lower) -> Topic
+
+    async def resolve_topic_for(subject_name: str, chapter_title: str, et: str) -> int:
+        """Return topic_id for the given exam_type, creating subject/topic if needed."""
+        s_key = (et, subject_name.lower())
         if s_key not in subject_cache:
             result = await db.execute(
                 select(Subject).where(
                     Subject.name.ilike(subject_name),
-                    Subject.exam_type == exam_type.strip().upper(),
+                    Subject.exam_type == et,
                 )
             )
             subject = result.scalars().first()
             if not subject:
-                subject = Subject(name=subject_name.strip(), exam_type=exam_type.strip().upper())
+                subject = Subject(name=subject_name.strip(), exam_type=et)
                 db.add(subject)
-                await db.flush()  # get id
+                await db.flush()
             subject_cache[s_key] = subject
 
         subj = subject_cache[s_key]
@@ -1062,27 +1067,32 @@ async def upload_mcq_csv(
             skipped += 1
             continue
 
-        topic_id = await resolve_topic(subject_name, chapter_title)
+        row_added = False
+        for et in target_exam_types:
+            topic_id = await resolve_topic_for(subject_name, chapter_title, et)
 
-        dup_result = await db.execute(
-            select(MCQ).where(MCQ.topic_id == topic_id, MCQ.question == question)
-        )
-        if dup_result.scalars().first():
-            skipped += 1
-            continue
-
-        mcqs_to_insert.append(
-            MCQ(
-                question=question,
-                option_a=option1,
-                option_b=option2,
-                option_c=option3,
-                option_d=option4,
-                correct_answer=correct_answer,
-                explanation=explanation,
-                topic_id=topic_id,
+            dup_result = await db.execute(
+                select(MCQ).where(MCQ.topic_id == topic_id, MCQ.question == question)
             )
-        )
+            if dup_result.scalars().first():
+                continue
+
+            mcqs_to_insert.append(
+                MCQ(
+                    question=question,
+                    option_a=option1,
+                    option_b=option2,
+                    option_c=option3,
+                    option_d=option4,
+                    correct_answer=correct_answer,
+                    explanation=explanation,
+                    topic_id=topic_id,
+                )
+            )
+            row_added = True
+
+        if not row_added:
+            skipped += 1
 
     if not mcqs_to_insert:
         raise HTTPException(status_code=400, detail="No valid MCQ rows found in CSV")

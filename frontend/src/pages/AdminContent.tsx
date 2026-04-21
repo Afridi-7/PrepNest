@@ -69,7 +69,7 @@ const AdminContent = () => {
   const [noteChapterId, setNoteChapterId] = useState<number | "">("");
 
   // MCQ CSV upload form
-  const [csvExamType, setCsvExamType] = useState("USAT-E");
+  const [csvExamType, setCsvExamType] = useState("ALL");
   const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Essay CSV upload form
@@ -832,6 +832,7 @@ const AdminContent = () => {
                 Correct answer must be A, B, C, or D. Subjects and chapters are auto-created if they don't exist.
               </p>
               <select className="w-full border rounded-lg px-3 py-2" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
+                <option value="ALL">ALL Categories (add to every category)</option>
                 <option value="USAT-E">USAT-E (Pre-Engineering)</option>
                 <option value="USAT-M">USAT-M (Pre-Medical)</option>
                 <option value="USAT-CS">USAT-CS (Computer Science)</option>
