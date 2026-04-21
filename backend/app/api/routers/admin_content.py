@@ -951,6 +951,47 @@ MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
 ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"]
 
+# Aliases: maps alternate column names -> canonical name
+MCQ_COLUMN_ALIASES: dict[str, str] = {
+    "question_text": "question",
+    "question text": "question",
+    "sentence": "question",
+    "stem": "question",
+    "q": "question",
+    "option_1": "option1",
+    "option_2": "option2",
+    "option_3": "option3",
+    "option_4": "option4",
+    "opt1": "option1",
+    "opt2": "option2",
+    "opt3": "option3",
+    "opt4": "option4",
+    "a": "option1",
+    "b": "option2",
+    "c": "option3",
+    "d": "option4",
+    "choice_a": "option1",
+    "choice_b": "option2",
+    "choice_c": "option3",
+    "choice_d": "option4",
+    "answer": "correct_answer",
+    "correct": "correct_answer",
+    "key": "correct_answer",
+    "ans": "correct_answer",
+    "topic": "chapter",
+    "chapter_name": "chapter",
+    "chapter name": "chapter",
+    "unit": "chapter",
+    "section": "chapter",
+    "category": "subject",
+    "subject_name": "subject",
+    "sub": "subject",
+    "exp": "explanation",
+    "explain": "explanation",
+    "rationale": "explanation",
+    "reasoning": "explanation",
+}
+
 
 @router.post("/mcqs/upload-csv", status_code=status.HTTP_200_OK)
 async def upload_mcq_csv(
@@ -989,12 +1030,20 @@ async def upload_mcq_csv(
     if reader.fieldnames is None:
         raise HTTPException(status_code=400, detail="CSV file is empty or has no header row")
 
-    normalized_fields = {f.strip().lower() for f in reader.fieldnames}
-    missing_cols = MCQ_CSV_REQUIRED_COLUMNS - normalized_fields
+    # Build a mapping from original field name -> canonical name (applying aliases)
+    field_map: dict[str, str] = {}
+    for raw_field in reader.fieldnames:
+        normalized = raw_field.strip().lower()
+        canonical = MCQ_COLUMN_ALIASES.get(normalized, normalized)
+        field_map[raw_field] = canonical
+
+    canonical_fields = set(field_map.values())
+    missing_cols = MCQ_CSV_REQUIRED_COLUMNS - canonical_fields
     if missing_cols:
         raise HTTPException(
             status_code=400,
-            detail=f"CSV missing required columns: {', '.join(sorted(missing_cols))}",
+            detail=f"CSV missing required columns: {', '.join(sorted(missing_cols))}. "
+                   f"Found columns: {', '.join(sorted(canonical_fields))}",
         )
 
     # Determine which exam types to target
@@ -1046,8 +1095,12 @@ async def upload_mcq_csv(
 
     for row in reader:
         row_num += 1
-        # Normalize keys
-        normalized_row = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
+        # Normalize keys using field_map (applies aliases to canonical names)
+        normalized_row: dict[str, str] = {}
+        for raw_key, val in row.items():
+            canonical_key = field_map.get(raw_key, raw_key.strip().lower())
+            # Keep the last value if there are collisions after aliasing
+            normalized_row[canonical_key] = (val or "").strip()
 
         question = normalized_row.get("question", "")
         option1 = normalized_row.get("option1", "")
@@ -1095,7 +1148,10 @@ async def upload_mcq_csv(
             skipped += 1
 
     if not mcqs_to_insert:
-        raise HTTPException(status_code=400, detail="No valid MCQ rows found in CSV")
+        raise HTTPException(
+            status_code=400,
+            detail=f"No valid MCQ rows found in CSV. {skipped} row(s) were skipped due to missing fields, invalid answer values, or all duplicates.",
+        )
 
     db.add_all(mcqs_to_insert)
     await db.commit()

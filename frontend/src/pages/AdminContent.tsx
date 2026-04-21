@@ -830,6 +830,7 @@ const AdminContent = () => {
               <p className="text-xs text-muted-foreground">
                 CSV must have columns: <code className="bg-slate-100 px-1 rounded text-[11px]">question, option1, option2, option3, option4, correct_answer, subject, chapter</code> (and optional <code className="bg-slate-100 px-1 rounded text-[11px]">explanation</code>).
                 Correct answer must be A, B, C, or D. Subjects and chapters are auto-created if they don't exist.
+                Column name aliases are supported (e.g. <code className="bg-slate-100 px-1 rounded text-[11px]">sentence</code> → question, <code className="bg-slate-100 px-1 rounded text-[11px]">topic</code> → chapter, <code className="bg-slate-100 px-1 rounded text-[11px]">answer</code> → correct_answer).
               </p>
               <select className="w-full border rounded-lg px-3 py-2" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
                 <option value="ALL">ALL Categories (add to every category)</option>
