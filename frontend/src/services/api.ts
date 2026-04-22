@@ -1158,7 +1158,7 @@ class ApiClient {
   }
 
   async getMCQStats(): Promise<{ exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number }[]> {
-    return this.request<{ subject: string; chapter: string; mcqs: number }[]>("/admin/mcq-stats");
+    return this.request<{ exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number }[]>("/admin/mcq-stats");
   }
 
   async deleteTopicMCQs(topicId: number): Promise<{ deleted: number }> {
