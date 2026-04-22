@@ -1152,6 +1152,18 @@ class ApiClient {
     await this.request<void>(`/admin/mcqs/${mcqId}`, "DELETE");
   }
 
+  async getAdminMCQs(topicId: number): Promise<MCQ[]> {
+    return this.request<MCQ[]>(`/admin/mcqs?topic_id=${topicId}`);
+  }
+
+  async getMCQStats(): Promise<{ subject: string; chapter: string; mcqs: number }[]> {
+    return this.request<{ subject: string; chapter: string; mcqs: number }[]>("/admin/mcq-stats");
+  }
+
+  async deleteTopicMCQs(topicId: number): Promise<{ deleted: number }> {
+    return this.request<{ deleted: number }>(`/admin/topics/${topicId}/mcqs`, "DELETE");
+  }
+
   async seedDemoContent(): Promise<{
     created_subjects: number;
     created_topics: number;

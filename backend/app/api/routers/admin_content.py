@@ -528,6 +528,16 @@ async def delete_material(
     await db.commit()
 
 
+@router.get("/mcqs", response_model=list[MCQRead])
+async def list_mcqs(
+    topic_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[MCQRead]:
+    result = await db.execute(select(MCQ).where(MCQ.topic_id == topic_id).order_by(MCQ.created_at))
+    return [MCQRead.model_validate(m) for m in result.scalars().all()]
+
+
 @router.post("/mcqs", response_model=MCQRead, status_code=status.HTTP_201_CREATED)
 async def create_mcq(
     payload: MCQCreate,
@@ -595,6 +605,24 @@ async def delete_mcq(
         raise HTTPException(status_code=404, detail="MCQ not found")
     await db.delete(mcq)
     await db.commit()
+
+
+@router.delete("/topics/{topic_id}/mcqs", status_code=status.HTTP_200_OK)
+async def delete_topic_mcqs(
+    topic_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Delete all MCQs belonging to a specific topic/chapter."""
+    topic = await db.get(Topic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    result = await db.execute(select(MCQ).where(MCQ.topic_id == topic_id))
+    mcqs = result.scalars().all()
+    for mcq in mcqs:
+        await db.delete(mcq)
+    await db.commit()
+    return {"deleted": len(mcqs)}
 
 
 @router.post("/materials/upload-pdfs", response_model=list[MaterialRead], status_code=status.HTTP_201_CREATED)
@@ -1077,10 +1105,10 @@ async def upload_mcq_csv(
 
     # Determine which exam types to target
     exam_type_normalized = exam_type.strip().upper()
-    _VALID_UPLOAD_TYPES = frozenset(ALL_USAT_EXAM_TYPES)
+    _VALID_UPLOAD_TYPES = frozenset(ALL_USAT_EXAM_TYPES) | {"ALL"}
     if exam_type_normalized not in _VALID_UPLOAD_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid exam_type '{exam_type}'. Must be one of: {', '.join(sorted(_VALID_UPLOAD_TYPES))}")
-    target_exam_types = [exam_type_normalized]
+    target_exam_types = ALL_USAT_EXAM_TYPES if exam_type_normalized == "ALL" else [exam_type_normalized]
 
     # Cache resolved subjects & chapters per exam_type to avoid repeated DB lookups
     subject_cache: dict[tuple[str, str], Subject] = {}  # (exam_type, subject_name_lower) -> Subject
