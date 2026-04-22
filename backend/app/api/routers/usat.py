@@ -111,7 +111,7 @@ async def get_subject_bulk_data(
 
     sid = matched.id
     chapters_q, papers_q, tips_q, resources_q, notes_q = await asyncio.gather(
-        db.execute(select(Topic).where(Topic.subject_id == sid).order_by(Topic.created_at.desc())),
+        db.execute(select(Topic).where(Topic.subject_id == sid).order_by(Topic.id.asc())),
         db.execute(select(PastPaper).where(PastPaper.subject_id == sid).order_by(PastPaper.created_at.desc())),
         db.execute(select(Tip).where(Tip.subject_id == sid).order_by(Tip.created_at.desc())),
         db.execute(select(SubjectResource).where(SubjectResource.subject_id == sid).order_by(SubjectResource.created_at.desc())),
@@ -140,7 +140,7 @@ async def list_usat_category_subjects(
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.ilike(normalized_category))
-        .order_by(Subject.name.asc(), Subject.created_at.desc())
+        .order_by(Subject.id.asc())
     )
 
     return [SubjectRead.model_validate(item) for item in result.scalars().all()]
@@ -151,7 +151,7 @@ async def list_all_usat_subjects(db: AsyncSession = Depends(get_db_session)) -> 
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.in_(list(USAT_CATEGORIES.keys())))
-        .order_by(Subject.exam_type.asc(), Subject.name.asc())
+        .order_by(Subject.exam_type.asc(), Subject.id.asc())
     )
     return [SubjectRead.model_validate(item) for item in result.scalars().all()]
 
@@ -175,7 +175,7 @@ async def list_subject_chapters(subject_id: int, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Subject not found")
 
     result = await db.execute(
-        select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.created_at.desc())
+        select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.id.asc())
     )
     return [TopicRead.model_validate(item) for item in result.scalars().all()]
 
