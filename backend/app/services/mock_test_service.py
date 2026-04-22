@@ -259,6 +259,7 @@ async def evaluate_mock_test(
                     "correct": correct,
                     "is_correct": is_correct,
                     "explanation": q.get("explanation", ""),
+                    "options": q.get("options", []),
                 })
         elif sec["type"] == "essay":
             for q in sec["questions"]:

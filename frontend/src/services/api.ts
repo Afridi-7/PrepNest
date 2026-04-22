@@ -355,6 +355,7 @@ export interface MCQResultItem {
   correct: string;
   is_correct: boolean;
   explanation: string;
+  options?: string[];
 }
 
 export interface EssayResultItem {

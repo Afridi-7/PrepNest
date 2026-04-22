@@ -632,31 +632,59 @@ const MockTestPage = () => {
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {result.mcq_results.map((mcq, i) => (
                     <div key={mcq.question_id}
-                      className={`rounded-xl border-2 p-4 ${mcq.is_correct ? "border-emerald-200 bg-emerald-50/50" : "border-rose-200 bg-rose-50/50"}`}>
+                      className={`rounded-xl border-2 p-4 ${mcq.is_correct ? "border-emerald-200 bg-emerald-50/50" : mcq.selected ? "border-rose-200 bg-rose-50/50" : "border-slate-200 bg-slate-50/50"}`}>
                       <div className="flex items-start gap-3">
                         {mcq.is_correct
                           ? <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
                           : <XCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
                         }
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700">{i + 1}. {mcq.question}</p>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            {mcq.selected && (
-                              <span className={`px-2 py-0.5 rounded font-bold ${mcq.is_correct ? "bg-emerald-200 text-emerald-800" : "bg-rose-200 text-rose-800"}`}>
-                                Your answer: {mcq.selected}
-                              </span>
-                            )}
-                            {!mcq.is_correct && (
-                              <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-800 font-bold">
-                                Correct: {mcq.correct}
-                              </span>
-                            )}
-                            {!mcq.selected && (
-                              <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Unanswered</span>
-                            )}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-slate-700">{i + 1}. {mcq.question}</p>
                           </div>
+                          {/* All options with highlights */}
+                          {mcq.options && mcq.options.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2 mb-2">
+                              {mcq.options.map((opt, oi) => {
+                                const letter = LETTER[oi];
+                                const isRight = letter === mcq.correct;
+                                const isUser = letter === mcq.selected;
+                                return (
+                                  <div key={oi} className={`rounded-lg px-3 py-1.5 text-xs font-semibold border flex items-center gap-1 ${
+                                    isRight ? "bg-emerald-100 border-emerald-300 text-emerald-800" :
+                                    isUser && !isRight ? "bg-rose-100 border-rose-300 text-rose-800" :
+                                    "bg-white border-slate-200 text-slate-500"
+                                  }`}>
+                                    <span className="font-black mr-0.5">{letter}.</span>
+                                    <span className="flex-1">{opt}</span>
+                                    {isRight && <span className="font-black text-emerald-600 ml-1">✓</span>}
+                                    {isUser && !isRight && <span className="font-black text-rose-600 ml-1">✗</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            /* Fallback for older results without options stored */
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs mb-2">
+                              {mcq.selected && (
+                                <span className={`px-2 py-0.5 rounded font-bold ${mcq.is_correct ? "bg-emerald-200 text-emerald-800" : "bg-rose-200 text-rose-800"}`}>
+                                  Your answer: {mcq.selected}
+                                </span>
+                              )}
+                              {!mcq.is_correct && (
+                                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-800 font-bold">
+                                  Correct: {mcq.correct}
+                                </span>
+                              )}
+                              {!mcq.selected && (
+                                <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Unanswered</span>
+                              )}
+                            </div>
+                          )}
                           {mcq.explanation && (
-                            <p className="mt-2 text-xs text-slate-500">{mcq.explanation}</p>
+                            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                              <span className="font-bold text-blue-600">Explanation: </span>{mcq.explanation}
+                            </p>
                           )}
                         </div>
                       </div>

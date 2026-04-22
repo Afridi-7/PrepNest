@@ -426,6 +426,7 @@ class MCQResult(BaseModel):
     correct: str
     is_correct: bool
     explanation: str
+    options: list[str] | None = None
 
 
 class EssayResult(BaseModel):
