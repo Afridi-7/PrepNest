@@ -1238,7 +1238,7 @@ const AdminContent = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {Object.entries(filteredMcqStats).sort(([a], [b]) => a.localeCompare(b)).map(([et, subjectMap]) => {
+                  {Object.entries(filteredMcqStats).map(([et, subjectMap]) => {
                     const examTotal = Object.values(subjectMap).reduce((sum, v) => sum + v.total, 0);
                     return (
                       <div key={et} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
@@ -1250,7 +1250,7 @@ const AdminContent = () => {
                           <span className="text-sm font-semibold text-slate-700">{examTotal.toLocaleString()} MCQs</span>
                         </div>
                         <div className="divide-y divide-slate-100">
-                          {Object.entries(subjectMap).sort(([a], [b]) => a.localeCompare(b)).map(([sName, { total, chapters }]) => {
+                          {Object.entries(subjectMap).map(([sName, { total, chapters }]) => {
                             const subjectKey = `${et}||${sName}`;
                             const isExpanded = expandedSubjects.has(subjectKey);
                             const subjectObj = subjects.find((s) => s.name === sName && s.exam_type === et);
@@ -1284,7 +1284,7 @@ const AdminContent = () => {
 
                                 {isExpanded && (
                                   <div className="bg-slate-50/80 border-t border-slate-100 divide-y divide-slate-100">
-                                    {chapters.sort((a, b) => a.chapter.localeCompare(b.chapter)).map(({ chapter, mcqs, topic, topic_id }) => {
+                                    {chapters.map(({ chapter, mcqs, topic, topic_id }) => {
                                       const chapterKey = `${sName}||${chapter}||${topic_id}`;
                                       const isChapterExpanded = expandedChapters.has(chapterKey);
                                       const isLoadingMCQs = chapterMCQsLoading.has(chapterKey);

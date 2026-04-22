@@ -1605,7 +1605,7 @@ async def mcq_stats(
         .join(Topic, Topic.subject_id == Subject.id)
         .join(MCQ, MCQ.topic_id == Topic.id)
         .group_by(Subject.exam_type, Subject.name, Topic.title, Topic.id)
-        .order_by(Subject.exam_type, Subject.name, Topic.title)
+        .order_by(Subject.exam_type, Subject.id, Topic.id)
     )
     rows = result.all()
     return [
