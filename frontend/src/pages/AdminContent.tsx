@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiClient, Material, MCQ, Note, Resource, Subject, Topic, type UserAdminView } from "@/services/api";
 
 type Tab = "content" | "mcqs" | "upload" | "users" | "tools";
-interface MCQStat { subject: string; chapter: string; mcqs: number; }
+interface MCQStat { exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number; }
 const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"];
 
 const AdminContent = () => {
@@ -88,6 +88,7 @@ const AdminContent = () => {
   const [chapterMCQsLoading, setChapterMCQsLoading] = useState<Set<string>>(new Set());
   const [mcqFilterExamType, setMcqFilterExamType] = useState<string>("all");
   const [deletingChapterMCQs, setDeletingChapterMCQs] = useState<string | null>(null);
+  const [dedupingChapterMCQs, setDedupingChapterMCQs] = useState<string | null>(null);
   const [deletingMCQ, setDeletingMCQ] = useState<number | null>(null);
 
   const [allUsers, setAllUsers] = useState<UserAdminView[]>([]);
@@ -120,21 +121,17 @@ const AdminContent = () => {
   );
 
   const mcqStatsByExamType = useMemo(() => {
-    const subjectExamMap: Record<string, string> = {};
-    subjects.forEach((s) => { subjectExamMap[s.name] = s.exam_type; });
-    const grouped: Record<string, Record<string, { total: number; chapters: { chapter: string; mcqs: number; topic: Topic | undefined }[] }>> = {};
-    mcqStats.forEach(({ subject, chapter, mcqs }) => {
-      const et = subjectExamMap[subject] || "Unknown";
+    const grouped: Record<string, Record<string, { total: number; chapters: { chapter: string; mcqs: number; topic: Topic | undefined; topic_id: number }[] }>> = {};
+    mcqStats.forEach(({ exam_type, subject, chapter, mcqs, topic_id }) => {
+      const et = exam_type || "Unknown";
       if (!grouped[et]) grouped[et] = {};
       if (!grouped[et][subject]) grouped[et][subject] = { total: 0, chapters: [] };
       grouped[et][subject].total += mcqs;
-      const topic = topics.find(
-        (t) => t.title === chapter && subjects.find((s) => s.name === subject && s.id === t.subject_id),
-      );
-      grouped[et][subject].chapters.push({ chapter, mcqs, topic });
+      const topic = topics.find((t) => t.id === topic_id);
+      grouped[et][subject].chapters.push({ chapter, mcqs, topic, topic_id });
     });
     return grouped;
-  }, [mcqStats, subjects, topics]);
+  }, [mcqStats, topics]);
 
   const filteredMcqStats = useMemo(() => {
     if (mcqFilterExamType === "all") return mcqStatsByExamType;
@@ -143,7 +140,19 @@ const AdminContent = () => {
     );
   }, [mcqStatsByExamType, mcqFilterExamType]);
 
-  const totalMCQs = useMemo(() => mcqStats.reduce((sum, s) => sum + s.mcqs, 0), [mcqStats]);
+  const totalMCQs = useMemo(() => {
+    // Deduplicate by (subject, chapter) so shared subjects across USAT categories count once
+    const seen = new Set<string>();
+    let unique = 0;
+    for (const s of mcqStats) {
+      const key = `${s.subject}||${s.chapter}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique += s.mcqs;
+      }
+    }
+    return unique;
+  }, [mcqStats]);
 
   const loadData = async () => {
     const profile = await apiClient.getCurrentUser();
@@ -318,6 +327,31 @@ const AdminContent = () => {
       toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
     } finally {
       setDeletingChapterMCQs(null);
+    }
+  };
+
+  const onDedupChapterMCQs = async (chapterKey: string, topicId: number | undefined, chapterTitle: string) => {
+    if (!topicId) return;
+    setDedupingChapterMCQs(chapterKey);
+    try {
+      const result = await apiClient.dedupTopicMCQs(topicId);
+      if (result.duplicates_deleted > 0) {
+        // Reload the chapter MCQs if it was already open
+        if (chapterMCQs[chapterKey]) {
+          const mcqs = await apiClient.getAdminMCQs(topicId);
+          setChapterMCQs((prev) => ({ ...prev, [chapterKey]: mcqs }));
+        }
+        setMcqStats((prev) =>
+          prev.map((s) => (s.chapter === chapterTitle ? { ...s, mcqs: result.total_after } : s)),
+        );
+        toast({ description: `Removed ${result.duplicates_deleted} duplicate MCQs from "${chapterTitle}"` });
+      } else {
+        toast({ description: `No duplicates found in "${chapterTitle}"` });
+      }
+    } catch (error: unknown) {
+      toast({ title: "Dedup failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
+    } finally {
+      setDedupingChapterMCQs(null);
     }
   };
 
@@ -606,6 +640,16 @@ const AdminContent = () => {
       if (activeTab === "mcqs") loadMCQStats();
     } catch (error: unknown) {
       toast({ title: "Purge failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
+    }
+  };
+
+  const onSyncMCQsAcrossCategories = async () => {
+    try {
+      const result = await apiClient.syncMCQsAcrossCategories();
+      toast({ description: result.message });
+      if (activeTab === "mcqs") loadMCQStats();
+    } catch (error: unknown) {
+      toast({ title: "Sync failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
     }
   };
 
@@ -1240,18 +1284,18 @@ const AdminContent = () => {
 
                                 {isExpanded && (
                                   <div className="bg-slate-50/80 border-t border-slate-100 divide-y divide-slate-100">
-                                    {chapters.sort((a, b) => a.chapter.localeCompare(b.chapter)).map(({ chapter, mcqs, topic }) => {
-                                      const chapterKey = `${sName}||${chapter}`;
+                                    {chapters.sort((a, b) => a.chapter.localeCompare(b.chapter)).map(({ chapter, mcqs, topic, topic_id }) => {
+                                      const chapterKey = `${sName}||${chapter}||${topic_id}`;
                                       const isChapterExpanded = expandedChapters.has(chapterKey);
                                       const isLoadingMCQs = chapterMCQsLoading.has(chapterKey);
                                       const loadedMCQs = chapterMCQs[chapterKey];
                                       const isDeletingAll = deletingChapterMCQs === chapterKey;
                                       const displayCount = loadedMCQs ? loadedMCQs.length : mcqs;
                                       return (
-                                        <div key={chapter}>
+                                        <div key={`${chapter}-${topic_id}`}>
                                           <div className="flex items-center justify-between pl-10 pr-4 py-2.5 hover:bg-white transition-colors">
                                             <button
-                                              onClick={() => toggleExpandChapter(chapterKey, topic?.id)}
+                                              onClick={() => toggleExpandChapter(chapterKey, topic_id)}
                                               className="flex items-center gap-2 flex-1 text-left min-w-0"
                                             >
                                               {isChapterExpanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
@@ -1261,17 +1305,30 @@ const AdminContent = () => {
                                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${displayCount > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
                                                 {displayCount} MCQs
                                               </span>
-                                              {topic && displayCount > 0 && (
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => onDeleteAllChapterMCQs(chapterKey, topic.id, chapter)}
-                                                  disabled={isDeletingAll}
-                                                  className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 h-7 px-2"
-                                                >
-                                                  {isDeletingAll ? "Deleting..." : "Delete All"}
-                                                </Button>
+                                              {topic_id && displayCount > 0 && (
+                                                <>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => { e.stopPropagation(); onDedupChapterMCQs(chapterKey, topic_id, chapter); }}
+                                                    disabled={dedupingChapterMCQs === chapterKey || isDeletingAll}
+                                                    className="text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-7 px-2"
+                                                    title="Remove duplicate MCQs in this chapter"
+                                                  >
+                                                    {dedupingChapterMCQs === chapterKey ? "Deduping..." : "Dedup"}
+                                                  </Button>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => onDeleteAllChapterMCQs(chapterKey, topic_id, chapter)}
+                                                    disabled={isDeletingAll || dedupingChapterMCQs === chapterKey}
+                                                    className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 h-7 px-2"
+                                                  >
+                                                    {isDeletingAll ? "Deleting..." : "Delete All"}
+                                                  </Button>
+                                                </>
                                               )}
                                             </div>
                                           </div>
@@ -1536,6 +1593,12 @@ const AdminContent = () => {
                   />
                   <Button variant="destructive" disabled={!purgeSubjectName.trim()} onClick={onPurgeBySubjectName}>Purge</Button>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 shadow-sm space-y-3 md:col-span-2">
+                <h3 className="font-semibold text-blue-800">Sync MCQs Across All Categories</h3>
+                <p className="text-sm text-blue-700">Copies MCQs to every USAT category that shares a subject with the same name (e.g. Quantitative Reasoning, Verbal Reasoning). Run this after uploading to a single category to spread MCQs everywhere they belong.</p>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={onSyncMCQsAcrossCategories}>Sync MCQs Across Categories</Button>
               </div>
             </div>
           )}

@@ -1134,8 +1134,9 @@ async def upload_mcq_csv(
     subject_cache: dict[tuple[str, str], Subject] = {}  # (exam_type, subject_name_lower) -> Subject
     topic_cache: dict[tuple[int, str], Topic] = {}  # (subject_id, chapter_title_lower) -> Topic
 
-    async def resolve_topic_for(subject_name: str, chapter_title: str, et: str) -> int:
-        """Return topic_id for the given exam_type, creating subject/topic if needed."""
+    async def resolve_topic_for(subject_name: str, chapter_title: str, et: str, create_if_missing: bool = True) -> int | None:
+        """Return topic_id for the given exam_type.
+        If create_if_missing=False, returns None when the subject doesn't already exist."""
         s_key = (et, subject_name.lower())
         if s_key not in subject_cache:
             result = await db.execute(
@@ -1146,6 +1147,8 @@ async def upload_mcq_csv(
             )
             subject = result.scalars().first()
             if not subject:
+                if not create_if_missing:
+                    return None
                 subject = Subject(name=subject_name.strip(), exam_type=et)
                 db.add(subject)
                 await db.flush()
@@ -1168,6 +1171,9 @@ async def upload_mcq_csv(
             topic_cache[t_key] = topic
 
         return topic_cache[t_key].id
+
+    # Extra exam types to spread MCQs to (where the subject already exists)
+    spread_exam_types = [et for et in ALL_USAT_EXAM_TYPES if et not in target_exam_types]
 
     mcqs_to_insert: list[MCQ] = []
     skipped = 0
@@ -1202,8 +1208,36 @@ async def upload_mcq_csv(
             continue
 
         row_added = False
+
+        # Primary targets: create subject/topic if missing
         for et in target_exam_types:
-            topic_id = await resolve_topic_for(subject_name, chapter_title, et)
+            topic_id = await resolve_topic_for(subject_name, chapter_title, et, create_if_missing=True)
+
+            dup_result = await db.execute(
+                select(MCQ).where(MCQ.topic_id == topic_id, MCQ.question == question)
+            )
+            if dup_result.scalars().first():
+                continue
+
+            mcqs_to_insert.append(
+                MCQ(
+                    question=question,
+                    option_a=option1,
+                    option_b=option2,
+                    option_c=option3,
+                    option_d=option4,
+                    correct_answer=correct_answer,
+                    explanation=explanation,
+                    topic_id=topic_id,
+                )
+            )
+            row_added = True
+
+        # Spread: add to any other exam type where this subject ALREADY exists
+        for et in spread_exam_types:
+            topic_id = await resolve_topic_for(subject_name, chapter_title, et, create_if_missing=False)
+            if topic_id is None:
+                continue  # Subject doesn't exist in this category — skip
 
             dup_result = await db.execute(
                 select(MCQ).where(MCQ.topic_id == topic_id, MCQ.question == question)
@@ -1398,21 +1432,186 @@ async def dedup_mcqs(
     }
 
 
+@router.post("/topics/{topic_id}/dedup-mcqs")
+async def dedup_topic_mcqs(
+    topic_id: int,
+    db: AsyncSession = Depends(get_db_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Delete duplicate MCQs within a single chapter (topic).
+    Two MCQs are considered duplicates if they share the same question text
+    and the same four options. Keeps the one with the lowest id."""
+    result = await db.execute(
+        select(MCQ).where(MCQ.topic_id == topic_id).order_by(MCQ.id.asc())
+    )
+    all_mcqs = result.scalars().all()
+
+    groups: dict[tuple, list] = defaultdict(list)
+    for mcq in all_mcqs:
+        opts = tuple(sorted(s.strip().lower() for s in (mcq.option_a, mcq.option_b, mcq.option_c, mcq.option_d)))
+        key = (mcq.question.strip().lower(), opts)
+        groups[key].append(mcq)
+
+    to_delete_ids: list[int] = []
+    for group in groups.values():
+        if len(group) > 1:
+            to_delete_ids.extend(m.id for m in group[1:])
+
+    if to_delete_ids:
+        await db.execute(delete(MCQ).where(MCQ.id.in_(to_delete_ids)))
+        await db.commit()
+
+    return {
+        "total_before": len(all_mcqs),
+        "duplicates_deleted": len(to_delete_ids),
+        "total_after": len(all_mcqs) - len(to_delete_ids),
+    }
+
+
+@router.post("/sync-mcqs-across-categories")
+async def sync_mcqs_across_categories(
+    db: AsyncSession = Depends(get_db_session),
+    _admin: User = Depends(get_current_admin),
+):
+    """Copy MCQs to all USAT categories that share a subject with the same name.
+
+    For every MCQ that exists under a subject in exam_type X, if a subject with
+    the same name also exists in exam_type Y, this endpoint creates the corresponding
+    topic (if missing) and copies the MCQ there — skipping exact duplicates.
+    """
+    # Load all subjects grouped by name (case-insensitive)
+    all_subjects_result = await db.execute(
+        select(Subject).where(Subject.exam_type.in_(ALL_USAT_EXAM_TYPES))
+    )
+    all_subjects = all_subjects_result.scalars().all()
+
+    # Build map: subject_name_lower -> list[Subject]
+    subjects_by_name: dict[str, list[Subject]] = defaultdict(list)
+    for s in all_subjects:
+        subjects_by_name[s.name.lower()].append(s)
+
+    # Only process subject names that appear in more than one exam type
+    shared_subject_names = {
+        name: subjects
+        for name, subjects in subjects_by_name.items()
+        if len({s.exam_type for s in subjects}) > 1
+    }
+
+    if not shared_subject_names:
+        return {"synced": 0, "message": "No shared subjects found across categories"}
+
+    # Load all topics for these shared subjects
+    shared_subject_ids = {s.id for subjects in shared_subject_names.values() for s in subjects}
+    topics_result = await db.execute(
+        select(Topic).where(Topic.subject_id.in_(shared_subject_ids))
+    )
+    all_topics = topics_result.scalars().all()
+
+    # Build topic map: subject_id -> {topic_title_lower -> Topic}
+    topics_by_subject: dict[int, dict[str, Topic]] = defaultdict(dict)
+    for t in all_topics:
+        topics_by_subject[t.subject_id][t.title.lower()] = t
+
+    # Load all MCQs for these topics
+    topic_ids = {t.id for t in all_topics}
+    if not topic_ids:
+        return {"synced": 0, "message": "No topics found for shared subjects"}
+
+    mcqs_result = await db.execute(select(MCQ).where(MCQ.topic_id.in_(topic_ids)))
+    all_mcqs = mcqs_result.scalars().all()
+
+    # Build existing MCQ set: (topic_id, question_lower) for fast duplicate check
+    existing_mcqs: set[tuple[int, str]] = {(m.topic_id, m.question.lower()) for m in all_mcqs}
+
+    new_mcqs: list[MCQ] = []
+
+    for subject_name_lower, subjects in shared_subject_names.items():
+        for source_subject in subjects:
+            source_topics = topics_by_subject.get(source_subject.id, {})
+            if not source_topics:
+                continue
+
+            # Find all other subjects with the same name
+            peer_subjects = [s for s in subjects if s.id != source_subject.id]
+
+            for topic_title_lower, source_topic in source_topics.items():
+                # Get MCQs in this source topic
+                source_mcqs = [m for m in all_mcqs if m.topic_id == source_topic.id]
+                if not source_mcqs:
+                    continue
+
+                for peer_subject in peer_subjects:
+                    # Get or create the equivalent topic in the peer subject
+                    peer_topics_map = topics_by_subject[peer_subject.id]
+                    if topic_title_lower not in peer_topics_map:
+                        new_topic = Topic(
+                            title=source_topic.title,
+                            subject_id=peer_subject.id,
+                        )
+                        db.add(new_topic)
+                        await db.flush()
+                        peer_topics_map[topic_title_lower] = new_topic
+                        # Update all_topics tracking
+                        all_topics.append(new_topic)
+
+                    peer_topic = peer_topics_map[topic_title_lower]
+
+                    for mcq in source_mcqs:
+                        key = (peer_topic.id, mcq.question.lower())
+                        if key in existing_mcqs:
+                            continue  # already exists
+                        existing_mcqs.add(key)
+                        new_mcqs.append(
+                            MCQ(
+                                question=mcq.question,
+                                option_a=mcq.option_a,
+                                option_b=mcq.option_b,
+                                option_c=mcq.option_c,
+                                option_d=mcq.option_d,
+                                correct_answer=mcq.correct_answer,
+                                explanation=mcq.explanation,
+                                topic_id=peer_topic.id,
+                            )
+                        )
+
+    if new_mcqs:
+        db.add_all(new_mcqs)
+        await db.commit()
+
+    return {
+        "synced": len(new_mcqs),
+        "shared_subject_count": len(shared_subject_names),
+        "message": f"Synced {len(new_mcqs)} MCQ(s) across {len(shared_subject_names)} shared subject(s).",
+    }
+
+
 @router.get("/mcq-stats")
 async def mcq_stats(
     db: AsyncSession = Depends(get_db_session),
     _admin: User = Depends(get_current_admin),
 ):
+    """Return MCQ counts per (exam_type, subject_name, chapter_title, topic_id).
+    Each category row shows its actual (raw) MCQ count so every category is browsable."""
     from sqlalchemy import func as sa_func
+
     result = await db.execute(
-        select(Subject.name, Topic.title, sa_func.count(MCQ.id))
+        select(
+            Subject.exam_type.label("exam_type"),
+            Subject.name.label("sname"),
+            Topic.title.label("ttitle"),
+            Topic.id.label("topic_id"),
+            sa_func.count(MCQ.id).label("cnt"),
+        )
         .join(Topic, Topic.subject_id == Subject.id)
         .join(MCQ, MCQ.topic_id == Topic.id)
-        .group_by(Subject.name, Topic.title)
-        .order_by(Subject.name, Topic.title)
+        .group_by(Subject.exam_type, Subject.name, Topic.title, Topic.id)
+        .order_by(Subject.exam_type, Subject.name, Topic.title)
     )
     rows = result.all()
-    return [{"subject": s, "chapter": c, "mcqs": n} for s, c, n in rows]
+    return [
+        {"exam_type": et, "subject": s, "chapter": c, "topic_id": tid, "mcqs": n}
+        for et, s, c, tid, n in rows
+    ]
 
 
 # ═══════════════════════════════ GRANT / REVOKE PRO ═══════════════════════════════

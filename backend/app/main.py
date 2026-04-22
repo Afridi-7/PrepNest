@@ -12,7 +12,7 @@ from app.api.routers import admin_content, ai_learning, auth, chat, conversation
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
-from app.db.models import MCQ, User
+from app.db.models import MCQ, User, Topic, Subject
 from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
 from app.db.session import SessionLocal, database_url, engine
 from app.services.cache_service import cache_service
@@ -261,13 +261,33 @@ async def root() -> dict:
 
 @app.get(f"{settings.api_prefix}/public/stats")
 async def public_stats() -> dict:
-    """Return real-time platform stats (public, no auth)."""
+    """Return real-time platform stats (public, no auth).
+    MCQ count is deduplicated: identical MCQs spread across USAT categories
+    (same subject name + chapter + 4 options) are counted only once."""
     async with SessionLocal() as db:
-        user_count, mcq_count = (
+        user_count = (
             await db.execute(select(func.count()).select_from(User))
-        ).scalar(), (
-            await db.execute(select(func.count()).select_from(MCQ))
         ).scalar()
+
+        # Distinct MCQs by (subject_name, topic_title, all 4 options)
+        inner = (
+            select(
+                Subject.name,
+                Topic.title,
+                MCQ.option_a,
+                MCQ.option_b,
+                MCQ.option_c,
+                MCQ.option_d,
+            )
+            .join(Topic, Topic.subject_id == Subject.id)
+            .join(MCQ, MCQ.topic_id == Topic.id)
+            .distinct()
+        ).subquery()
+
+        mcq_count = (
+            await db.execute(select(func.count()).select_from(inner))
+        ).scalar()
+
     return {"users": user_count or 0, "mcqs": mcq_count or 0}
 
 

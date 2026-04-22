@@ -1157,7 +1157,7 @@ class ApiClient {
     return this.request<MCQ[]>(`/admin/mcqs?topic_id=${topicId}`);
   }
 
-  async getMCQStats(): Promise<{ subject: string; chapter: string; mcqs: number }[]> {
+  async getMCQStats(): Promise<{ exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number }[]> {
     return this.request<{ subject: string; chapter: string; mcqs: number }[]>("/admin/mcq-stats");
   }
 
@@ -1189,6 +1189,14 @@ class ApiClient {
 
   async purgeSubjectMCQs(subjectName: string): Promise<{ deleted: number; subjects: number; topics: number }> {
     return this.request(`/admin/purge-subject-mcqs?subject_name=${encodeURIComponent(subjectName)}`, "DELETE");
+  }
+
+  async syncMCQsAcrossCategories(): Promise<{ synced: number; shared_subject_count: number; message: string }> {
+    return this.request("/admin/sync-mcqs-across-categories", "POST", {});
+  }
+
+  async dedupTopicMCQs(topicId: number): Promise<{ total_before: number; duplicates_deleted: number; total_after: number }> {
+    return this.request(`/admin/topics/${topicId}/dedup-mcqs`, "POST", {});
   }
 
   async aiChat(question: string, includeWeb: boolean = true): Promise<AIResponse> {
