@@ -64,7 +64,9 @@ const AdminContent = () => {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [csvExamType, setCsvExamType] = useState("ALL");
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
   const [essayCsvFile, setEssayCsvFile] = useState<File | null>(null);
+  const [isUploadingEssayCSV, setIsUploadingEssayCSV] = useState(false);
   const [manageSubjectId, setManageSubjectId] = useState<number | "">("");
   const [manageTopicId, setManageTopicId] = useState<number | "">("");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -516,25 +518,31 @@ const AdminContent = () => {
   const onUploadMCQCSV = async (e: FormEvent) => {
     e.preventDefault();
     if (!csvFile) return;
+    setIsUploadingCSV(true);
     try {
       const result = await apiClient.uploadMCQCSV(csvFile, csvExamType);
       setCsvFile(null);
       toast({ description: `MCQ CSV imported: ${result.created} created, ${result.skipped} skipped (${result.total_rows} total rows)` });
       if (activeTab === "mcqs") loadMCQStats();
     } catch (error: unknown) {
-      toast({ title: "CSV upload failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
+      toast({ title: "CSV upload failed", description: error instanceof Error ? error.message : "Unknown error occurred", variant: "destructive" });
+    } finally {
+      setIsUploadingCSV(false);
     }
   };
 
   const onUploadEssayCSV = async (e: FormEvent) => {
     e.preventDefault();
     if (!essayCsvFile) return;
+    setIsUploadingEssayCSV(true);
     try {
       const result = await apiClient.uploadEssayCSV(essayCsvFile);
       setEssayCsvFile(null);
       toast({ description: `Essay CSV imported: ${result.created} created, ${result.skipped} skipped (${result.total_rows} total rows)` });
     } catch (error: unknown) {
-      toast({ title: "Essay CSV upload failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
+      toast({ title: "Essay CSV upload failed", description: error instanceof Error ? error.message : "Unknown error occurred", variant: "destructive" });
+    } finally {
+      setIsUploadingEssayCSV(false);
     }
   };
 
@@ -1343,8 +1351,8 @@ const AdminContent = () => {
                 )}
                 <input className="w-full border rounded-lg px-3 py-2 text-sm" type="file" accept=".csv,text/csv" onChange={(e) => setCsvFile((e.target.files && e.target.files[0]) || null)} required />
                 {csvFile && <p className="text-xs text-muted-foreground">{csvFile.name}</p>}
-                <Button type="submit" className="w-full" disabled={!csvFile}>
-                  {csvExamType === "ALL" ? "Upload to All Categories" : "Upload MCQ CSV"}
+                <Button type="submit" className="w-full" disabled={!csvFile || isUploadingCSV}>
+                  {isUploadingCSV ? "Uploading..." : csvExamType === "ALL" ? "Upload to All Categories" : "Upload MCQ CSV"}
                 </Button>
               </form>
 
@@ -1358,7 +1366,9 @@ const AdminContent = () => {
                 </p>
                 <input className="w-full border rounded-lg px-3 py-2 text-sm" type="file" accept=".csv,text/csv" onChange={(e) => setEssayCsvFile((e.target.files && e.target.files[0]) || null)} required />
                 {essayCsvFile && <p className="text-xs text-muted-foreground">{essayCsvFile.name}</p>}
-                <Button type="submit" className="w-full" disabled={!essayCsvFile}>Upload Essay CSV</Button>
+                <Button type="submit" className="w-full" disabled={!essayCsvFile || isUploadingEssayCSV}>
+                  {isUploadingEssayCSV ? "Uploading..." : "Upload Essay CSV"}
+                </Button>
               </form>
 
               <form onSubmit={onUploadPDFs} className="rounded-2xl border bg-white p-5 space-y-3 shadow-sm">

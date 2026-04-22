@@ -1008,6 +1008,9 @@ MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
 ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"]
 
+# Maps numeric answer values to letter answers (1→A, 2→B, 3→C, 4→D)
+_NUMERIC_ANSWER_MAP: dict[str, str] = {"1": "A", "2": "B", "3": "C", "4": "D"}
+
 # Aliases: maps alternate column names -> canonical name
 MCQ_COLUMN_ALIASES: dict[str, str] = {
     "question_text": "question",
@@ -1019,6 +1022,10 @@ MCQ_COLUMN_ALIASES: dict[str, str] = {
     "option_2": "option2",
     "option_3": "option3",
     "option_4": "option4",
+    "option 1": "option1",
+    "option 2": "option2",
+    "option 3": "option3",
+    "option 4": "option4",
     "opt1": "option1",
     "opt2": "option2",
     "opt3": "option3",
@@ -1031,10 +1038,21 @@ MCQ_COLUMN_ALIASES: dict[str, str] = {
     "choice_b": "option2",
     "choice_c": "option3",
     "choice_d": "option4",
+    "choice 1": "option1",
+    "choice 2": "option2",
+    "choice 3": "option3",
+    "choice 4": "option4",
+    "choice1": "option1",
+    "choice2": "option2",
+    "choice3": "option3",
+    "choice4": "option4",
     "answer": "correct_answer",
     "correct": "correct_answer",
+    "correct answer": "correct_answer",
+    "right answer": "correct_answer",
     "key": "correct_answer",
     "ans": "correct_answer",
+    "answer key": "correct_answer",
     "topic": "chapter",
     "chapter_name": "chapter",
     "chapter name": "chapter",
@@ -1042,11 +1060,13 @@ MCQ_COLUMN_ALIASES: dict[str, str] = {
     "section": "chapter",
     "category": "subject",
     "subject_name": "subject",
+    "subject name": "subject",
     "sub": "subject",
     "exp": "explanation",
     "explain": "explanation",
     "rationale": "explanation",
     "reasoning": "explanation",
+    "description": "explanation",
 }
 
 
@@ -1167,7 +1187,8 @@ async def upload_mcq_csv(
         option2 = normalized_row.get("option2", "")
         option3 = normalized_row.get("option3", "")
         option4 = normalized_row.get("option4", "")
-        correct_answer = normalized_row.get("correct_answer", "").upper()
+        correct_answer_raw = normalized_row.get("correct_answer", "").strip()
+        correct_answer = _NUMERIC_ANSWER_MAP.get(correct_answer_raw, correct_answer_raw.upper())
         subject_name = normalized_row.get("subject", "")
         chapter_title = normalized_row.get("chapter", "")
         explanation = normalized_row.get("explanation", "") or "See answer above."
