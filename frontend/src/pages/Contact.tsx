@@ -573,11 +573,11 @@ const Contact = () => {
                       className="relative group/ack flex flex-col items-center gap-2.5 rounded-xl bg-white/70 dark:bg-slate-800/50 border border-indigo-100/60 dark:border-indigo-800/40 p-4 text-center shadow-sm hover:shadow-md transition-all">
                       {/* avatar */}
                       <div className="relative">
-                        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-200 to-blue-200 dark:from-indigo-700 dark:to-blue-700 flex items-center justify-center overflow-hidden shadow-sm">
+                        <div className="h-28 w-28 rounded-full bg-gradient-to-br from-indigo-200 to-blue-200 dark:from-indigo-700 dark:to-blue-700 flex items-center justify-center overflow-hidden shadow-sm">
                           {ack.image_url ? (
                             <img src={resolveImageUrl(ack.image_url) ?? ""} alt={ack.name} className="h-full w-full object-cover rounded-full" />
                           ) : (
-                            <User className="h-6 w-6 text-indigo-400 dark:text-indigo-300" />
+                            <User className="h-12 w-12 text-indigo-400 dark:text-indigo-300" />
                           )}
                         </div>
                         {isAdmin && editing && (
