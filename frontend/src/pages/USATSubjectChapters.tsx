@@ -292,6 +292,9 @@ const USATSubjectChapters = () => {
     if (expandedChapterId === chapterId) { setExpandedChapterId(null); return; }
     setExpandedChapterId(chapterId);
     loadChapterData(chapterId).catch(() => {});
+    setTimeout(() => {
+      document.getElementById(`chapter-${chapterId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }, [expandedChapterId, loadChapterData]);
 
   /* ── Admin handlers ─────────────────────────────────────────────────── */
@@ -528,6 +531,7 @@ const USATSubjectChapters = () => {
 
                         return (
                           <motion.div key={chapter.id}
+                            id={`chapter-${chapter.id}`}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             whileHover={isExpanded ? undefined : { y: -4, boxShadow: "0 16px 48px -12px rgba(0,0,0,0.12), 0 6px 16px -4px rgba(0,0,0,0.06)", transition: { duration: 0 } }}
