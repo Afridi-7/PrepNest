@@ -658,14 +658,14 @@ const AITutor = () => {
           {/* Quick prompts (only on empty chat) */}
           {messages.length <= 1 && !loading && (
             <div className="mx-auto max-w-2xl px-3 sm:px-4 pb-4 w-full">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {QUICK_PROMPTS.map((qp, i) => (
                   <button key={i} onClick={() => sendMessage(qp.prompt)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white dark:bg-slate-800/60 border ${qp.border} text-left transition-all hover:shadow-sm ${qp.hover}`}>
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${qp.gradient}`}>
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white dark:bg-slate-800/60 border ${qp.border} text-left transition-all hover:shadow-sm hover:-translate-y-0.5 ${qp.hover}`}>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${qp.gradient} shadow-sm`}>
                       <qp.icon className="h-3.5 w-3.5 text-white" />
                     </span>
-                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 leading-tight">{qp.label}</span>
+                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">{qp.label}</span>
                   </button>
                 ))}
               </div>

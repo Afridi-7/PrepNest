@@ -829,11 +829,15 @@ class ApiClient {
     score: number;
     max_score: number;
     feedback: string | {
+      headline?: string;
+      band?: string;
       overall_feedback: string;
       criteria: Array<{ name: string; score: number; comment: string }>;
       mistakes: Array<{ type: string; quote: string; issue: string; fix: string }>;
       strengths: string[];
       improvement_tips: string[];
+      model_rewrite?: string;
+      next_step_focus?: string;
     };
     essay_type: string;
   }> {

@@ -95,11 +95,15 @@ const Practice = () => {
     score: number;
     max_score: number;
     feedback: string | {
+      headline?: string;
+      band?: string;
       overall_feedback: string;
       criteria: Array<{ name: string; score: number; comment: string }>;
       mistakes: Array<{ type: string; quote: string; issue: string; fix: string }>;
       strengths: string[];
       improvement_tips: string[];
+      model_rewrite?: string;
+      next_step_focus?: string;
     };
     essay_type: string;
   } | null>(null);
@@ -1377,11 +1381,19 @@ const Practice = () => {
                       style={{ background: "linear-gradient(135deg, #6d28d9, #a855f7)", boxShadow: "0 4px 14px rgba(109,40,217,0.3)" }}>
                       <Star className="h-5 w-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="practice-heading text-base font-extrabold text-slate-800">AI Feedback</h3>
                       <p className="text-xs text-slate-400">Detailed evaluation of your essay</p>
                     </div>
+                    {fb?.band && (
+                      <span className="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider border-2 border-violet-200 bg-violet-100 text-violet-700">
+                        {fb.band}
+                      </span>
+                    )}
                   </div>
+                  {fb?.headline && (
+                    <p className="mb-3 text-base font-bold text-slate-900 leading-snug">“{fb.headline}”</p>
+                  )}
                   <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-5 text-sm text-slate-700 leading-relaxed">
                     {fb ? fb.overall_feedback : (typeof essayResult.feedback === "string" ? essayResult.feedback : "Evaluation complete.")}
                   </div>
@@ -1531,6 +1543,42 @@ const Practice = () => {
                           <p className="text-sm text-slate-700 leading-relaxed">{tip}</p>
                         </motion.div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Model Rewrite */}
+                {fb?.model_rewrite && (
+                  <div className="g-card rounded-3xl p-6 sm:p-8 mb-5" style={{ borderColor: "rgba(16,185,129,0.25)" }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl shadow-md"
+                        style={{ background: "linear-gradient(135deg, #047857, #10b981)", boxShadow: "0 4px 14px rgba(4,120,87,0.3)" }}>
+                        <PenTool className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="practice-heading text-base font-extrabold text-slate-800">Model Rewrite</h3>
+                        <p className="text-xs text-slate-400">Your weakest paragraph, strengthened — in your voice</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/60 p-5 text-sm text-slate-800 leading-relaxed italic">
+                      “{fb.model_rewrite}”
+                    </div>
+                  </div>
+                )}
+
+                {/* Next Step Focus */}
+                {fb?.next_step_focus && (
+                  <div className="rounded-3xl p-5 sm:p-6 mb-5 border-2"
+                    style={{ background: "linear-gradient(135deg, #eef2ff, #fdf4ff)", borderColor: "rgba(139,92,246,0.3)" }}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl shadow-md"
+                        style={{ background: "linear-gradient(135deg, #4f46e5, #a855f7)" }}>
+                        <Zap className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600 mb-1">Focus next time</p>
+                        <p className="text-sm font-semibold text-slate-800 leading-relaxed">{fb.next_step_focus}</p>
+                      </div>
                     </div>
                   </div>
                 )}

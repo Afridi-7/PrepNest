@@ -100,6 +100,67 @@ class AgentOrchestrator:
             logger.warning("Database context fetch failed: %s", exc)
             return ""
 
+    async def _fetch_user_progress(self, ctx: AgentContext) -> str:
+        """Fetch the student's recent practice/mock results so the tutor can give personalised advice."""
+        if not ctx.user_id:
+            return ""
+        try:
+            from sqlalchemy import select, desc
+            from app.db.session import async_session_factory
+            from app.db.models import PracticeResult, MockTest
+
+            async with async_session_factory() as db:
+                pr_stmt = (
+                    select(PracticeResult)
+                    .where(PracticeResult.user_id == ctx.user_id)
+                    .order_by(desc(PracticeResult.created_at))
+                    .limit(8)
+                )
+                mt_stmt = (
+                    select(MockTest)
+                    .where(MockTest.user_id == ctx.user_id, MockTest.status == "evaluated")
+                    .order_by(desc(MockTest.submitted_at))
+                    .limit(3)
+                )
+                pr_res, mt_res = await asyncio.gather(db.execute(pr_stmt), db.execute(mt_stmt))
+                practice = list(pr_res.scalars().all())
+                mocks = list(mt_res.scalars().all())
+
+            lines: list[str] = []
+            if practice:
+                # Aggregate accuracy per subject
+                by_subject: dict[str, list[tuple[int, int]]] = {}
+                for p in practice:
+                    key = p.subject_name or p.category or "General"
+                    by_subject.setdefault(key, []).append((p.correct_answers, p.total_questions))
+                lines.append("**Recent Practice (last 8 sessions):**")
+                for subj, sessions in by_subject.items():
+                    correct = sum(c for c, _ in sessions)
+                    total = sum(t for _, t in sessions)
+                    if total > 0:
+                        pct = round(100 * correct / total)
+                        lines.append(f"- {subj}: {correct}/{total} ({pct}%) across {len(sessions)} session(s)")
+                # Identify weak areas
+                weak = [s for s, ss in by_subject.items()
+                        if (sum(t for _, t in ss) > 0 and 100 * sum(c for c, _ in ss) / sum(t for _, t in ss) < 60)]
+                if weak:
+                    lines.append(f"- ⚠️ Weak areas to focus on: {', '.join(weak)}")
+            if mocks:
+                lines.append("**Recent Mock Tests:**")
+                for mt in mocks:
+                    res = mt.result_json or {}
+                    score = res.get("total_score") or res.get("mcq_score")
+                    total = res.get("total_max") or res.get("mcq_total")
+                    if score is not None and total:
+                        lines.append(f"- {mt.category}: {score}/{total} ({round(100*float(score)/float(total))}%)")
+                    else:
+                        lines.append(f"- {mt.category}: completed")
+
+            return "\n".join(lines) if lines else ""
+        except Exception as exc:
+            logger.warning("User-progress fetch failed: %s", exc)
+            return ""
+
     async def run(self, ctx: AgentContext) -> dict:
         route = await router_agent.route(ctx)
         used_agents = [router_agent.name]
@@ -118,6 +179,7 @@ class AgentOrchestrator:
             coros["visual"] = asyncio.create_task(visualization_agent.run(ctx))
         if route.get("use_database", True):
             coros["database"] = asyncio.create_task(self._fetch_database_context(ctx))
+        coros["user_progress"] = asyncio.create_task(self._fetch_user_progress(ctx))
 
         # Await all
         results: dict[str, object] = {}
@@ -154,6 +216,7 @@ class AgentOrchestrator:
             visuals.extend(visuals_output.visuals)
 
         database_context = results.get("database", "")
+        user_progress = results.get("user_progress", "")
 
         context = {
             "memory": memory.content if memory else "",
@@ -161,6 +224,7 @@ class AgentOrchestrator:
             "retrieved": retrieved_text,
             "live": live_text,
             "database_context": database_context if isinstance(database_context, str) else "",
+            "user_progress": user_progress if isinstance(user_progress, str) else "",
         }
 
         tutor = await tutor_agent.generate_answer(ctx, context)
@@ -192,6 +256,7 @@ class AgentOrchestrator:
             coros["visual"] = asyncio.create_task(visualization_agent.run(ctx))
         if route.get("use_database", True):
             coros["database"] = asyncio.create_task(self._fetch_database_context(ctx))
+        coros["user_progress"] = asyncio.create_task(self._fetch_user_progress(ctx))
 
         results: dict[str, object] = {}
         for key, task in coros.items():
@@ -227,6 +292,7 @@ class AgentOrchestrator:
             visuals.extend(visuals_output.visuals)
 
         database_context = results.get("database", "")
+        user_progress = results.get("user_progress", "")
 
         context = {
             "memory": memory.content if memory else "",
@@ -234,6 +300,7 @@ class AgentOrchestrator:
             "retrieved": retrieved_text,
             "live": live_text,
             "database_context": database_context if isinstance(database_context, str) else "",
+            "user_progress": user_progress if isinstance(user_progress, str) else "",
         }
 
         async def token_stream() -> AsyncGenerator[str, None]:

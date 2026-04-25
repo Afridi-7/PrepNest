@@ -641,34 +641,49 @@ async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay:
     criteria_block = criteria_arg if essay_type == "argumentative" else criteria_nar
 
     system_prompt = (
-        "You are an expert USAT/HAT essay examiner. You give brutally honest but encouraging feedback. "
-        "Your job is to help students improve by identifying EXACT mistakes and giving actionable advice.\n\n"
-        "Return ONLY valid JSON (no markdown, no code blocks) with this structure:\n"
+        "You are a world-class USAT/HAT essay examiner with 20+ years of experience grading admissions essays. "
+        "You combine the rigor of a Cambridge examiner with the warmth of a great teacher. "
+        "Students must finish reading your feedback feeling: (1) clearly graded, (2) understood, "
+        "(3) genuinely informed about what to fix, and (4) motivated to write again.\n\n"
+        "GRADING PHILOSOPHY:\n"
+        "- Be HONEST. Do not inflate scores. A 5-line essay does not deserve 70%.\n"
+        "- Be SPECIFIC. Quote real text. Show, don't just tell.\n"
+        "- Be CONSTRUCTIVE. Every weakness is paired with a concrete fix.\n"
+        "- Be HUMAN. Use second person, warm but direct. No robotic 'The essay demonstrates...'.\n\n"
+        "Return ONLY valid JSON (no markdown fences, no commentary) with this structure:\n"
         "{\n"
-        f'    "score": <number 0-{max_score}>,\n'
-        '    "overall_feedback": "<3-4 sentence overall assessment>",\n'
+        f'    "score": <number 0-{max_score}, granular to 0.5>,\n'
+        '    "band": "<one of: \'Excellent\', \'Strong\', \'Competent\', \'Developing\', \'Needs Work\'>",\n'
+        '    "headline": "<a single punchy sentence summarising this essay, addressed to the student>",\n'
+        '    "overall_feedback": "<3-5 sentences. Address the student as \'you\'. Honest verdict + the single biggest opportunity to improve>",\n'
         f"{criteria_block},\n"
+        '    "strengths": ["<specific strength with a short quote 1>", "<strength 2>", "<strength 3>"],\n'
         '    "mistakes": [\n'
-        '      {"type": "grammar|spelling|logic|structure|style|vocabulary|coherence", '
-        '"quote": "<exact quote from essay>", "issue": "<what is wrong>", "fix": "<how to fix it>"}\n'
+        '      {"type": "grammar|spelling|logic|structure|style|vocabulary|coherence|argument|evidence", '
+        '"quote": "<exact 5-15 word quote from essay>", "issue": "<what is wrong, 1 sentence>", "fix": "<rewritten version or concrete fix, 1 sentence>"}\n'
         "    ],\n"
-        '    "strengths": ["<specific strength 1>", "<specific strength 2>"],\n'
-        '    "improvement_tips": ["<actionable tip 1>", "<actionable tip 2>", "<actionable tip 3>"]\n'
+        '    "improvement_tips": ["<actionable tip 1>", "<actionable tip 2>", "<actionable tip 3>"],\n'
+        '    "model_rewrite": "<rewrite ONE weak paragraph from the essay (the weakest one) into a stronger 3-5 sentence version. Show the student what good looks like, in their voice>",\n'
+        '    "next_step_focus": "<the ONE thing the student should focus on for their next essay, in 1 sentence>"\n'
         "}\n\n"
-        "IMPORTANT:\n"
-        "- In 'mistakes', quote the EXACT text from the essay that contains the error (max 15 words per quote).\n"
-        "- Include 3-8 mistakes sorted by severity. Cover grammar, spelling, logic, and style issues.\n"
-        "- 'strengths' should list 2-4 specific things the student did well.\n"
-        "- 'improvement_tips' should give 3-5 concrete, actionable tips for next time.\n"
-        "- Criteria scores must sum up to the overall score.\n"
-        "- Be specific, not vague. Say 'Your thesis lacks a clear counter-argument' not 'Could be better'."
+        "RULES:\n"
+        "- 'mistakes': 3-8 items, sorted by severity. Each quote MUST be copy-pasted verbatim from the essay.\n"
+        "- 'strengths': 2-4 items. Always quote a real phrase from the essay if possible.\n"
+        "- 'improvement_tips': 3-5 items, each starting with an action verb (\"Open with…\", \"Replace…\", \"Add…\").\n"
+        "- 'model_rewrite': pick the weakest paragraph and rewrite it. Keep the student's argument; just make it stronger.\n"
+        "- Criteria scores MUST sum to the overall score.\n"
+        "- Score band mapping (out of max): Excellent ≥85%, Strong 70-84%, Competent 55-69%, Developing 40-54%, Needs Work <40%.\n"
+        "- If the essay is empty/gibberish/under 30 words, score it accordingly (0-20%) and explain kindly why.\n"
+        "- NEVER lie or pad. NEVER be cruel. Always aim for: clear, specific, kind, useful."
     )
+    word_count = len(user_essay.split())
     user_prompt = (
         f"Essay type: {essay_type}\n"
-        f"Maximum score: {max_score}\n\n"
+        f"Maximum score: {max_score}\n"
+        f"Word count: {word_count}\n\n"
         f"Prompt given to the student:\n\"{prompt_text}\"\n\n"
         f"Student's essay:\n\"\"\"\n{user_essay[:4000]}\n\"\"\"\n\n"
-        "Evaluate thoroughly and return JSON."
+        "Evaluate thoroughly. Return ONLY the JSON object."
     )
 
     try:
@@ -685,11 +700,15 @@ async def _evaluate_essay_with_ai(essay_type: str, prompt_text: str, user_essay:
 
         # Build rich feedback dict
         feedback = {
+            "headline": str(data.get("headline", "")),
+            "band": str(data.get("band", "")),
             "overall_feedback": str(data.get("overall_feedback", "Evaluation complete.")),
             "criteria": data.get("criteria", []),
             "mistakes": data.get("mistakes", []),
             "strengths": data.get("strengths", []),
             "improvement_tips": data.get("improvement_tips", []),
+            "model_rewrite": str(data.get("model_rewrite", "")),
+            "next_step_focus": str(data.get("next_step_focus", "")),
         }
         return score, feedback
     except Exception as e:

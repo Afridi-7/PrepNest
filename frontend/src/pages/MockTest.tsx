@@ -937,6 +937,14 @@ const MockTestPage = () => {
                               const fb = essay.feedback as any;
                               return (
                               <div className="space-y-3">
+                                {fb.band && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border-2 border-amber-200 bg-amber-100 text-amber-800">
+                                      {fb.band}
+                                    </span>
+                                    {fb.headline && <span className="text-sm font-bold text-slate-800 italic">“{fb.headline}”</span>}
+                                  </div>
+                                )}
                                 <p className="text-sm text-slate-700 leading-relaxed">{fb.overall_feedback}</p>
                                 {fb.mistakes?.length > 0 && (
                                   <div className="mt-3 space-y-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
@@ -958,6 +966,18 @@ const MockTestPage = () => {
                                         <span>{tip}</span>
                                       </div>
                                     ))}
+                                  </div>
+                                )}
+                                {fb.model_rewrite && (
+                                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                                    <div className="text-xs font-bold text-emerald-700 mb-1.5">Model Rewrite</div>
+                                    <p className="text-xs text-slate-700 italic leading-relaxed">“{fb.model_rewrite}”</p>
+                                  </div>
+                                )}
+                                {fb.next_step_focus && (
+                                  <div className="p-3 rounded-xl bg-violet-50 border border-violet-100">
+                                    <div className="text-xs font-bold text-violet-700 mb-1">Focus Next Time</div>
+                                    <p className="text-xs text-slate-700">{fb.next_step_focus}</p>
                                   </div>
                                 )}
                               </div>
