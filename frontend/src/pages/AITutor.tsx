@@ -470,9 +470,12 @@ const AITutor = () => {
           className="w-[260px] flex flex-col overflow-hidden fixed left-0 top-16 h-[calc(100vh-64px)] z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-r border-slate-200/80 dark:border-slate-800"
         >
           <div className="p-3 border-b border-slate-100 dark:border-slate-800">
-            <button onClick={newConversation}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 via-blue-600 to-cyan-600 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">
-              <Plus className="h-3.5 w-3.5" /> New Chat
+            <button
+              onClick={newConversation}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New conversation
             </button>
           </div>
 
