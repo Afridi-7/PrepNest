@@ -653,6 +653,12 @@ async def upload_material_pdfs(
                 status_code=400,
                 detail=f"File too large ({filename}). Max size is {settings.max_upload_size_mb} MB",
             )
+        # Magic-byte check: real PDFs start with %PDF-
+        if not content.startswith(b"%PDF-"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{filename}' is not a valid PDF (header check failed).",
+            )
 
         key = make_key(f"content/{topic_id}", filename)
         try:

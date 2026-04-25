@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, is_user_pro
+from app.api.deps import get_current_user, is_user_pro, rate_limit
 from app.db.models import Conversation, Message, User
 from app.db.session import get_db_session
 from app.schemas.content import AIChatRequest, AIExplainRequest, AIResponse, AISolveRequest
@@ -44,6 +44,7 @@ async def ai_chat(
     payload: AIChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "ai_chat")),
 ) -> AIResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)
@@ -55,6 +56,7 @@ async def ai_explain(
     payload: AIExplainRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "ai_explain")),
 ) -> AIResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)
@@ -67,6 +69,7 @@ async def ai_solve(
     payload: AISolveRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "ai_solve")),
 ) -> AIResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)
@@ -82,6 +85,7 @@ async def ai_chat_stream(
     payload: AIChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(30, "ai_chat_stream")),
 ) -> StreamingResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)
@@ -96,6 +100,7 @@ async def ai_explain_stream(
     payload: AIExplainRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(30, "ai_explain_stream")),
 ) -> StreamingResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)
@@ -111,6 +116,7 @@ async def ai_solve_stream(
     payload: AISolveRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(30, "ai_solve_stream")),
 ) -> StreamingResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = AILearningService(db)

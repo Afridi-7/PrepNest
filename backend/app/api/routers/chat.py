@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, is_user_pro
+from app.api.deps import get_current_user, is_user_pro, rate_limit
 from app.models import User
 from app.db.models import Conversation, Message
 from app.db.session import get_db_session
@@ -45,6 +45,7 @@ async def chat_completion(
     payload: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "chat_completion")),
 ) -> ChatResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = ChatService(db)
@@ -63,6 +64,7 @@ async def chat_stream(
     payload: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(30, "chat_stream")),
 ) -> StreamingResponse:
     await _enforce_daily_message_limit(current_user, db)
     service = ChatService(db)

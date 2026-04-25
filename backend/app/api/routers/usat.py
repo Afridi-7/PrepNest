@@ -584,7 +584,10 @@ async def view_user_note_pdf(
 
     # If stored as a Supabase/external URL, redirect to it
     if note.file_path.startswith("http://") or note.file_path.startswith("https://"):
-        return RedirectResponse(url=note.file_path)
+        return RedirectResponse(
+            url=note.file_path,
+            headers={"Referrer-Policy": "no-referrer"},
+        )
 
     # Resolve absolute path from stored relative path
     relative = note.file_path.lstrip("/")
@@ -598,7 +601,11 @@ async def view_user_note_pdf(
     return FileResponse(
         path=str(abs_path),
         media_type="application/pdf",
-        headers={"Content-Disposition": "inline"},
+        headers={
+            "Content-Disposition": "inline",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

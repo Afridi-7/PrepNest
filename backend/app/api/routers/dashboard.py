@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy import func, select, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user
+from app.api.deps import get_current_admin, get_current_user, rate_limit
 from app.core.config import get_settings
 from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.session import get_db_session
@@ -32,6 +32,7 @@ router = APIRouter(tags=["dashboard"])
 async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "dash_stats")),
 ):
     # Single aggregation query instead of N+1 loop
     topic_count_sq = (
@@ -153,6 +154,7 @@ async def get_dashboard_stats(
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
     db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "leaderboard")),
 ):
     """Top 10 users ranked by total MCQs solved correctly (mock tests + practice)."""
     from sqlalchemy import union_all, literal

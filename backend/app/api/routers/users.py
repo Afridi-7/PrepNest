@@ -12,6 +12,10 @@ from app.services.user_crud_service import UserCrudService
 router = APIRouter(prefix="/users", tags=["users"])
 service = UserCrudService()
 
+# Hard cap on user-controlled JSON blob persisted to the users table.
+# 8 KB is generous for theme/locale-style preferences and prevents abuse.
+_MAX_PREFERENCES_BYTES = 8 * 1024
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
@@ -32,6 +36,20 @@ async def update_preferences(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserResponse:
+    # Cap the payload size to prevent users storing arbitrarily large blobs in the
+    # users table (DoS via row bloat). 8 KB serialized JSON is more than enough
+    # for theme / locale / display preferences.
+    import json as _json
+    try:
+        size = len(_json.dumps(preferences))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Preferences must be JSON-serialisable")
+    if size > _MAX_PREFERENCES_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Preferences payload too large ({size} bytes; max {_MAX_PREFERENCES_BYTES}).",
+        )
+
     repo = UserRepository(db)
     user = await repo.update_preferences(current_user, preferences)
     return UserResponse(

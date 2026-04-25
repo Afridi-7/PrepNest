@@ -228,7 +228,7 @@ async def reset_password(
 async def login_user(
     payload: UserLoginRequest,
     db: AsyncSession = Depends(get_db_session),
-    _rl=Depends(rate_limit(20, "auth_login")),
+    _rl=Depends(rate_limit(10, "auth_login")),
 ) -> TokenResponse:
     repo = UserRepository(db)
     user = await repo.get_by_email(payload.email)
@@ -252,7 +252,7 @@ async def login_user(
 async def google_auth(
     payload: GoogleAuthRequest,
     db: AsyncSession = Depends(get_db_session),
-    _rl=Depends(rate_limit(20, "auth_google")),
+    _rl=Depends(rate_limit(10, "auth_google")),
 ) -> TokenResponse:
     settings = get_settings()
 

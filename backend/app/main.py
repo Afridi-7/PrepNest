@@ -1,6 +1,7 @@
 import logging
 from urllib.parse import urlsplit
 
+import fastapi
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
 
 from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, usat, users
+from app.api.deps import rate_limit
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
@@ -130,9 +132,61 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 app.add_middleware(CacheControlMiddleware)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add safe, non-breaking security response headers on every response.
+
+    These are additive and do NOT change response bodies, status codes, or
+    affect any API contract. CSP is intentionally NOT applied globally because
+    the SPA may legitimately load fonts/scripts from CDNs; instead the frontend
+    should set its own CSP via nginx/vercel headers. We do set a minimal CSP
+    only on the static /uploads and PDF responses to prevent any uploaded
+    HTML/JS from running in the user's origin if directly opened.
+    """
+
+    _is_prod = settings.app_env.lower() not in ("development", "dev", "local", "test")
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        # Universal hardening — never breaks API consumers.
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
+        )
+        # HSTS is only meaningful over HTTPS — set in production environments.
+        if self._is_prod:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        # Lock down anything served from /uploads (static files) so a malicious
+        # uploaded HTML cannot execute scripts in the API origin.
+        if request.url.path.startswith("/uploads"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; img-src 'self' data:; "
+                "style-src 'unsafe-inline'; sandbox"
+            )
+            # Allow PDF iframes from same origin to keep PDF viewer working.
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     if settings.jwt_secret_key == "change-me-in-production":
+        env_name = settings.app_env.lower()
+        if env_name not in ("development", "dev", "local", "test"):
+            # In production / staging, refuse to start with the default secret.
+            # This prevents a catastrophic deploy where forging tokens is trivial.
+            raise RuntimeError(
+                "JWT_SECRET_KEY is set to the insecure default in a non-development "
+                "environment. Set a strong secret in your environment before starting."
+            )
         logging.warning("JWT_SECRET_KEY is using the insecure default — set a strong secret in .env!")
     try:
         async with engine.begin() as conn:
@@ -260,10 +314,17 @@ async def root() -> dict:
 
 
 @app.get(f"{settings.api_prefix}/public/stats")
-async def public_stats() -> dict:
+async def public_stats(_rl=fastapi.Depends(rate_limit(60, "public_stats"))) -> dict:
     """Return real-time platform stats (public, no auth).
     MCQ count is deduplicated: identical MCQs spread across USAT categories
-    (same subject name + chapter + 4 options) are counted only once."""
+    (same subject name + chapter + 4 options) are counted only once.
+
+    Cached via Cache-Control header (60s) so repeated hits don't re-run
+    the DISTINCT join. Rate-limited to 60/min per IP as defence-in-depth.
+    """
+    cached = await cache_service.get_json("public:stats")
+    if cached:
+        return cached
     async with SessionLocal() as db:
         user_count = (
             await db.execute(select(func.count()).select_from(User))
@@ -288,7 +349,9 @@ async def public_stats() -> dict:
             await db.execute(select(func.count()).select_from(inner))
         ).scalar()
 
-    return {"users": user_count or 0, "mcqs": mcq_count or 0}
+    payload = {"users": user_count or 0, "mcqs": mcq_count or 0}
+    await cache_service.set_json("public:stats", payload, ttl_seconds=60)
+    return payload
 
 
 app.include_router(auth.router, prefix=settings.api_prefix)
