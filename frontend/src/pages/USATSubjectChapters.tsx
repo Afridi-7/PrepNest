@@ -28,111 +28,259 @@ const readYear = (title: string): string => {
 
 const MCQ_PAGE_SIZE = 20;
 
-/* ── Chapter color palette — vivid & bold so they POP on all screens ── */
-const CHAPTER_COLORS = [
-  {
-    dot: "bg-blue-500",
-    badge: "bg-blue-600 text-white",
-    headerBg: "bg-blue-600",
-    headerText: "text-white",
+/* ── Chapter color palette — vivid gradient cards with high-contrast text ── */
+type ChapterPalette = {
+  /* Collapsed (full-color) state */
+  cardGradient: string;       // full-card gradient bg when collapsed
+  cardBorder: string;         // collapsed border
+  cardShadow: string;         // collapsed shadow tint
+  cardHoverShadow: string;    // hover shadow tint (stronger)
+  /* Expanded state */
+  expandedBg: string;         // soft tinted body
+  expandedBorder: string;     // accent border (top of body + outer)
+  expandedShadow: string;
+  /* Pieces inside the card header */
+  badge: string;              // round number chip (white pill on gradient)
+  badgeText: string;
+  mcqPill: string;            // "12 MCQs" pill on collapsed (translucent white)
+  mcqPillExpanded: string;    // pill style when expanded
+  labelText: string;          // "Chapter N" small text on collapsed (always white-ish)
+  titleCollapsed: string;     // chapter title color when collapsed
+  titleExpanded: string;      // chapter title color when expanded
+  chevronCollapsed: string;
+  chevronExpanded: string;
+  /* Section pieces inside the expanded body */
+  sectionAccent: string;      // small accent chip color (e.g. emerald)
+};
+
+const CHAPTER_COLORS: ChapterPalette[] = [
+  { // 1 · sapphire blue (dim pastel)
+    cardGradient: "bg-gradient-to-br from-blue-100 via-blue-200/80 to-indigo-200/70",
+    cardBorder: "border-blue-200",
+    cardShadow: "shadow-sm shadow-blue-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-blue-300/40",
     expandedBg: "bg-blue-50",
-    expandedBorder: "border-blue-400",
-    labelText: "text-blue-700",
-    titleText: "text-blue-900",
-    collapsedBg: "bg-white hover:bg-blue-50",
-    collapsedBorder: "border-blue-300",
-    shadow: "shadow-blue-200/60",
+    expandedBorder: "border-blue-300",
+    expandedShadow: "shadow-blue-200/40",
+    badge: "bg-white",
+    badgeText: "text-blue-700",
+    mcqPill: "bg-white/70 text-blue-800 border border-blue-200",
+    mcqPillExpanded: "bg-blue-600 text-white",
+    labelText: "text-blue-600/90",
+    titleCollapsed: "text-blue-900",
+    titleExpanded: "text-blue-900",
+    chevronCollapsed: "text-blue-700/80",
+    chevronExpanded: "text-blue-700",
+    sectionAccent: "bg-blue-100 text-blue-700",
   },
-  {
-    dot: "bg-sky-500",
-    badge: "bg-sky-600 text-white",
-    headerBg: "bg-sky-600",
-    headerText: "text-white",
+  { // 2 · cyan / sky
+    cardGradient: "bg-gradient-to-br from-sky-100 via-cyan-100/80 to-teal-100/70",
+    cardBorder: "border-sky-200",
+    cardShadow: "shadow-sm shadow-sky-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-sky-300/40",
     expandedBg: "bg-sky-50",
-    expandedBorder: "border-sky-400",
-    labelText: "text-sky-700",
-    titleText: "text-sky-900",
-    collapsedBg: "bg-white hover:bg-sky-50",
-    collapsedBorder: "border-sky-300",
-    shadow: "shadow-sky-200/60",
+    expandedBorder: "border-sky-300",
+    expandedShadow: "shadow-sky-200/40",
+    badge: "bg-white",
+    badgeText: "text-sky-700",
+    mcqPill: "bg-white/70 text-sky-800 border border-sky-200",
+    mcqPillExpanded: "bg-sky-600 text-white",
+    labelText: "text-sky-600/90",
+    titleCollapsed: "text-sky-900",
+    titleExpanded: "text-sky-900",
+    chevronCollapsed: "text-sky-700/80",
+    chevronExpanded: "text-sky-700",
+    sectionAccent: "bg-sky-100 text-sky-700",
   },
-  {
-    dot: "bg-emerald-500",
-    badge: "bg-emerald-600 text-white",
-    headerBg: "bg-emerald-600",
-    headerText: "text-white",
+  { // 3 · emerald / lime
+    cardGradient: "bg-gradient-to-br from-emerald-100 via-green-100/80 to-lime-100/70",
+    cardBorder: "border-emerald-200",
+    cardShadow: "shadow-sm shadow-emerald-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-emerald-300/40",
     expandedBg: "bg-emerald-50",
-    expandedBorder: "border-emerald-400",
-    labelText: "text-emerald-700",
-    titleText: "text-emerald-900",
-    collapsedBg: "bg-white hover:bg-emerald-50",
-    collapsedBorder: "border-emerald-300",
-    shadow: "shadow-emerald-200/60",
+    expandedBorder: "border-emerald-300",
+    expandedShadow: "shadow-emerald-200/40",
+    badge: "bg-white",
+    badgeText: "text-emerald-700",
+    mcqPill: "bg-white/70 text-emerald-800 border border-emerald-200",
+    mcqPillExpanded: "bg-emerald-600 text-white",
+    labelText: "text-emerald-600/90",
+    titleCollapsed: "text-emerald-900",
+    titleExpanded: "text-emerald-900",
+    chevronCollapsed: "text-emerald-700/80",
+    chevronExpanded: "text-emerald-700",
+    sectionAccent: "bg-emerald-100 text-emerald-700",
   },
-  {
-    dot: "bg-amber-500",
-    badge: "bg-amber-500 text-white",
-    headerBg: "bg-amber-500",
-    headerText: "text-white",
+  { // 4 · amber / orange
+    cardGradient: "bg-gradient-to-br from-amber-100 via-orange-100/80 to-red-100/70",
+    cardBorder: "border-amber-200",
+    cardShadow: "shadow-sm shadow-amber-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-orange-300/40",
     expandedBg: "bg-amber-50",
-    expandedBorder: "border-amber-400",
-    labelText: "text-amber-700",
-    titleText: "text-amber-900",
-    collapsedBg: "bg-white hover:bg-amber-50",
-    collapsedBorder: "border-amber-300",
-    shadow: "shadow-amber-200/60",
+    expandedBorder: "border-amber-300",
+    expandedShadow: "shadow-amber-200/40",
+    badge: "bg-white",
+    badgeText: "text-amber-700",
+    mcqPill: "bg-white/70 text-amber-800 border border-amber-200",
+    mcqPillExpanded: "bg-amber-600 text-white",
+    labelText: "text-amber-700/90",
+    titleCollapsed: "text-amber-900",
+    titleExpanded: "text-amber-900",
+    chevronCollapsed: "text-amber-700/80",
+    chevronExpanded: "text-amber-700",
+    sectionAccent: "bg-amber-100 text-amber-700",
   },
-  {
-    dot: "bg-rose-500",
-    badge: "bg-rose-600 text-white",
-    headerBg: "bg-rose-600",
-    headerText: "text-white",
+  { // 5 · rose / pink
+    cardGradient: "bg-gradient-to-br from-rose-100 via-pink-100/80 to-fuchsia-100/70",
+    cardBorder: "border-rose-200",
+    cardShadow: "shadow-sm shadow-rose-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-rose-300/40",
     expandedBg: "bg-rose-50",
-    expandedBorder: "border-rose-400",
-    labelText: "text-rose-700",
-    titleText: "text-rose-900",
-    collapsedBg: "bg-white hover:bg-rose-50",
-    collapsedBorder: "border-rose-300",
-    shadow: "shadow-rose-200/60",
+    expandedBorder: "border-rose-300",
+    expandedShadow: "shadow-rose-200/40",
+    badge: "bg-white",
+    badgeText: "text-rose-700",
+    mcqPill: "bg-white/70 text-rose-800 border border-rose-200",
+    mcqPillExpanded: "bg-rose-600 text-white",
+    labelText: "text-rose-600/90",
+    titleCollapsed: "text-rose-900",
+    titleExpanded: "text-rose-900",
+    chevronCollapsed: "text-rose-700/80",
+    chevronExpanded: "text-rose-700",
+    sectionAccent: "bg-rose-100 text-rose-700",
   },
-  {
-    dot: "bg-cyan-500",
-    badge: "bg-cyan-600 text-white",
-    headerBg: "bg-cyan-600",
-    headerText: "text-white",
-    expandedBg: "bg-cyan-50",
-    expandedBorder: "border-cyan-400",
-    labelText: "text-cyan-700",
-    titleText: "text-cyan-900",
-    collapsedBg: "bg-white hover:bg-cyan-50",
-    collapsedBorder: "border-cyan-300",
-    shadow: "shadow-cyan-200/60",
+  { // 6 · violet / purple
+    cardGradient: "bg-gradient-to-br from-violet-100 via-purple-100/80 to-fuchsia-100/70",
+    cardBorder: "border-violet-200",
+    cardShadow: "shadow-sm shadow-violet-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-violet-300/40",
+    expandedBg: "bg-violet-50",
+    expandedBorder: "border-violet-300",
+    expandedShadow: "shadow-violet-200/40",
+    badge: "bg-white",
+    badgeText: "text-violet-700",
+    mcqPill: "bg-white/70 text-violet-800 border border-violet-200",
+    mcqPillExpanded: "bg-violet-600 text-white",
+    labelText: "text-violet-600/90",
+    titleCollapsed: "text-violet-900",
+    titleExpanded: "text-violet-900",
+    chevronCollapsed: "text-violet-700/80",
+    chevronExpanded: "text-violet-700",
+    sectionAccent: "bg-violet-100 text-violet-700",
   },
-  {
-    dot: "bg-cyan-500",
-    badge: "bg-cyan-600 text-white",
-    headerBg: "bg-cyan-600",
-    headerText: "text-white",
-    expandedBg: "bg-cyan-50",
-    expandedBorder: "border-cyan-400",
-    labelText: "text-cyan-700",
-    titleText: "text-cyan-900",
-    collapsedBg: "bg-white hover:bg-cyan-50",
-    collapsedBorder: "border-cyan-300",
-    shadow: "shadow-cyan-200/60",
+  { // 7 · teal / cyan
+    cardGradient: "bg-gradient-to-br from-teal-100 via-cyan-100/80 to-blue-100/70",
+    cardBorder: "border-teal-200",
+    cardShadow: "shadow-sm shadow-teal-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-teal-300/40",
+    expandedBg: "bg-teal-50",
+    expandedBorder: "border-teal-300",
+    expandedShadow: "shadow-teal-200/40",
+    badge: "bg-white",
+    badgeText: "text-teal-700",
+    mcqPill: "bg-white/70 text-teal-800 border border-teal-200",
+    mcqPillExpanded: "bg-teal-600 text-white",
+    labelText: "text-teal-700/90",
+    titleCollapsed: "text-teal-900",
+    titleExpanded: "text-teal-900",
+    chevronCollapsed: "text-teal-700/80",
+    chevronExpanded: "text-teal-700",
+    sectionAccent: "bg-teal-100 text-teal-700",
   },
-  {
-    dot: "bg-indigo-500",
-    badge: "bg-indigo-600 text-white",
-    headerBg: "bg-indigo-600",
-    headerText: "text-white",
+  { // 8 · indigo
+    cardGradient: "bg-gradient-to-br from-indigo-100 via-blue-100/80 to-violet-100/70",
+    cardBorder: "border-indigo-200",
+    cardShadow: "shadow-sm shadow-indigo-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-indigo-300/40",
     expandedBg: "bg-indigo-50",
-    expandedBorder: "border-indigo-400",
-    labelText: "text-indigo-700",
-    titleText: "text-indigo-900",
-    collapsedBg: "bg-white hover:bg-indigo-50",
-    collapsedBorder: "border-indigo-300",
-    shadow: "shadow-indigo-200/60",
+    expandedBorder: "border-indigo-300",
+    expandedShadow: "shadow-indigo-200/40",
+    badge: "bg-white",
+    badgeText: "text-indigo-700",
+    mcqPill: "bg-white/70 text-indigo-800 border border-indigo-200",
+    mcqPillExpanded: "bg-indigo-600 text-white",
+    labelText: "text-indigo-600/90",
+    titleCollapsed: "text-indigo-900",
+    titleExpanded: "text-indigo-900",
+    chevronCollapsed: "text-indigo-700/80",
+    chevronExpanded: "text-indigo-700",
+    sectionAccent: "bg-indigo-100 text-indigo-700",
+  },
+  { // 9 · fuchsia / pink
+    cardGradient: "bg-gradient-to-br from-fuchsia-100 via-pink-100/80 to-rose-100/70",
+    cardBorder: "border-fuchsia-200",
+    cardShadow: "shadow-sm shadow-fuchsia-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-fuchsia-300/40",
+    expandedBg: "bg-fuchsia-50",
+    expandedBorder: "border-fuchsia-300",
+    expandedShadow: "shadow-fuchsia-200/40",
+    badge: "bg-white",
+    badgeText: "text-fuchsia-700",
+    mcqPill: "bg-white/70 text-fuchsia-800 border border-fuchsia-200",
+    mcqPillExpanded: "bg-fuchsia-600 text-white",
+    labelText: "text-fuchsia-600/90",
+    titleCollapsed: "text-fuchsia-900",
+    titleExpanded: "text-fuchsia-900",
+    chevronCollapsed: "text-fuchsia-700/80",
+    chevronExpanded: "text-fuchsia-700",
+    sectionAccent: "bg-fuchsia-100 text-fuchsia-700",
+  },
+  { // 10 · lime / green
+    cardGradient: "bg-gradient-to-br from-lime-100 via-emerald-100/80 to-teal-100/70",
+    cardBorder: "border-lime-200",
+    cardShadow: "shadow-sm shadow-lime-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-emerald-300/40",
+    expandedBg: "bg-lime-50",
+    expandedBorder: "border-lime-300",
+    expandedShadow: "shadow-lime-200/40",
+    badge: "bg-white",
+    badgeText: "text-lime-700",
+    mcqPill: "bg-white/70 text-lime-800 border border-lime-200",
+    mcqPillExpanded: "bg-lime-600 text-white",
+    labelText: "text-lime-700/90",
+    titleCollapsed: "text-lime-900",
+    titleExpanded: "text-lime-900",
+    chevronCollapsed: "text-lime-700/80",
+    chevronExpanded: "text-lime-700",
+    sectionAccent: "bg-lime-100 text-lime-700",
+  },
+  { // 11 · orange / red
+    cardGradient: "bg-gradient-to-br from-orange-100 via-red-100/80 to-pink-100/70",
+    cardBorder: "border-orange-200",
+    cardShadow: "shadow-sm shadow-orange-200/30",
+    cardHoverShadow: "hover:shadow-md hover:shadow-red-300/40",
+    expandedBg: "bg-orange-50",
+    expandedBorder: "border-orange-300",
+    expandedShadow: "shadow-orange-200/40",
+    badge: "bg-white",
+    badgeText: "text-orange-700",
+    mcqPill: "bg-white/70 text-orange-800 border border-orange-200",
+    mcqPillExpanded: "bg-orange-600 text-white",
+    labelText: "text-orange-700/90",
+    titleCollapsed: "text-orange-900",
+    titleExpanded: "text-orange-900",
+    chevronCollapsed: "text-orange-700/80",
+    chevronExpanded: "text-orange-700",
+    sectionAccent: "bg-orange-100 text-orange-700",
+  },
+  { // 12 · slate / steel (soft neutral)
+    cardGradient: "bg-gradient-to-br from-slate-100 via-slate-200/70 to-zinc-200/70",
+    cardBorder: "border-slate-200",
+    cardShadow: "shadow-sm shadow-slate-200/40",
+    cardHoverShadow: "hover:shadow-md hover:shadow-slate-300/40",
+    expandedBg: "bg-slate-50",
+    expandedBorder: "border-slate-300",
+    expandedShadow: "shadow-slate-200/40",
+    badge: "bg-white",
+    badgeText: "text-slate-800",
+    mcqPill: "bg-white/70 text-slate-800 border border-slate-200",
+    mcqPillExpanded: "bg-slate-700 text-white",
+    labelText: "text-slate-600",
+    titleCollapsed: "text-slate-900",
+    titleExpanded: "text-slate-900",
+    chevronCollapsed: "text-slate-600",
+    chevronExpanded: "text-slate-700",
+    sectionAccent: "bg-slate-100 text-slate-700",
   },
 ];
 
@@ -523,48 +671,64 @@ const USATSubjectChapters = () => {
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {chapters.map((chapter, index) => {
+                      {(() => {
+                        // Per-category offset so the same chapter index in different
+                        // categories starts on a different palette color.
+                        const CATEGORY_OFFSET: Record<string, number> = {
+                          "USAT-E": 0,
+                          "USAT-M": 2,
+                          "USAT-CS": 6,
+                          "USAT-A": 4,
+                          "USAT-GS": 3,
+                          "USAT-COM": 9,
+                        };
+                        const offset = CATEGORY_OFFSET[category.toUpperCase()] ?? 0;
+                        return chapters.map((chapter, index) => {
                         const isExpanded = expandedChapterId === chapter.id;
                         const mcqs = chapterMcqsById[chapter.id] ?? [];
                         const isLoading = !!chapterLoadingById[chapter.id];
-                        const C = CHAPTER_COLORS[index % CHAPTER_COLORS.length];
+                        const C = CHAPTER_COLORS[(index + offset) % CHAPTER_COLORS.length];
 
                         return (
-                          <motion.div key={chapter.id}
+                          <div key={chapter.id}
                             id={`chapter-${chapter.id}`}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            whileHover={isExpanded ? undefined : { y: -4, boxShadow: "0 16px 48px -12px rgba(0,0,0,0.12), 0 6px 16px -4px rgba(0,0,0,0.06)", transition: { duration: 0 } }}
-                            transition={{ delay: index * 0.04 }}
-                            className={`overflow-hidden rounded-xl border-2 ${
+                            className={`overflow-hidden rounded-2xl border-2 transition-shadow duration-150 ${
                               isExpanded
-                                ? `${C.expandedBorder} shadow-lg ${C.shadow}`
-                                : `${C.collapsedBorder} shadow-sm hover:shadow-md`
+                                ? `${C.expandedBorder} bg-white shadow-lg ${C.expandedShadow}`
+                                : `${C.cardBorder} ${C.cardShadow} ${C.cardHoverShadow} hover:-translate-y-0.5 transition-transform`
                             }`}>
 
                             {/* Chapter header button */}
                             <button type="button" onClick={() => toggleChapter(chapter.id)}
-                              className={`flex w-full items-center gap-3 p-4 text-left transition-all duration-200 ${
-                                isExpanded ? C.expandedBg : C.collapsedBg
+                              className={`group flex w-full items-center gap-3 p-4 text-left ${
+                                isExpanded ? "bg-white" : `${C.cardGradient}`
                               }`}>
 
-                              {/* colored dot / number */}
-                              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${C.badge} text-sm font-black shadow-sm`}>
+                              {/* number chip */}
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black shadow-md ${
+                                isExpanded ? `${C.mcqPillExpanded}` : `${C.badge} ${C.badgeText} ring-2 ring-white/40`
+                              }`}>
                                 {String(index + 1).padStart(2, "0")}
                               </div>
 
                               <div className="flex-1 min-w-0">
-                                <span className={`text-[10px] font-bold uppercase tracking-widest ${C.labelText}`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                                  isExpanded ? "text-slate-400" : C.labelText
+                                }`}>
                                   Chapter {index + 1}
                                 </span>
-                                <p className={`mt-0.5 text-sm font-bold leading-snug truncate ${isExpanded ? C.titleText : "text-slate-800"}`}>
+                                <p className={`mt-0.5 text-base font-extrabold leading-snug truncate ${
+                                  isExpanded ? C.titleExpanded : C.titleCollapsed
+                                }`}>
                                   {chapter.title}
                                 </p>
                               </div>
 
                               <div className="flex items-center gap-2 shrink-0">
                                 {chapterMcqsById[chapter.id] !== undefined && (
-                                  <span className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${C.badge}`}>
+                                  <span className={`hidden sm:inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                    isExpanded ? C.mcqPillExpanded : C.mcqPill
+                                  }`}>
                                     {chapterMcqsById[chapter.id].length} MCQs
                                   </span>
                                 )}
@@ -574,19 +738,15 @@ const USATSubjectChapters = () => {
                                     <Trash2 className="h-3 w-3" />
                                   </span>
                                 )}
-                                <ChevronDown className={`h-4 w-4 shrink-0 transition-all duration-300 ${isExpanded ? `rotate-180 ${C.labelText}` : "text-slate-400"}`} />
+                                <ChevronDown className={`h-5 w-5 shrink-0 transition-transform duration-150 ${
+                                  isExpanded ? `rotate-180 ${C.chevronExpanded}` : C.chevronCollapsed
+                                }`} />
                               </div>
                             </button>
 
                             {/* Accordion body */}
-                            <AnimatePresence initial={false}>
-                              {isExpanded && (
-                                <motion.div key="content"
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: "auto", opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.28, ease: "easeInOut" }}
-                                  className="overflow-hidden">
+                            {isExpanded && (
+                                <div className="overflow-hidden">
                                   <div className={`border-t-2 ${C.expandedBorder} ${C.expandedBg} p-4 space-y-4`}>
                                     {isLoading ? (
                                       <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
@@ -676,12 +836,12 @@ const USATSubjectChapters = () => {
                                       </div>
                                     )}
                                   </div>
-                                </motion.div>
+                                </div>
                               )}
-                            </AnimatePresence>
-                          </motion.div>
+                          </div>
                         );
-                      })}
+                      });
+                      })()}
                     </div>
                   )}
 
