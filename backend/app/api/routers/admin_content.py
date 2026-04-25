@@ -1103,7 +1103,10 @@ async def upload_mcq_csv(
     except UnicodeDecodeError:
         text_content = raw_bytes.decode("latin-1")
 
-    reader = csv.DictReader(io.StringIO(text_content))
+    # Use a sentinel restkey so overflow columns (rows with more fields than header,
+    # e.g. unquoted commas in question text — common in sentence-completion CSVs) get
+    # captured under a known string key instead of None (which would crash .strip()).
+    reader = csv.DictReader(io.StringIO(text_content), restkey="__overflow__", restval="")
     if reader.fieldnames is None:
         raise HTTPException(status_code=400, detail="CSV file is empty or has no header row")
 
@@ -1181,12 +1184,24 @@ async def upload_mcq_csv(
 
     for row in reader:
         row_num += 1
-        # Normalize keys using field_map (applies aliases to canonical names)
+        # Normalize keys using field_map (applies aliases to canonical names).
+        # Guard against None keys / list values that DictReader produces when a row
+        # has more fields than the header (e.g. unquoted commas in question text).
         normalized_row: dict[str, str] = {}
         for raw_key, val in row.items():
-            canonical_key = field_map.get(raw_key, raw_key.strip().lower())
+            if raw_key is None or raw_key == "__overflow__":
+                # Overflow fields — ignore; they're a sign of malformed quoting,
+                # not real data we want to assign to canonical columns.
+                continue
+            if isinstance(val, list):
+                val = ",".join(str(v) for v in val)
+            elif val is None:
+                val = ""
+            canonical_key = field_map.get(raw_key, raw_key.strip().lower() if isinstance(raw_key, str) else "")
+            if not canonical_key:
+                continue
             # Keep the last value if there are collisions after aliasing
-            normalized_row[canonical_key] = (val or "").strip()
+            normalized_row[canonical_key] = str(val).strip()
 
         question = normalized_row.get("question", "")
         option1 = normalized_row.get("option1", "")
@@ -1269,7 +1284,14 @@ async def upload_mcq_csv(
         )
 
     db.add_all(mcqs_to_insert)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to save MCQs to database: {exc.__class__.__name__}: {exc}",
+        ) from exc
 
     return {
         "created": len(mcqs_to_insert),
