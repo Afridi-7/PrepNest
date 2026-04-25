@@ -192,19 +192,29 @@ const Practice = () => {
 
   const finishQuiz = useCallback(() => {
     let s = 0;
-    answers.forEach((a, i) => { if (a === questions[i]?.correct) s++; });
-    setScore(s); setPhase("result");
-    apiClient.submitPracticeResult({
-      total_questions: questions.length,
-      correct_answers: s,
-      category: selectedCategory?.code,
-      subject_name: selectedSubjectName === "All Subjects" ? undefined : selectedSubjectName,
-    }).then(() => {
-      if (!isPro) {
-        setTestsToday((prev) => prev + 1);
-        setDailyLimitReached(true);
+    let attempted = 0;
+    answers.forEach((a, i) => {
+      if (a !== null && a !== undefined) {
+        attempted++;
+        if (a === questions[i]?.correct) s++;
       }
-    }).catch(() => {});
+    });
+    setScore(s); setPhase("result");
+    // Only record the session if the user actually answered at least one question.
+    // Skipped questions don't count toward attempted MCQs.
+    if (attempted > 0) {
+      apiClient.submitPracticeResult({
+        total_questions: attempted,
+        correct_answers: s,
+        category: selectedCategory?.code,
+        subject_name: selectedSubjectName === "All Subjects" ? undefined : selectedSubjectName,
+      }).then(() => {
+        if (!isPro) {
+          setTestsToday((prev) => prev + 1);
+          setDailyLimitReached(true);
+        }
+      }).catch(() => {});
+    }
   }, [answers, questions, selectedCategory, selectedSubjectName, isPro]);
 
   useEffect(() => {

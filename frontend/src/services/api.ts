@@ -246,6 +246,19 @@ export interface SubjectAttemptedStat {
   correct: number;
 }
 
+export interface UserRewards {
+  claimed: number[];
+  streak_savers: number;
+  streak_current: number;
+  streak_best: number;
+  pro_trial_expires_at: string | null;
+  is_elite: boolean;
+  consistency_badge: boolean;
+  is_pro?: boolean;
+  user_level?: number;
+  user_xp?: number;
+}
+
 export interface DashboardStats {
   user_name: string;
   is_pro: boolean;
@@ -258,6 +271,7 @@ export interface DashboardStats {
   tests_taken?: number;
   accuracy?: number;
   subject_attempted?: SubjectAttemptedStat[];
+  rewards?: UserRewards;
 }
 
 export interface LeaderboardEntry {
@@ -445,6 +459,23 @@ class ApiClient {
   async getPracticeStatus(): Promise<{ tests_today: number; is_pro: boolean }> {
     const res = await this.request<{ tests_today: number; is_pro: boolean }>("/usat/practice-status");
     return res;
+  }
+
+  /** Rewards — server is source of truth for level/claim state */
+  async getMyRewards(): Promise<UserRewards> {
+    return this.request<UserRewards>("/users/me/rewards");
+  }
+
+  async claimReward(level: number): Promise<UserRewards> {
+    return this.request<UserRewards>("/users/me/claim-reward", "POST", { level });
+  }
+
+  async syncStreak(current: number, best: number): Promise<UserRewards> {
+    return this.request<UserRewards>("/users/me/sync-streak", "POST", { current, best });
+  }
+
+  async useStreakSaver(): Promise<UserRewards> {
+    return this.request<UserRewards>("/users/me/use-streak-saver", "POST");
   }
 
   /** Get real-time public platform stats (no auth needed) */

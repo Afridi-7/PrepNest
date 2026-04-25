@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin, get_current_user, rate_limit
 from app.core.config import get_settings
 from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
+from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
 from app.services.supabase_storage import async_upload_bytes, make_key
 from app.schemas.content import (
@@ -21,6 +22,7 @@ from app.schemas.content import (
     LeaderboardEntry,
     LeaderboardResponse,
     SubjectAttemptedStat,
+    UserRewards,
 )
 
 router = APIRouter(tags=["dashboard"])
@@ -136,7 +138,7 @@ async def get_dashboard_stats(
 
     return DashboardStats(
         user_name=current_user.full_name or current_user.email.split("@")[0],
-        is_pro=current_user.is_pro or current_user.is_admin,
+        is_pro=UserRepository.is_currently_pro(current_user),
         total_subjects=len(rows),
         total_topics=total_topics,
         total_mcqs=total_mcqs,
@@ -146,6 +148,28 @@ async def get_dashboard_stats(
         tests_taken=user_tests_taken,
         accuracy=user_accuracy,
         subject_attempted=subject_attempted,
+        rewards=_build_user_rewards(current_user),
+    )
+
+
+def _build_user_rewards(user: User) -> UserRewards:
+    prefs = user.preferences or {}
+    claimed = list(prefs.get("rewards_claimed") or [])
+    expires_iso = None
+    if user.subscription_expires_at is not None and 5 in claimed:
+        exp = user.subscription_expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp > datetime.now(timezone.utc):
+            expires_iso = exp.isoformat()
+    return UserRewards(
+        claimed=[int(x) for x in claimed if isinstance(x, int)],
+        streak_savers=int(prefs.get("streak_savers") or 0),
+        streak_current=int(prefs.get("streak_current") or 0),
+        streak_best=int(prefs.get("streak_best") or 0),
+        pro_trial_expires_at=expires_iso,
+        is_elite=bool(prefs.get("elite_scholar")),
+        consistency_badge=3 in claimed,
     )
 
 

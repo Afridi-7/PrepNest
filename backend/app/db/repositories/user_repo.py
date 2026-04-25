@@ -122,6 +122,34 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
+    # ── Rewards & streak helpers ──────────────────────────────────────────
+    @staticmethod
+    def is_currently_pro(user: User) -> bool:
+        """True if the user is admin, has a non-expired Pro grant, or any active Pro."""
+        if user.is_admin:
+            return True
+        if not user.is_pro:
+            return False
+        # If subscription has an expiry, honour it
+        if user.subscription_expires_at is not None:
+            now = datetime.now(timezone.utc)
+            exp = user.subscription_expires_at
+            # Some DBs return naive datetimes; treat them as UTC.
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            return exp > now
+        return True
+
+    async def merge_preferences(self, user: User, patch: dict) -> User:
+        """Shallow-merge a partial dict into preferences and persist."""
+        user.preferences = {**(user.preferences or {}), **patch}
+        # Tell SQLAlchemy the JSON dict mutated
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(user, "preferences")
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
     async def list_all(self, *, skip: int = 0, limit: int = 100) -> list[User]:
         result = await self.db.execute(
             select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)

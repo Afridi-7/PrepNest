@@ -324,6 +324,16 @@ class SubjectAttemptedStat(BaseModel):
     correct: int
 
 
+class UserRewards(BaseModel):
+    claimed: list[int] = []
+    streak_savers: int = 0
+    streak_current: int = 0
+    streak_best: int = 0
+    pro_trial_expires_at: str | None = None
+    is_elite: bool = False
+    consistency_badge: bool = False
+
+
 class DashboardStats(BaseModel):
     user_name: str
     is_pro: bool = False
@@ -337,6 +347,7 @@ class DashboardStats(BaseModel):
     tests_taken: int = 0
     accuracy: float = 0.0
     subject_attempted: list[SubjectAttemptedStat] = []
+    rewards: UserRewards = UserRewards()
 
 
 class LeaderboardEntry(BaseModel):

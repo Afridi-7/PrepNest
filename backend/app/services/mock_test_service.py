@@ -418,9 +418,12 @@ async def evaluate_mock_test(
         if sec["type"] == "mcq":
             for q in sec["questions"]:
                 qid = str(q["id"])
-                mcq_total += 1
                 selected = mcq_answers.get(qid)
                 correct = q["correct_answer"]
+                # Only count MCQs that the user actually attempted (selected an option).
+                # Skipped questions are not part of attempted total or accuracy.
+                if selected is not None:
+                    mcq_total += 1
                 is_correct = selected is not None and selected.upper() == correct.upper()
                 if is_correct:
                     mcq_correct += 1

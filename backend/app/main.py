@@ -319,8 +319,8 @@ async def public_stats(_rl=fastapi.Depends(rate_limit(60, "public_stats"))) -> d
     MCQ count is deduplicated: identical MCQs spread across USAT categories
     (same subject name + chapter + 4 options) are counted only once.
 
-    Cached via Cache-Control header (60s) so repeated hits don't re-run
-    the DISTINCT join. Rate-limited to 60/min per IP as defence-in-depth.
+    Cached 60s and rate-limited to 60/min per IP as defence-in-depth.
+    Used by the public marketing landing page only.
     """
     cached = await cache_service.get_json("public:stats")
     if cached:
