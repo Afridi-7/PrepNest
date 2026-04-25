@@ -22,12 +22,32 @@ logger = logging.getLogger(__name__)
 
 # ── Blueprint ────────────────────────────────────────────────────────────────
 
-SCIENCE_SUBJECTS: dict[str, list[str]] = {
-    "USAT-E": ["Physics", "Mathematics", "Chemistry"],
-    "USAT-M": ["Biology", "Chemistry", "Physics"],
-    "USAT-CS": ["Mathematics", "Physics", "Computer Science"],
-    "USAT-GS": ["Mathematics", "Physics", "Statistics / Economics"],
-    "USAT-A": ["General Knowledge", "Pakistan Studies", "Islamic Studies"],
+# Verbal Reasoning topic quotas (Section A — 20 MCQs)
+VERBAL_TOPIC_QUOTAS: list[tuple[str, int]] = [
+    ("Analogy", 6),
+    ("Synonym/Antonym", 6),
+    ("Sentence Completion", 8),
+]
+
+# Quantitative Reasoning topic quotas (Section B — 25 MCQs)
+QUANT_TOPIC_QUOTAS: list[tuple[str, int]] = [
+    ("Arithmetic", 6),
+    ("Algebra and Functions", 4),
+    ("Geometry", 3),
+    ("Equations", 3),
+    ("Statistics", 3),
+    ("Scenario Based / Mental Mathematics", 6),
+]
+
+# Subject-section quotas per USAT category (Section C — 30 MCQs)
+# Each entry: (subject_name, count). Names match Subject.name (case-insensitive).
+SCIENCE_SUBJECTS: dict[str, list[tuple[str, int]]] = {
+    "USAT-E":   [("Physics", 10), ("Chemistry", 10), ("Mathematics", 10)],
+    "USAT-M":   [("Physics", 8),  ("Chemistry", 8),  ("Biology", 14)],
+    "USAT-CS":  [("Physics", 8),  ("Computer Science", 14), ("Mathematics", 8)],
+    "USAT-A":   [("Islamiat/Ethics", 10), ("Pakistan Studies", 10), ("General Knowledge", 10)],
+    "USAT-GS":  [("Mathematics", 10), ("Statistics", 10), ("Economics", 10)],
+    "USAT-COM": [("Accounting", 10), ("Commerce", 10), ("Economics", 10)],
 }
 
 # Section definitions — same structure for every category.
@@ -51,13 +71,70 @@ class MockSection:
 
 # ── DB fetch ─────────────────────────────────────────────────────────────────
 
-async def _fetch_mcqs_for_subject(
-    db: AsyncSession,
-    exam_type: str,
-    subject_name: str,
+async def _recently_served_mcq_ids(
+    db: AsyncSession, user_id: str, category: str
+) -> set[int]:
+    """Collect MCQ ids already served to this user under this category in past mock tests.
+
+    Used to keep each new full mock test fresh (no repeats from prior attempts) until
+    the available pool is exhausted, after which the history resets implicitly via
+    fallback logic in the fetcher.
+    """
+    result = await db.execute(
+        select(MockTest.sections_json).where(
+            MockTest.user_id == user_id,
+            MockTest.category == category,
+        )
+    )
+    served: set[int] = set()
+    for (sections_json,) in result.all():
+        if not sections_json:
+            continue
+        for sec in sections_json:
+            if sec.get("type") != "mcq":
+                continue
+            for q in sec.get("questions", []):
+                qid = q.get("id")
+                if isinstance(qid, int):
+                    served.add(qid)
+    return served
+
+
+def _pick_fresh(
+    pool: list[MCQ],
     count: int,
+    used_ids: set[int],
+    served_ids: set[int],
 ) -> list[MCQ]:
-    """Return up to *count* random MCQs for a subject within a category."""
+    """Choose up to *count* MCQs from *pool* preferring fresh, non-duplicate items.
+
+    Priority:
+      1. Items not in used_ids (this test) AND not in served_ids (any prior test).
+      2. Items not in used_ids but previously served (pool exhausted of fresh).
+      3. Nothing — never duplicate within the same test.
+    """
+    fresh = [m for m in pool if m.id not in used_ids and m.id not in served_ids]
+    random.shuffle(fresh)
+    chosen = fresh[:count]
+
+    if len(chosen) < count:
+        chosen_ids = {c.id for c in chosen}
+        stale = [
+            m for m in pool
+            if m.id not in used_ids and m.id not in chosen_ids
+        ]
+        random.shuffle(stale)
+        chosen.extend(stale[: count - len(chosen)])
+
+    for m in chosen:
+        used_ids.add(m.id)
+    return chosen
+
+
+async def _load_subject_pool(
+    db: AsyncSession, exam_type: str, subject_name: str
+) -> list[MCQ]:
+    """Load every MCQ under *subject_name* for *exam_type* (across all topics)."""
     result = await db.execute(
         select(Subject.id).where(
             Subject.exam_type == exam_type,
@@ -67,33 +144,103 @@ async def _fetch_mcqs_for_subject(
     subject_ids = [r[0] for r in result.all()]
     if not subject_ids:
         return []
-
     topic_sub = select(Topic.id).where(Topic.subject_id.in_(subject_ids)).scalar_subquery()
     result = await db.execute(
-        select(MCQ)
-        .where(MCQ.topic_id.in_(topic_sub))
-        .order_by(MCQ.id)  # deterministic; shuffle in Python
+        select(MCQ).where(MCQ.topic_id.in_(topic_sub)).order_by(MCQ.id)
     )
-    all_mcqs = list(result.scalars().all())
-    random.shuffle(all_mcqs)
-    return all_mcqs[:count]
+    return list(result.scalars().all())
+
+
+async def _load_topic_pool(
+    db: AsyncSession, exam_type: str, subject_name: str, topic_title: str
+) -> list[MCQ]:
+    """Load every MCQ under a specific topic of a subject (case-insensitive)."""
+    result = await db.execute(
+        select(Subject.id).where(
+            Subject.exam_type == exam_type,
+            Subject.name.ilike(subject_name),
+        )
+    )
+    subject_ids = [r[0] for r in result.all()]
+    if not subject_ids:
+        return []
+    result = await db.execute(
+        select(Topic.id).where(
+            Topic.subject_id.in_(subject_ids),
+            Topic.title.ilike(topic_title),
+        )
+    )
+    topic_ids = [r[0] for r in result.all()]
+    if not topic_ids:
+        return []
+    result = await db.execute(
+        select(MCQ).where(MCQ.topic_id.in_(topic_ids)).order_by(MCQ.id)
+    )
+    return list(result.scalars().all())
+
+
+async def _fetch_mcqs_for_subject(
+    db: AsyncSession,
+    exam_type: str,
+    subject_name: str,
+    count: int,
+    used_ids: set[int],
+    served_ids: set[int],
+) -> list[MCQ]:
+    """Return up to *count* MCQs for a subject, preferring fresh & avoiding repeats."""
+    pool = await _load_subject_pool(db, exam_type, subject_name)
+    if not pool:
+        return []
+    return _pick_fresh(pool, count, used_ids, served_ids)
+
+
+async def _fetch_mcqs_by_topic_quotas(
+    db: AsyncSession,
+    exam_type: str,
+    parent_subject: str,
+    quotas: list[tuple[str, int]],
+    used_ids: set[int],
+    served_ids: set[int],
+) -> list[MCQ]:
+    """Fetch MCQs per topic quota under a parent subject (e.g. Verbal/Quant).
+
+    For each (topic_title, count): pull from that exact topic, freshness-first.
+    If a topic pool is too small/missing, top up from the parent subject's
+    remaining pool so the section quota is still met.
+    """
+    collected: list[MCQ] = []
+    total_target = sum(c for _, c in quotas)
+    for topic_title, n in quotas:
+        topic_pool = await _load_topic_pool(db, exam_type, parent_subject, topic_title)
+        picked = _pick_fresh(topic_pool, n, used_ids, served_ids)
+        collected.extend(picked)
+
+    # Top-up from parent subject if any topic was under-stocked.
+    if len(collected) < total_target:
+        deficit = total_target - len(collected)
+        parent_pool = await _load_subject_pool(db, exam_type, parent_subject)
+        collected.extend(_pick_fresh(parent_pool, deficit, used_ids, served_ids))
+
+    random.shuffle(collected)
+    return collected[:total_target]
 
 
 async def _fetch_mcqs_for_subjects(
     db: AsyncSession,
     exam_type: str,
-    subject_names: list[str],
-    count: int,
+    subject_quotas: list[tuple[str, int]],
+    used_ids: set[int],
+    served_ids: set[int],
 ) -> list[MCQ]:
-    """Return up to *count* random MCQs split across multiple subjects."""
-    per_subj = max(1, count // len(subject_names))
-    remainder = count - per_subj * len(subject_names)
+    """Return MCQs split across subjects per their explicit quotas."""
     collected: list[MCQ] = []
-    for i, name in enumerate(subject_names):
-        n = per_subj + (1 if i < remainder else 0)
-        collected.extend(await _fetch_mcqs_for_subject(db, exam_type, name, n))
+    total_target = sum(c for _, c in subject_quotas)
+    for name, n in subject_quotas:
+        collected.extend(
+            await _fetch_mcqs_for_subject(db, exam_type, name, n, used_ids, served_ids)
+        )
     random.shuffle(collected)
-    return collected[:count]
+    return collected[:total_target]
 
 
 async def _fetch_essay_prompts(
@@ -115,10 +262,19 @@ async def _fetch_essay_prompts(
 
 # ── Assemble sections ────────────────────────────────────────────────────────
 
-async def build_mock_sections(db: AsyncSession, category: str) -> list[MockSection]:
-    """Build all mock-test sections for a given USAT category."""
+async def build_mock_sections(
+    db: AsyncSession, category: str, served_ids: set[int] | None = None
+) -> list[MockSection]:
+    """Build all mock-test sections for a given USAT category.
+
+    *served_ids* are MCQ ids previously served to this user in this category;
+    they are avoided to keep each new test fresh. Within a single test we never
+    duplicate an MCQ across sections.
+    """
     science_subjects = SCIENCE_SUBJECTS.get(category, [])
     sections: list[MockSection] = []
+    used_ids: set[int] = set()
+    served_ids = served_ids or set()
 
     for sec in MOCK_SECTIONS:
         ms = MockSection(label=sec["label"])
@@ -126,9 +282,21 @@ async def build_mock_sections(db: AsyncSession, category: str) -> list[MockSecti
         if sec["type"] == "mcq":
             subj = sec["subject"]
             if subj == "__SCIENCE__":
-                ms.mcqs = await _fetch_mcqs_for_subjects(db, category, science_subjects, sec["count"])
+                ms.mcqs = await _fetch_mcqs_for_subjects(
+                    db, category, science_subjects, used_ids, served_ids
+                )
+            elif subj == "Verbal Reasoning":
+                ms.mcqs = await _fetch_mcqs_by_topic_quotas(
+                    db, category, subj, VERBAL_TOPIC_QUOTAS, used_ids, served_ids
+                )
+            elif subj == "Quantitative Reasoning":
+                ms.mcqs = await _fetch_mcqs_by_topic_quotas(
+                    db, category, subj, QUANT_TOPIC_QUOTAS, used_ids, served_ids
+                )
             else:
-                ms.mcqs = await _fetch_mcqs_for_subject(db, category, subj, sec["count"])
+                ms.mcqs = await _fetch_mcqs_for_subject(
+                    db, category, subj, sec["count"], used_ids, served_ids
+                )
         elif sec["type"] == "essay":
             ms.essay_prompts = await _fetch_essay_prompts(db, category, sec["essay_type"], sec["count"])
 
@@ -186,8 +354,13 @@ def _sections_to_json(sections: list[MockSection]) -> list[dict]:
 async def generate_mock_test(
     db: AsyncSession, user_id: str, category: str
 ) -> MockTest:
-    """Generate a new mock test, store the question snapshot, return the record."""
-    sections = await build_mock_sections(db, category)
+    """Generate a new mock test, store the question snapshot, return the record.
+
+    Smart fetch: skips MCQs the user has already seen in any prior mock test of
+    the same category, and never duplicates within a single test.
+    """
+    served_ids = await _recently_served_mcq_ids(db, user_id, category)
+    sections = await build_mock_sections(db, category, served_ids=served_ids)
     sections_json = _sections_to_json(sections)
 
     mock_test = MockTest(

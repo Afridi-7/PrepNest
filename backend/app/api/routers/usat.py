@@ -36,8 +36,9 @@ USAT_CATEGORIES: dict[str, dict[str, str]] = {
     "USAT-E": {"title": "Pre-Engineering", "description": "Physics, Mathematics, Chemistry"},
     "USAT-M": {"title": "Pre-Medical", "description": "Biology, Chemistry, Physics"},
     "USAT-CS": {"title": "Computer Science", "description": "Math, Physics, Computer Science"},
-    "USAT-GS": {"title": "General Science", "description": "Math, Physics, Statistics / Economics"},
-    "USAT-A": {"title": "Arts & Humanities", "description": "General Knowledge, Pakistan Studies, Islamic Studies"},
+    "USAT-GS": {"title": "General Science", "description": "Mathematics, Statistics, Economics"},
+    "USAT-A": {"title": "Arts & Humanities", "description": "Islamiat/Ethics, Pakistan Studies, General Knowledge"},
+    "USAT-COM": {"title": "Commerce", "description": "Accounting, Commerce, Economics"},
 }
 
 

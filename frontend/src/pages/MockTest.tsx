@@ -272,22 +272,73 @@ const MockTestPage = () => {
 
                 {/* Section breakdown */}
                 {selectedCategory && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      { icon: BookOpen, label: "Verbal Reasoning", count: "20 MCQs", color: "blue" },
-                      { icon: BarChart3, label: "Quantitative Reasoning", count: "25 MCQs", color: "sky" },
-                      { icon: Target, label: "Subject Knowledge", count: "30 MCQs", color: "emerald" },
-                      { icon: PenLine, label: "Argumentative Essay", count: "1 Essay", color: "amber" },
-                      { icon: MessageSquare, label: "Narrative Essay", count: "1 Essay", color: "rose" },
-                    ].map(({ icon: Icon, label, count, color }) => (
-                      <div key={label} className={`flex items-center gap-3 rounded-xl border border-${color}-200 bg-${color}-50 px-4 py-3`}>
-                        <Icon className={`h-5 w-5 text-${color}-500`} />
-                        <div>
-                          <div className="text-sm font-bold text-slate-700">{label}</div>
-                          <div className="text-xs text-slate-500">{count}</div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[
+                        { icon: BookOpen, label: "Verbal Reasoning", count: "20 MCQs", color: "blue" },
+                        { icon: BarChart3, label: "Quantitative Reasoning", count: "25 MCQs", color: "sky" },
+                        { icon: Target, label: "Subject Knowledge", count: "30 MCQs", color: "emerald" },
+                        { icon: PenLine, label: "Argumentative Essay", count: "1 Essay", color: "amber" },
+                        { icon: MessageSquare, label: "Narrative Essay", count: "1 Essay", color: "rose" },
+                      ].map(({ icon: Icon, label, count, color }) => (
+                        <div key={label} className={`flex items-center gap-3 rounded-xl border border-${color}-200 bg-${color}-50 px-4 py-3`}>
+                          <Icon className={`h-5 w-5 text-${color}-500`} />
+                          <div>
+                            <div className="text-sm font-bold text-slate-700">{label}</div>
+                            <div className="text-xs text-slate-500">{count}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    {/* Detailed composition */}
+                    {(() => {
+                      const SUBJECT_SPLITS: Record<string, Array<[string, number]>> = {
+                        "USAT-E":   [["Physics", 10], ["Chemistry", 10], ["Mathematics", 10]],
+                        "USAT-M":   [["Physics", 8], ["Chemistry", 8], ["Biology", 14]],
+                        "USAT-CS":  [["Physics", 8], ["Computer Science", 14], ["Mathematics", 8]],
+                        "USAT-A":   [["Islamiat/Ethics", 10], ["Pakistan Studies", 10], ["General Knowledge", 10]],
+                        "USAT-GS":  [["Mathematics", 10], ["Statistics", 10], ["Economics", 10]],
+                        "USAT-COM": [["Accounting", 10], ["Commerce", 10], ["Economics", 10]],
+                      };
+                      const verbal: Array<[string, number]> = [["Analogy", 6], ["Synonym/Antonym", 6], ["Sentence Completion", 8]];
+                      const quant: Array<[string, number]> = [
+                        ["Arithmetic", 6], ["Algebra and Functions", 4], ["Geometry", 3],
+                        ["Equations", 3], ["Statistics", 3], ["Scenario Based / Mental Mathematics", 6],
+                      ];
+                      const subjects = SUBJECT_SPLITS[selectedCategory.code] || [];
+                      const Block = ({ title, items, accent }: { title: string; items: Array<[string, number]>; accent: string }) => (
+                        <div className={`rounded-2xl border ${accent} p-4`}>
+                          <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">{title}</div>
+                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            {items.map(([name, n]) => (
+                              <li key={name} className="flex items-center justify-between gap-2 text-slate-700">
+                                <span className="truncate">{name}</span>
+                                <span className="text-xs font-semibold text-slate-500 shrink-0">{n}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                      return (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                          <Block title="Verbal Reasoning · 20" items={verbal} accent="border-blue-200 bg-blue-50/50" />
+                          <Block title="Quantitative Reasoning · 25" items={quant} accent="border-sky-200 bg-sky-50/50" />
+                          {subjects.length > 0 && (
+                            <Block title="Subject Knowledge · 30" items={subjects} accent="border-emerald-200 bg-emerald-50/50" />
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    <p className="flex items-start gap-2 rounded-xl border border-cyan-200 bg-cyan-50/70 px-4 py-3 text-xs text-cyan-800">
+                      <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>Smart fetch:</strong> every test pulls a fresh set of MCQs — no duplicates within
+                        the test, and questions you've already seen in past attempts are skipped until the
+                        question pool is exhausted.
+                      </span>
+                    </p>
                   </div>
                 )}
 

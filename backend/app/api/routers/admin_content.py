@@ -50,12 +50,19 @@ settings = get_settings()
 _COMMON_SUBJECTS = [
     {
         "name": "Verbal Reasoning",
-        "topics": ["General"],
+        "topics": ["Analogy", "Synonym/Antonym", "Sentence Completion"],
         "tips": ["Read passages carefully and eliminate obviously wrong options first."],
     },
     {
         "name": "Quantitative Reasoning",
-        "topics": ["General"],
+        "topics": [
+            "Arithmetic",
+            "Algebra and Functions",
+            "Geometry",
+            "Equations",
+            "Statistics",
+            "Scenario Based / Mental Mathematics",
+        ],
         "tips": ["Practice mental math shortcuts and estimation techniques."],
     },
     {
@@ -140,14 +147,14 @@ USAT_SEED_BLUEPRINT = [
                 "tips": ["Use approximation to quickly eliminate impossible options."],
             },
             {
-                "name": "Physics",
-                "topics": ["Basic Mechanics", "Heat & Temperature", "Light"],
-                "tips": ["Focus on conceptual understanding before formula memorization."],
+                "name": "Statistics",
+                "topics": ["Descriptive Statistics", "Probability", "Data Interpretation"],
+                "tips": ["Interpret charts first, then compute only what is necessary."],
             },
             {
-                "name": "Statistics / Economics",
-                "topics": ["Descriptive Statistics", "Graphs", "Basic Economics"],
-                "tips": ["Interpret charts first, then compute only what is necessary."],
+                "name": "Economics",
+                "topics": ["Microeconomics", "Macroeconomics", "Pakistan Economy"],
+                "tips": ["Connect concepts to real-world examples for retention."],
             },
         ],
     },
@@ -155,9 +162,9 @@ USAT_SEED_BLUEPRINT = [
         "exam_type": "USAT-A",
         "subjects": _COMMON_SUBJECTS + [
             {
-                "name": "General Knowledge",
-                "topics": ["Current Affairs", "World Facts", "Pakistani Institutions"],
-                "tips": ["Read reliable summaries daily and maintain a fact notebook."],
+                "name": "Islamiat/Ethics",
+                "topics": ["Seerah", "Quranic Studies", "Islamic Civilization"],
+                "tips": ["Revise themes and references in short, consistent sessions."],
             },
             {
                 "name": "Pakistan Studies",
@@ -165,9 +172,29 @@ USAT_SEED_BLUEPRINT = [
                 "tips": ["Build timeline charts for historical and constitutional events."],
             },
             {
-                "name": "Islamic Studies",
-                "topics": ["Seerah", "Quranic Studies", "Islamic Civilization"],
-                "tips": ["Revise themes and references in short, consistent sessions."],
+                "name": "General Knowledge",
+                "topics": ["Current Affairs", "World Facts", "Pakistani Institutions"],
+                "tips": ["Read reliable summaries daily and maintain a fact notebook."],
+            },
+        ],
+    },
+    {
+        "exam_type": "USAT-COM",
+        "subjects": _COMMON_SUBJECTS + [
+            {
+                "name": "Accounting",
+                "topics": ["Financial Statements", "Bookkeeping", "Accounting Principles"],
+                "tips": ["Practice journal entries until they become reflexive."],
+            },
+            {
+                "name": "Commerce",
+                "topics": ["Business Organization", "Trade", "Marketing"],
+                "tips": ["Memorize key definitions in your own words for recall under pressure."],
+            },
+            {
+                "name": "Economics",
+                "topics": ["Microeconomics", "Macroeconomics", "Pakistan Economy"],
+                "tips": ["Link supply/demand reasoning to current news for context."],
             },
         ],
     },
@@ -1012,7 +1039,7 @@ async def delete_paper(
 
 MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option4", "correct_answer", "subject", "chapter"}
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
-ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"]
+ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM"]
 
 # Maps numeric answer values to letter answers (1→A, 2→B, 3→C, 4→D)
 _NUMERIC_ANSWER_MAP: dict[str, str] = {"1": "A", "2": "B", "3": "C", "4": "D"}

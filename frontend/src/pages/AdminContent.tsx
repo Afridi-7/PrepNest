@@ -11,7 +11,7 @@ import { apiClient, Material, MCQ, Note, Resource, Subject, Topic, type UserAdmi
 
 type Tab = "content" | "mcqs" | "upload" | "users" | "tools";
 interface MCQStat { exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number; }
-const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A"];
+const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM"];
 
 const AdminContent = () => {
   const { toast } = useToast();
@@ -1394,12 +1394,13 @@ const AdminContent = () => {
                   Correct answer must be A-D.
                 </p>
                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
-                  <option value="ALL">All Categories (USAT-E, M, CS, GS, A) — adds subject/chapter to every type</option>
+                  <option value="ALL">All Categories (USAT-E, M, CS, GS, A, COM) — adds subject/chapter to every type</option>
                   <option value="USAT-E">USAT-E (Pre-Engineering)</option>
                   <option value="USAT-M">USAT-M (Pre-Medical)</option>
                   <option value="USAT-CS">USAT-CS (Computer Science)</option>
                   <option value="USAT-GS">USAT-GS (General Science)</option>
                   <option value="USAT-A">USAT-A (Arts and Humanities)</option>
+                  <option value="USAT-COM">USAT-COM (Commerce)</option>
                 </select>
                 {csvExamType === "ALL" && (
                   <p className="text-xs rounded-lg bg-cyan-50 border border-cyan-200 px-3 py-2 text-cyan-700">
