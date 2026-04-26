@@ -188,8 +188,10 @@ const MockTestPage = () => {
 
       <ContentProtection>
         {/* Soft gradient background */}
-        <div className="relative min-h-screen pt-24 pb-20"
-          style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 40%, #f0fdfa 100%)" }}>
+        <div
+          className="relative min-h-screen pt-24 pb-20 page-bg-gradient"
+          style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 40%, #f0fdfa 100%)" }}
+        >
 
           {/* Decorative blobs */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden -z-0">

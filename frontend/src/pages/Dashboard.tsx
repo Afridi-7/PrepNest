@@ -343,8 +343,10 @@ const Dashboard = () => {
       <Navbar />
 
       {/* Page background — soft tricolor gradient matching MockTestPage */}
-      <div className="relative min-h-screen pt-20 pb-16"
-        style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 40%, #f0fdfa 100%)" }}>
+      <div
+        className="relative min-h-screen pt-20 pb-16 page-bg-gradient"
+        style={{ background: "linear-gradient(135deg, #f0f4ff 0%, #faf5ff 40%, #f0fdfa 100%)" }}
+      >
 
         {/* Decorative blobs */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden -z-0">
@@ -459,7 +461,7 @@ const Dashboard = () => {
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + i * 0.07 }}
-                  className="group relative overflow-hidden rounded-2xl border-2 p-5 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                  className="dashboard-stat-card group relative overflow-hidden rounded-2xl border-2 p-5 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
                   style={{ backgroundColor: stat.bg, borderColor: stat.border }}
                 >
                   {/* Top gradient bar */}
@@ -470,10 +472,10 @@ const Dashboard = () => {
                       style={{ background: stat.gradient }}>
                       <stat.icon className="h-5 w-5 text-white" />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                    <ArrowUpRight className="h-4 w-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dashboard-stat-accent"
                       style={{ color: stat.accent }} />
                   </div>
-                  <div className="text-3xl font-black text-slate-800" style={{ color: stat.accent }}>
+                  <div className="text-3xl font-black text-slate-800 dashboard-stat-accent" style={{ color: stat.accent }}>
                     {stat.value}
                   </div>
                   <div className="mt-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">{stat.label}</div>
