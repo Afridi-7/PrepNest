@@ -6,11 +6,10 @@ from sqlalchemy import func, select, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_user, rate_limit
-from app.core.config import get_settings
 from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
-from app.services.supabase_storage import async_upload_bytes, make_key
+from app.services.supabase_storage import async_upload_bytes
 from app.schemas.content import (
     AcknowledgmentCreate,
     AcknowledgmentRead,
@@ -181,7 +180,6 @@ async def get_leaderboard(
     _rl=Depends(rate_limit(60, "leaderboard")),
 ):
     """Top 10 users ranked by total MCQs solved correctly (mock tests + practice)."""
-    from sqlalchemy import union_all, literal
     from app.db.session import database_url
 
     is_sqlite = database_url.startswith("sqlite")

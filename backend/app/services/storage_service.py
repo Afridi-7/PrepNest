@@ -1,5 +1,4 @@
 import mimetypes
-import uuid
 from pathlib import Path
 
 from fastapi import UploadFile

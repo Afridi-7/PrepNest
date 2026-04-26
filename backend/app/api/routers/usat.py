@@ -1,6 +1,4 @@
-from pathlib import Path
 from typing import Optional
-import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
@@ -54,7 +52,6 @@ import asyncio
 import re
 
 from jose import JWTError, jwt as jose_jwt
-from fastapi import Request
 
 _oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 

@@ -108,7 +108,7 @@ class TutorAgent:
             student_info_parts.append(prefs)
 
         if student_info_parts:
-            context_sections.append(f"## 👤 Student Profile\n" + "\n".join(student_info_parts))
+            context_sections.append("## 👤 Student Profile\n" + "\n".join(student_info_parts))
 
         memory = compiled_context.get("memory", "")
         if memory and memory != "This is the start of a new conversation.":

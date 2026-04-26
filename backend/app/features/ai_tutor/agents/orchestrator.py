@@ -19,7 +19,7 @@ class AgentOrchestrator:
         try:
             from sqlalchemy import or_, select
             from app.db.session import async_session_factory
-            from app.db.models import Material, MCQ, Topic, Subject, Note, Tip
+            from app.db.models import Material, MCQ, Topic, Subject
 
             query = ctx.query
             pattern = f"%{query[:100]}%"
