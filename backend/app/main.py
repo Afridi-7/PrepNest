@@ -85,6 +85,21 @@ _origins = list(
 )
 _cors_kwargs["allow_origins"] = _origins
 
+# Startup audit: in production, refuse to silently accept a wildcard CORS
+# regex. A misconfigured `.*` would defeat the entire same-origin model.
+_is_production_env = settings.app_env.lower() not in ("development", "dev", "local", "test")
+if _is_production_env:
+    _regex = settings.cors_origin_regex or ""
+    if _regex.strip() in (".*", ".+", "^.*$", "^.+$"):
+        raise RuntimeError(
+            "Refusing to start: cors_origin_regex is a wildcard in production. "
+            "Set CORS_ORIGIN_REGEX to an explicit pattern matching your frontend domain(s)."
+        )
+    if any(o == "*" for o in _origins):
+        raise RuntimeError(
+            "Refusing to start: CORS allow_origins contains '*' in production."
+        )
+
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
@@ -180,6 +195,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
             # Allow PDF iframes from same origin to keep PDF viewer working.
             response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        else:
+            # Defence-in-depth CSP for API JSON responses. Browsers don't
+            # render JSON, but if someone opens an API URL directly we want
+            # the page to be inert. We skip Swagger/Redoc which legitimately
+            # need CDN scripts/styles.
+            path = request.url.path
+            if not path.startswith(("/docs", "/redoc", "/openapi.json")):
+                response.headers.setdefault(
+                    "Content-Security-Policy",
+                    "default-src 'none'; frame-ancestors 'none'",
+                )
         return response
 
 
