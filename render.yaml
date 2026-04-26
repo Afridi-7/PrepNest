@@ -4,7 +4,12 @@ services:
     env: python
     rootDir: backend
     buildCommand: pip install --upgrade pip ; pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # `--proxy-headers` + `--forwarded-allow-ips "*"` makes uvicorn read the
+    # X-Forwarded-For header that Render's load balancer injects, so
+    # `request.client.host` is the real end-user IP. Combined with
+    # TRUST_PROXY_HEADERS=true below, the rate-limit buckets are correctly
+    # scoped per real user instead of all users sharing the proxy's IP.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -14,6 +19,8 @@ services:
         value: production
       - key: APP_DEBUG
         value: "false"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL

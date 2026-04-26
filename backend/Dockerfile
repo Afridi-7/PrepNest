@@ -13,4 +13,8 @@ COPY .env.example ./.env.example
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# `--proxy-headers` + `--forwarded-allow-ips "*"` lets uvicorn trust the
+# X-Forwarded-For header any reverse proxy (Render LB, nginx, Cloudflare,
+# Vercel, etc.) puts in front of us. Without this, every user looks like
+# they're coming from the proxy IP and rate limits would 429 real traffic.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

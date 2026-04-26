@@ -9,3 +9,4 @@ __pycache__/
 data/
 *.sqlite3
 prepnest_ai_tutor.db
+perf_bench.db

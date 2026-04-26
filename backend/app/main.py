@@ -225,34 +225,58 @@ app.add_middleware(BodySizeLimitMiddleware)
 
 
 class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
-    """Coarse per-IP burst limit applied to every request.
+    """Coarse per-client burst limit applied to every request.
 
     This is a *backstop* — individual routes still have their own (typically
     stricter) `rate_limit` dependencies. This middleware exists to stop a
     single client from hammering arbitrary routes (e.g. scraping, vuln
     scanning) and to protect us from runaway costs on egress / DB load.
 
-    Limit is generous (300 req/min per IP) so legitimate SPA traffic is never
-    affected — a normal page load makes <30 requests.
+    Client identity:
+      - If `settings.trust_proxy_headers` is True (the default — every supported
+        deploy target sits behind a reverse proxy), we use the leftmost IP from
+        `X-Forwarded-For`, falling back to `X-Real-IP`. This is essential in
+        production: without it, the socket peer would be the proxy and *every*
+        real user would share one bucket, causing legitimate 429s under load.
+      - Otherwise we use the socket peer (`request.client.host`).
+
+    Limit is `settings.global_rate_limit_per_minute` (default 600/min, ~10 rps
+    sustained per client) so a normal SPA session — even with a few users
+    sharing NAT/Wi-Fi — is never affected.
     """
 
-    _GLOBAL_LIMIT_PER_MIN = 300
     # Skip cheap endpoints that the platform itself or uptime checks may poll.
     _EXEMPT_PREFIXES = ("/health", "/uploads")
+
+    @staticmethod
+    def _client_id(request: StarletteRequest) -> str:
+        if settings.trust_proxy_headers:
+            xff = request.headers.get("x-forwarded-for")
+            if xff:
+                # First entry is the original client; subsequent entries are
+                # intermediate proxies appended by each hop.
+                first = xff.split(",", 1)[0].strip()
+                if first:
+                    return first
+            real_ip = request.headers.get("x-real-ip")
+            if real_ip:
+                return real_ip.strip()
+        return request.client.host if request.client else "unknown"
 
     async def dispatch(self, request: StarletteRequest, call_next):
         path = request.url.path
         if any(path.startswith(p) for p in self._EXEMPT_PREFIXES):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_id = self._client_id(request)
         allowed = await cache_service.check_rate_limit(
-            f"global_burst:{client_ip}", self._GLOBAL_LIMIT_PER_MIN
+            f"global_burst:{client_id}", settings.global_rate_limit_per_minute
         )
         if not allowed:
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please try again later."},
+                headers={"Retry-After": "60"},
             )
         return await call_next(request)
 

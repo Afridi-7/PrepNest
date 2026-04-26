@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.models import User
 from app.db.repositories.user_repo import UserRepository
@@ -11,17 +12,44 @@ from app.services.cache_service import cache_service
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
+def _real_client_ip(request: Request) -> str:
+    """Resolve the originating client IP, honouring the proxy hop list when
+    the deployment sits behind a reverse proxy (Render, Vercel, Cloudflare,
+    nginx, ...). Without this, every user shares the proxy's IP and rate
+    limits would 429 legitimate traffic in production.
+    """
+    settings = get_settings()
+    if settings.trust_proxy_headers:
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            first = xff.split(",", 1)[0].strip()
+            if first:
+                return first
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+    return request.client.host if request.client else "unknown"
+
+
 def rate_limit(limit_per_minute: int = 60, key_prefix: str = "global"):
-    """Return a FastAPI dependency that enforces per-IP rate limiting."""
+    """Return a FastAPI dependency that enforces per-client rate limiting.
+
+    Bucket key prefers the authenticated user id (survives NAT / shared IPs)
+    and falls back to the resolved client IP for anonymous routes.
+    """
 
     async def _check(request: Request) -> None:
-        client_ip = request.client.host if request.client else "unknown"
-        bucket_key = f"{key_prefix}:{client_ip}"
+        user_id = getattr(request.state, "user_id", None)
+        if user_id:
+            bucket_key = f"{key_prefix}:user:{user_id}"
+        else:
+            bucket_key = f"{key_prefix}:ip:{_real_client_ip(request)}"
         allowed = await cache_service.check_rate_limit(bucket_key, limit_per_minute)
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests. Please try again later.",
+                headers={"Retry-After": "60"},
             )
 
     return _check
@@ -56,8 +84,7 @@ def daily_quota(limit_per_day: int, key_prefix: str):
         if user_id:
             bucket_key = f"quota:{key_prefix}:user:{user_id}"
         else:
-            client_ip = request.client.host if request.client else "unknown"
-            bucket_key = f"quota:{key_prefix}:ip:{client_ip}"
+            bucket_key = f"quota:{key_prefix}:ip:{_real_client_ip(request)}"
 
         allowed = await cache_service.check_daily_quota(bucket_key, limit_per_day)
         if not allowed:

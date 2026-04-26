@@ -66,9 +66,12 @@ def test_global_burst_rate_limit() -> None:
     client should eventually return 429 — proves the global backstop is wired.
     """
     saw_429 = False
-    for _ in range(320):
+    # Limit is `settings.global_rate_limit_per_minute` (default 600). Loop a
+    # bit past that so we deterministically trip it regardless of tuning.
+    for _ in range(700):
         r = client.get("/api/v1/usat/categories")
         if r.status_code == 429:
             saw_429 = True
+            assert r.headers.get("Retry-After") == "60"
             break
     assert saw_429

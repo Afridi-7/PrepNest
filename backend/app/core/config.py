@@ -88,6 +88,18 @@ class Settings(BaseSettings):
     live_data_ttl_seconds: int = 600
     live_data_rate_limit_per_minute: int = 30
 
+    # Global per-IP burst cap applied by GlobalRateLimitMiddleware. Tuned so a
+    # full SPA boot (typically <30 requests) plus a few users on the same NAT
+    # never trips the limit, while still stopping scrapers / brute force.
+    global_rate_limit_per_minute: int = 600
+    # When the app is behind a reverse proxy (Render, Vercel, Cloudflare,
+    # nginx, ...) the socket peer is the proxy's IP, so without this every
+    # user would share a single bucket. When True, we trust the leftmost
+    # `X-Forwarded-For` / `X-Real-IP` header value as the client identity.
+    # Default is True because every supported deploy target sits behind a
+    # proxy; flip to False only for direct-to-internet hosting.
+    trust_proxy_headers: bool = True
+
     default_learning_level: str = "intermediate"
 
     @property
