@@ -50,16 +50,28 @@ def hash_password_reset_token(token: str) -> str:
 
 def create_access_token(subject: str) -> str:
     settings = get_settings()
-    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_exp_minutes)
-    payload = {"sub": subject, "exp": expires}
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(minutes=settings.jwt_exp_minutes)
+    # `iat` lets us reject tokens forged with a future-dated issue time and
+    # supports future "invalidate-before-X" revocation if ever needed. `exp`
+    # is enforced by `jwt.decode` automatically via the `require` option.
+    payload = {"sub": subject, "iat": now, "exp": expires}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> str | None:
     settings = get_settings()
+    if not token or not isinstance(token, str):
+        return None
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        return payload.get("sub")
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "sub"]},
+        )
+        sub = payload.get("sub")
+        return sub if isinstance(sub, str) and sub else None
     except JWTError:
         return None
 
@@ -67,18 +79,27 @@ def decode_access_token(token: str) -> str | None:
 def create_verification_token(user_id: str) -> str:
     """Create a short-lived JWT for email verification (24 h)."""
     settings = get_settings()
-    expires = datetime.now(timezone.utc) + timedelta(hours=24)
-    payload = {"sub": user_id, "purpose": "email-verify", "exp": expires}
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(hours=24)
+    payload = {"sub": user_id, "purpose": "email-verify", "iat": now, "exp": expires}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decode_verification_token(token: str) -> str | None:
     """Decode a verification token and return user_id if valid."""
     settings = get_settings()
+    if not token or not isinstance(token, str):
+        return None
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "sub", "purpose"]},
+        )
         if payload.get("purpose") != "email-verify":
             return None
-        return payload.get("sub")
+        sub = payload.get("sub")
+        return sub if isinstance(sub, str) and sub else None
     except JWTError:
         return None

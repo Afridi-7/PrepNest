@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
 const navLinks = [
-  { label: "Home", path: "/" },
-  { label: "USAT", path: "/usat" },
-  { label: "Practice", path: "/practice" },
-  { label: "AI Tutor", path: "/ai-tutor" },
-  { label: "Dashboard", path: "/dashboard" },
-  { label: "Contact", path: "/contact" },
+  { label: "Home", path: "/", auth: "any" as const },
+  { label: "USAT", path: "/usat", auth: "required" as const },
+  { label: "Practice", path: "/practice", auth: "required" as const },
+  { label: "AI Tutor", path: "/ai-tutor", auth: "required" as const },
+  { label: "Dashboard", path: "/dashboard", auth: "required" as const },
+  { label: "Contact", path: "/contact", auth: "any" as const },
 ];
 
 const Navbar = () => {
@@ -84,7 +84,7 @@ const Navbar = () => {
         </Link>
 
         <div className="hidden items-center gap-0.5 rounded-2xl border border-slate-200/60 bg-slate-50/80 px-1.5 py-1 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-900/80 md:flex">
-          {navLinks.map((link) => {
+          {navLinks.filter(l => l.auth === "any" || isAuthenticated).map((link) => {
             const isActive = location.pathname === link.path;
             return (
               <button
@@ -167,7 +167,7 @@ const Navbar = () => {
             className="border-t border-blue-100 bg-white dark:border-slate-800 dark:bg-slate-950 md:hidden"
           >
             <div className="space-y-1 px-4 py-3">
-              {navLinks.map((link) => {
+              {navLinks.filter(l => l.auth === "any" || isAuthenticated).map((link) => {
                 const isActive = location.pathname === link.path;
                 return (
                   <button

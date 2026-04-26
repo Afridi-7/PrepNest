@@ -666,7 +666,7 @@ const Contact = () => {
             {/* -- FOOTER -- */}
             <motion.div variants={fadeUp} className="text-center pt-2 pb-4">
               <p className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
-                Made with <Heart className="h-3 w-3 text-rose-400 fill-rose-400" /> by the PrepNest Team
+                @2026 PrepNest. All rights reserved.
               </p>
             </motion.div>
 

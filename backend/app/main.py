@@ -155,6 +155,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
         )
+        # Defence-in-depth against legacy Flash/PDF cross-domain abuse and
+        # XS-Leaks via window.opener / cross-origin embeddings of API JSON.
+        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        # CORP is set per-path: API JSON is same-origin only; static /uploads
+        # must remain cross-origin so the SPA can load images/PDFs.
+        if request.url.path.startswith("/uploads"):
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
+        else:
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
         # HSTS is only meaningful over HTTPS — set in production environments.
         if self._is_prod:
             response.headers.setdefault(
@@ -174,6 +184,80 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+    """Reject oversized request bodies before they reach handlers.
+
+    This is defence-in-depth against DoS via huge JSON / form payloads. Upload
+    routes legitimately need much larger bodies, so we read the configured
+    upload cap and add a small framing buffer for those paths.
+    """
+
+    # 2 MB is comfortable for any JSON/auth payload we accept.
+    _DEFAULT_LIMIT = 2 * 1024 * 1024
+    _UPLOAD_PREFIXES = (
+        f"{settings.api_prefix}/files/upload",
+    )
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        # Only inspect requests that can carry a body.
+        if request.method in ("POST", "PUT", "PATCH"):
+            content_length = request.headers.get("content-length")
+            if content_length is not None:
+                try:
+                    length = int(content_length)
+                except ValueError:
+                    return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+
+                is_upload = any(request.url.path.startswith(p) for p in self._UPLOAD_PREFIXES)
+                limit = (
+                    (settings.max_upload_size_mb * 1024 * 1024) + 1024 * 1024
+                    if is_upload
+                    else self._DEFAULT_LIMIT
+                )
+                if length > limit:
+                    return JSONResponse(status_code=413, content={"detail": "Payload too large"})
+        return await call_next(request)
+
+
+app.add_middleware(BodySizeLimitMiddleware)
+
+
+class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
+    """Coarse per-IP burst limit applied to every request.
+
+    This is a *backstop* — individual routes still have their own (typically
+    stricter) `rate_limit` dependencies. This middleware exists to stop a
+    single client from hammering arbitrary routes (e.g. scraping, vuln
+    scanning) and to protect us from runaway costs on egress / DB load.
+
+    Limit is generous (300 req/min per IP) so legitimate SPA traffic is never
+    affected — a normal page load makes <30 requests.
+    """
+
+    _GLOBAL_LIMIT_PER_MIN = 300
+    # Skip cheap endpoints that the platform itself or uptime checks may poll.
+    _EXEMPT_PREFIXES = ("/health", "/uploads")
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        path = request.url.path
+        if any(path.startswith(p) for p in self._EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        allowed = await cache_service.check_rate_limit(
+            f"global_burst:{client_ip}", self._GLOBAL_LIMIT_PER_MIN
+        )
+        if not allowed:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(GlobalRateLimitMiddleware)
 
 
 @app.on_event("startup")

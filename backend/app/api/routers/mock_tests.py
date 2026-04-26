@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_verified_user, get_current_pro_user, rate_limit
+from app.api.deps import daily_quota, get_current_verified_user, get_current_pro_user, rate_limit
 from app.db.models import MockTest, User
 from app.db.session import get_db_session
 from app.schemas.content import MockTestGenerated, MockTestSubmit, MockTestResult
@@ -35,7 +35,10 @@ def _validate_category(category: str) -> str:
 @router.post(
     "/generate",
     response_model=MockTestGenerated,
-    dependencies=[Depends(rate_limit(10, "mock_gen"))],
+    dependencies=[
+        Depends(rate_limit(10, "mock_gen")),
+        Depends(daily_quota(20, "mock_gen")),
+    ],
 )
 async def generate(
     payload: dict,
@@ -69,7 +72,10 @@ async def generate(
 @router.post(
     "/{mock_test_id}/submit",
     response_model=MockTestResult,
-    dependencies=[Depends(rate_limit(10, "mock_sub"))],
+    dependencies=[
+        Depends(rate_limit(10, "mock_sub")),
+        Depends(daily_quota(40, "mock_sub")),
+    ],
 )
 async def submit(
     mock_test_id: str,

@@ -34,6 +34,22 @@ from app.services.email_service import async_send_password_reset_email, async_se
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
+
+def _mask_email(email: str | None) -> str:
+    """Return a privacy-safe form of an email for log lines.
+
+    Avoids leaking full PII into logs (which often ship to third-party log
+    aggregators) while keeping enough context for debugging.
+    """
+    if not email or "@" not in email:
+        return "<redacted>"
+    local, _, domain = email.partition("@")
+    if len(local) <= 2:
+        masked_local = local[:1] + "*"
+    else:
+        masked_local = f"{local[0]}***{local[-1]}"
+    return f"{masked_local}@{domain}"
+
 GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 PASSWORD_RESET_GENERIC_MESSAGE = "If that email is registered, a password reset link has been sent."
 PASSWORD_RESET_SUCCESS_MESSAGE = "Password updated successfully."
@@ -55,7 +71,7 @@ async def _send_verification(user, repo: UserRepository) -> None:
     try:
         await async_send_verification_email(user.email, _build_verification_url(token))
     except Exception as exc:
-        logger.error("Email send failed for %s: %s", user.email, exc)
+        logger.error("Email send failed for %s: %s", _mask_email(user.email), exc)
 
 
 def _is_reset_token_expired(user) -> bool:
@@ -98,7 +114,7 @@ async def _issue_password_reset(user, repo: UserRepository) -> None:
             settings.password_reset_token_exp_minutes,
         )
     except Exception as exc:
-        logger.error("Password reset email send failed for %s: %s", user.email, exc)
+        logger.error("Password reset email send failed for %s: %s", _mask_email(user.email), exc)
 
 
 async def create_user_signup(payload: UserRegisterRequest, db: AsyncSession) -> SignupResponse:
@@ -189,7 +205,7 @@ async def forgot_password(
     user = await repo.get_by_email(payload.email)
 
     if not user:
-        logger.info("Password reset requested for unknown email=%s", payload.email)
+        logger.info("Password reset requested for unknown email=%s", _mask_email(payload.email))
         return SignupResponse(message=PASSWORD_RESET_GENERIC_MESSAGE)
 
     if not user.is_active:

@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, rate_limit, is_user_pro
+from app.api.deps import daily_quota, get_current_user, rate_limit, is_user_pro
 from app.core.config import get_settings
 from app.db.models import MCQ, EssayPrompt, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
@@ -675,6 +675,7 @@ async def evaluate_essay(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
     _rl=Depends(rate_limit(20, "essay_eval")),
+    _q=Depends(daily_quota(50, "essay_eval")),
 ):
     """Evaluate a standalone essay submission with AI.
 

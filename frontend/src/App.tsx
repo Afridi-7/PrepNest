@@ -63,12 +63,12 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-            <Route path="/usat" element={<USAT />} />
-            <Route path="/usat/:category" element={<USATSubjects />} />
-            <Route path="/usat/:category/:subject" element={<USATSubjectChapters />} />
-            <Route path="/practice" element={<Practice />} />
+            <Route path="/usat" element={<RequireAuth><USAT /></RequireAuth>} />
+            <Route path="/usat/:category" element={<RequireAuth><USATSubjects /></RequireAuth>} />
+            <Route path="/usat/:category/:subject" element={<RequireAuth><USATSubjectChapters /></RequireAuth>} />
+            <Route path="/practice" element={<RequireAuth><Practice /></RequireAuth>} />
             <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
-            <Route path="/ai-tutor" element={<AITutor />} />
+            <Route path="/ai-tutor" element={<RequireAuth><AITutor /></RequireAuth>} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />

@@ -73,5 +73,29 @@ class CacheService:
             bucket.append(now)
             return True
 
+    async def check_daily_quota(self, key: str, limit_per_day: int) -> bool:
+        """Increment a per-day counter and return False once the cap is hit.
+
+        Used to protect expensive third-party API budgets (OpenAI, etc.) by
+        enforcing an upper bound on calls per UTC day per user.
+        """
+        day_stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        if self._redis:
+            bucket_key = f"quota:{key}:{day_stamp}"
+            value = await self._redis.incr(bucket_key)
+            # 26 hours so we cover any clock skew around midnight rollover.
+            await self._redis.expire(bucket_key, 26 * 60 * 60)
+            return value <= limit_per_day
+
+        async with self._lock:
+            bucket_key = f"{key}:{day_stamp}"
+            bucket = self._rate_limit_buckets[bucket_key]
+            # Reuse the deque as a counter — we only care about length within
+            # the same UTC day, and the key itself rotates daily.
+            if len(bucket) >= limit_per_day:
+                return False
+            bucket.append(datetime.now(timezone.utc))
+            return True
+
 
 cache_service = CacheService()

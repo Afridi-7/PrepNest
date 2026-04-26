@@ -8,6 +8,12 @@ from app.core.config import get_settings
 settings = get_settings()
 
 
+# Hosts that we treat as "local development" — for these we keep behaviour
+# permissive (no SSL enforcement, no fallback). Anything else is treated as a
+# remote production database and gets SSL + sane pool limits.
+_LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1", "db", "postgres"}
+
+
 def resolve_database_url(database_url: str) -> tuple[str, dict[str, object]]:
     url = make_url(database_url)
     connect_args: dict[str, object] = {}
@@ -27,13 +33,38 @@ def resolve_database_url(database_url: str) -> tuple[str, dict[str, object]]:
                 # (encrypted connection without strict CA verification).
                 connect_args["ssl"] = sslmode_value
 
+        # Defence-in-depth: if connecting to a non-local Postgres host and the
+        # caller didn't explicitly set sslmode, force an encrypted connection.
+        # This prevents an accidental misconfiguration from sending DB
+        # credentials in plain text over the public internet.
+        if "ssl" not in connect_args and url.host and url.host.lower() not in _LOCAL_DB_HOSTS:
+            connect_args["ssl"] = "require"
+
         return url.set(drivername="postgresql+asyncpg").render_as_string(hide_password=False), connect_args
 
     return database_url, connect_args
 
 
 database_url, connect_args = resolve_database_url(settings.database_url)
-engine = create_async_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
+
+# `pool_pre_ping` validates connections before use (avoids "connection closed"
+# errors after the DB drops idle conns). `pool_recycle` proactively rotates
+# connections every 30 min so a stale pool can't accumulate. `pool_size` /
+# `max_overflow` cap concurrent DB connections — without this a traffic spike
+# can exhaust the database's max_connections limit and bring the site down.
+_engine_kwargs: dict[str, object] = {
+    "pool_pre_ping": True,
+    "connect_args": connect_args,
+}
+if not database_url.startswith("sqlite"):
+    _engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 10,
+        "pool_recycle": 1800,
+        "pool_timeout": 30,
+    })
+
+engine = create_async_engine(database_url, **_engine_kwargs)
 SessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False, class_=AsyncSession)
 
 # Alias for use in non-FastAPI contexts (e.g. orchestrator agents)
