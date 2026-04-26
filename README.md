@@ -315,7 +315,7 @@ docker compose exec db psql -U admin -d myapp
 
 ## 📄 License
 
-[Add your license here]
+
 
 ## 📞 Support
 
