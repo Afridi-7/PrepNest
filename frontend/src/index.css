@@ -991,6 +991,24 @@
   }
   /* Smoother text rendering on dark surfaces. */
   .dark body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+  /* ── Documentation prose tuning ──
+     Keep code blocks and blockquotes legible inside the docs page in
+     both light and dark mode. Tailwind Typography handles the bulk;
+     these overrides ensure brand-blue links and softer code chips. */
+  .docs-prose a { color: hsl(var(--primary)); text-decoration: none; font-weight: 600; }
+  .docs-prose a:hover { text-decoration: underline; }
+  .docs-prose code { background: hsl(var(--muted)); color: hsl(var(--foreground)); padding: 0.15em 0.4em; border-radius: 0.375rem; font-size: 0.875em; }
+  .docs-prose pre { background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); border-radius: 0.75rem; }
+  .docs-prose pre code { background: transparent; padding: 0; }
+  .docs-prose blockquote { border-left-color: hsl(var(--primary) / 0.6); background: hsl(var(--primary) / 0.06); border-radius: 0 0.5rem 0.5rem 0; padding: 0.75rem 1rem; font-style: normal; }
+  .docs-prose blockquote p { margin: 0; }
+  .docs-prose kbd { background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); border-bottom-width: 2px; border-radius: 0.375rem; padding: 0.1em 0.4em; font-size: 0.8em; font-family: var(--font-body); color: hsl(var(--foreground)); }
+  .docs-prose h2 { scroll-margin-top: 6rem; }
+  .docs-prose h3 { scroll-margin-top: 6rem; }
+  .docs-prose table { border-collapse: collapse; }
+  .docs-prose th, .docs-prose td { border: 1px solid hsl(var(--border)); padding: 0.5rem 0.75rem; }
+  .docs-prose th { background: hsl(var(--muted)); }
 }
 
 @keyframes blobFloat1 {

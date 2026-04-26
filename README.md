@@ -13,7 +13,18 @@ An intelligent AI-powered tutoring platform designed for **USAT & HAT exam prepa
 - **OCR Capabilities**: Extract and analyze text from images
 - **Role-Based Access**: Secure authentication with user management
 
-## 📁 Project Structure
+## � Documentation
+
+- **End-user docs** are available in-app at [`/docs`](http://localhost:5173/docs) (also `/help`).
+- **Developer docs** live in [`docs/developer/`](docs/developer/):
+  - [setup.md](docs/developer/setup.md) — local install & env vars
+  - [architecture.md](docs/developer/architecture.md) — repo layout & request flow
+  - [api.md](docs/developer/api.md) — endpoint reference (full schema at `/docs` on the backend)
+  - [testing.md](docs/developer/testing.md) — pytest, Vitest, Playwright
+
+The user-facing markdown content rendered in the UI is in [`frontend/src/docs/user/`](frontend/src/docs/user/). Adding a new feature guide is as simple as dropping a new `NN-name.md` file in that folder — it appears in the docs sidebar automatically.
+
+## �📁 Project Structure
 
 ```
 PrepNest/

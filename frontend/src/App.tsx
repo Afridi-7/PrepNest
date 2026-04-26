@@ -25,6 +25,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService.tsx"));
 const MockTest = lazy(() => import("./pages/MockTest.tsx"));
 const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
+const Docs = lazy(() => import("./pages/Docs.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,9 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
+            <Route path="/help" element={<Docs />} />
+            <Route path="/docs" element={<Docs />} />
+            <Route path="/faq" element={<Navigate to="/help#faq" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Suspense>

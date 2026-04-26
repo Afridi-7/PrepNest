@@ -12,6 +12,7 @@ const navLinks = [
   { label: "Practice", path: "/practice", auth: "required" as const },
   { label: "AI Tutor", path: "/ai-tutor", auth: "required" as const },
   { label: "Dashboard", path: "/dashboard", auth: "required" as const },
+  { label: "Help", path: "/help", auth: "any" as const },
   { label: "Contact", path: "/contact", auth: "any" as const },
 ];
 
