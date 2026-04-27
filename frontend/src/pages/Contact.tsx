@@ -667,12 +667,29 @@ const Contact = () => {
 
             {/* -- CONNECT WITH US -- */}
             <motion.div variants={fadeUp} className="pt-4 pb-2">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-8">
-                <h3 className="font-heading text-lg font-bold text-foreground sm:text-xl">Connect with us</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Stay close — follow PrepNest across your favourite platforms.
-                </p>
-                <div className="mt-5">
+              <div className="relative overflow-hidden rounded-3xl border border-blue-200/60 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 text-center shadow-xl shadow-blue-400/20 dark:border-primary/30 sm:p-10">
+                <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-cyan-300/25 blur-3xl" />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+                    backgroundSize: "24px 24px",
+                  }}
+                />
+                <div className="relative z-10 flex flex-col items-center gap-5">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-blue-100 backdrop-blur-sm">
+                    <Sparkles className="h-3 w-3" /> Stay in the loop
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-2xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-3xl">
+                      Connect with us
+                    </h3>
+                    <p className="mx-auto mt-2 max-w-md text-sm text-blue-100 sm:text-base">
+                      Stay close — follow PrepNest across your favourite platforms.
+                    </p>
+                  </div>
                   <SocialLinks />
                 </div>
               </div>
