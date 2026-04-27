@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   PlusCircle, Trash2, Layers, FolderOpen, Pencil, Upload, Shield, Crown, Users, Search,
-  BarChart2, ChevronDown, ChevronRight, BookOpen, Wrench, FileText, Settings,
+  BarChart2, ChevronDown, ChevronRight, BookOpen, Wrench, FileText, Settings, Globe,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SiteSettingsEditor from "@/components/admin/SiteSettingsEditor";
@@ -310,6 +310,128 @@ const AdminContent = () => {
       toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
     } finally {
       setDeletingMCQ(null);
+    }
+  };
+
+  const onDeleteMCQAcrossCategories = async (mcqId: number, subjectName: string) => {
+    if (!window.confirm(
+      `Delete this MCQ from EVERY category that has a "${subjectName}" subject (USAT-E, M, CS, GS, A, COM)?\n\nThis removes every copy of the same question across all exam types. It cannot be undone.`,
+    )) return;
+
+    // Locate the question text in the currently loaded chapter caches so we
+    // can surgically prune every matching row across open chapters without
+    // wiping caches or reloading the whole stats panel (which would scroll
+    // the user back to the top).
+    let questionText: string | null = null;
+    for (const list of Object.values(chapterMCQs)) {
+      const found = list?.find((m) => m.id === mcqId);
+      if (found) { questionText = found.question; break; }
+    }
+
+    // Save scroll position so any layout shift after state updates doesn't
+    // visibly jump the page.
+    const savedScrollY = window.scrollY;
+
+    setDeletingMCQ(mcqId);
+    try {
+      const result = await apiClient.deleteMCQAcrossCategories(mcqId);
+
+      const matchingSubject = (s: { subject: string }) =>
+        s.subject.trim().toLowerCase() === subjectName.trim().toLowerCase();
+
+      // Track how many rows we strip from each (chapter, subject) so we can
+      // decrement the counts shown in the panel accordingly.
+      const removedByChapter: Record<string, number> = {};
+
+      setChapterMCQs((prev) => {
+        const next: typeof prev = {};
+        for (const [key, list] of Object.entries(prev)) {
+          if (!list) { next[key] = list; continue; }
+          // chapterKey format: `${sName}||${chapter}||${topic_id}`
+          const [sName] = key.split("||");
+          if (questionText && matchingSubject({ subject: sName })) {
+            const filtered = list.filter((m) => m.question !== questionText);
+            const removed = list.length - filtered.length;
+            if (removed > 0) removedByChapter[key] = removed;
+            next[key] = filtered;
+          } else if (!questionText && matchingSubject({ subject: sName })) {
+            // We never saw the question text locally; only prune the exact id
+            // (best effort — other open chapters keep their state).
+            next[key] = list.filter((m) => m.id !== mcqId);
+          } else {
+            next[key] = list;
+          }
+        }
+        return next;
+      });
+
+      setMcqStats((prev) =>
+        prev.map((s) => {
+          if (!matchingSubject(s)) return s;
+          const key = `${s.subject}||${s.chapter}||${s.topic_id}`;
+          const removed = removedByChapter[key] ?? (questionText ? 1 : 0);
+          return removed > 0 ? { ...s, mcqs: Math.max(0, s.mcqs - removed) } : s;
+        }),
+      );
+
+      // Restore scroll on the next frame in case the DOM shrank.
+      requestAnimationFrame(() => window.scrollTo({ top: savedScrollY }));
+
+      toast({
+        description:
+          `Deleted ${result.deleted} cop${result.deleted === 1 ? "y" : "ies"} of this MCQ ` +
+          `across ${result.subjects} "${result.subject_name ?? subjectName}" subject(s).`,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Cross-category delete failed",
+        description: error instanceof Error ? error.message : "Unknown",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingMCQ(null);
+    }
+  };
+
+  const onPurgeSubjectByName = async (subjectName: string) => {
+    if (!window.confirm(
+      `Delete ALL MCQs under every "${subjectName}" subject across every exam type (USAT-E, M, CS, GS, A, COM)?\n\nThis cannot be undone.`,
+    )) return;
+
+    const savedScrollY = window.scrollY;
+    try {
+      const result = await apiClient.purgeSubjectMCQs(subjectName);
+
+      const matches = (s: string) =>
+        s.trim().toLowerCase() === subjectName.trim().toLowerCase();
+
+      // Empty every loaded chapter belonging to this subject (keeps other
+      // subjects' open chapters intact).
+      setChapterMCQs((prev) => {
+        const next: typeof prev = {};
+        for (const [key, list] of Object.entries(prev)) {
+          const [sName] = key.split("||");
+          next[key] = matches(sName) ? [] : list;
+        }
+        return next;
+      });
+
+      // Zero out the per-chapter counts for matching subjects.
+      setMcqStats((prev) =>
+        prev.map((s) => (matches(s.subject) ? { ...s, mcqs: 0 } : s)),
+      );
+
+      requestAnimationFrame(() => window.scrollTo({ top: savedScrollY }));
+
+      toast({
+        description: `Deleted ${result.deleted} MCQs from ${result.subjects} "${subjectName}" subject(s) / ${result.topics} chapter(s).`,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Purge failed",
+        description: error instanceof Error ? error.message : "Unknown",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1269,6 +1391,19 @@ const AdminContent = () => {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-semibold text-cyan-700">{total.toLocaleString()} MCQs</span>
+                                    {total > 0 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => { e.stopPropagation(); onPurgeSubjectByName(sName); }}
+                                        className="text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 h-7 px-2 gap-1"
+                                        title={`Delete every MCQ under "${sName}" across all exam types`}
+                                      >
+                                        <Globe className="h-3.5 w-3.5" />
+                                        Wipe all categories
+                                      </Button>
+                                    )}
                                     {subjectObj && (
                                       <Button
                                         type="button"
@@ -1352,17 +1487,30 @@ const AdminContent = () => {
                                                         <span className="truncate">{mcq.option_a} / {mcq.option_b} / {mcq.option_c} / {mcq.option_d}</span>
                                                       </p>
                                                     </div>
-                                                    <Button
-                                                      type="button"
-                                                      variant="ghost"
-                                                      size="icon"
-                                                      onClick={() => onDeleteSingleMCQ(mcq.id, chapterKey, chapter, sName)}
-                                                      disabled={deletingMCQ === mcq.id}
-                                                      className="text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0 h-7 w-7"
-                                                      title="Delete MCQ"
-                                                    >
-                                                      <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                      <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => onDeleteMCQAcrossCategories(mcq.id, sName)}
+                                                        disabled={deletingMCQ === mcq.id}
+                                                        className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 h-7 w-7"
+                                                        title={`Delete this MCQ from every "${sName}" subject across all categories`}
+                                                      >
+                                                        <Globe className="h-3.5 w-3.5" />
+                                                      </Button>
+                                                      <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => onDeleteSingleMCQ(mcq.id, chapterKey, chapter, sName)}
+                                                        disabled={deletingMCQ === mcq.id}
+                                                        className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7"
+                                                        title="Delete MCQ from this chapter only"
+                                                      >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
                                                 ))
                                               )}

@@ -1208,6 +1208,12 @@ class ApiClient {
     await this.request<void>(`/admin/mcqs/${mcqId}`, "DELETE");
   }
 
+  async deleteMCQAcrossCategories(
+    mcqId: number,
+  ): Promise<{ deleted: number; subjects: number; topics: number; subject_name?: string }> {
+    return this.request(`/admin/mcqs/${mcqId}/cross-category`, "DELETE");
+  }
+
   async getAdminMCQs(topicId: number): Promise<MCQ[]> {
     return this.request<MCQ[]>(`/admin/mcqs?topic_id=${topicId}`);
   }

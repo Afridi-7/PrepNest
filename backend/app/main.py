@@ -222,8 +222,17 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
     # 2 MB is comfortable for any JSON/auth payload we accept.
     _DEFAULT_LIMIT = 2 * 1024 * 1024
+    # Routes that legitimately accept large bodies. Kept as a hint; we also
+    # detect any `multipart/form-data` request as an upload below so new
+    # file-accepting endpoints don't accidentally trip the small default cap.
     _UPLOAD_PREFIXES = (
         f"{settings.api_prefix}/files/upload",
+        f"{settings.api_prefix}/admin/materials/upload-pdfs",
+        f"{settings.api_prefix}/admin/mcqs/upload-csv",
+        f"{settings.api_prefix}/admin/essay-prompts/upload-csv",
+        f"{settings.api_prefix}/admin/visuals/upload",
+        f"{settings.api_prefix}/users/me/avatar",
+        f"{settings.api_prefix}/usat",  # past-paper / chapter PDF uploads
     )
 
     async def dispatch(self, request: StarletteRequest, call_next):
@@ -236,7 +245,11 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
                 except ValueError:
                     return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
 
-                is_upload = any(request.url.path.startswith(p) for p in self._UPLOAD_PREFIXES)
+                content_type = (request.headers.get("content-type") or "").lower()
+                is_multipart = content_type.startswith("multipart/form-data")
+                is_upload = is_multipart or any(
+                    request.url.path.startswith(p) for p in self._UPLOAD_PREFIXES
+                )
                 limit = (
                     (settings.max_upload_size_mb * 1024 * 1024) + 1024 * 1024
                     if is_upload

@@ -633,6 +633,64 @@ async def delete_mcq(
     await db.commit()
 
 
+@router.delete("/mcqs/{mcq_id}/cross-category", status_code=status.HTTP_200_OK)
+async def delete_mcq_across_categories(
+    mcq_id: int,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Delete this MCQ *and* every MCQ with the same question text under any
+    subject sharing the same name (case-insensitive), across all exam types.
+
+    Use case: the same MCQ was uploaded to "Quantitative Reasoning" under
+    several USAT categories (USAT-E, USAT-M, etc.). Deleting it from one
+    chapter should wipe every duplicate in one shot.
+    """
+    mcq = await db.get(MCQ, mcq_id)
+    if not mcq:
+        raise HTTPException(status_code=404, detail="MCQ not found")
+
+    topic = await db.get(Topic, mcq.topic_id)
+    if not topic:
+        # Orphaned — fall back to a plain delete.
+        await db.delete(mcq)
+        await db.commit()
+        return {"deleted": 1, "subjects": 0, "topics": 0}
+
+    subject = await db.get(Subject, topic.subject_id)
+    subject_name = subject.name if subject else None
+
+    if not subject_name:
+        await db.delete(mcq)
+        await db.commit()
+        return {"deleted": 1, "subjects": 0, "topics": 0}
+
+    # All subject IDs sharing this name across exam types.
+    subj_rows = await db.execute(
+        select(Subject.id).where(Subject.name.ilike(subject_name.strip()))
+    )
+    subject_ids = [r[0] for r in subj_rows.all()]
+    # All topics under those subjects.
+    topic_rows = await db.execute(
+        select(Topic.id).where(Topic.subject_id.in_(subject_ids))
+    )
+    topic_ids = [r[0] for r in topic_rows.all()] or [mcq.topic_id]
+
+    del_result = await db.execute(
+        delete(MCQ).where(
+            MCQ.topic_id.in_(topic_ids),
+            MCQ.question == mcq.question,
+        )
+    )
+    await db.commit()
+    return {
+        "deleted": del_result.rowcount or 0,
+        "subjects": len(subject_ids),
+        "topics": len(topic_ids),
+        "subject_name": subject_name,
+    }
+
+
 @router.delete("/topics/{topic_id}/mcqs", status_code=status.HTTP_200_OK)
 async def delete_topic_mcqs(
     topic_id: int,
