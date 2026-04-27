@@ -393,48 +393,6 @@ const AdminContent = () => {
     }
   };
 
-  const onPurgeSubjectByName = async (subjectName: string) => {
-    if (!window.confirm(
-      `Delete ALL MCQs under every "${subjectName}" subject across every exam type (USAT-E, M, CS, GS, A, COM)?\n\nThis cannot be undone.`,
-    )) return;
-
-    const savedScrollY = window.scrollY;
-    try {
-      const result = await apiClient.purgeSubjectMCQs(subjectName);
-
-      const matches = (s: string) =>
-        s.trim().toLowerCase() === subjectName.trim().toLowerCase();
-
-      // Empty every loaded chapter belonging to this subject (keeps other
-      // subjects' open chapters intact).
-      setChapterMCQs((prev) => {
-        const next: typeof prev = {};
-        for (const [key, list] of Object.entries(prev)) {
-          const [sName] = key.split("||");
-          next[key] = matches(sName) ? [] : list;
-        }
-        return next;
-      });
-
-      // Zero out the per-chapter counts for matching subjects.
-      setMcqStats((prev) =>
-        prev.map((s) => (matches(s.subject) ? { ...s, mcqs: 0 } : s)),
-      );
-
-      requestAnimationFrame(() => window.scrollTo({ top: savedScrollY }));
-
-      toast({
-        description: `Deleted ${result.deleted} MCQs from ${result.subjects} "${subjectName}" subject(s) / ${result.topics} chapter(s).`,
-      });
-    } catch (error: unknown) {
-      toast({
-        title: "Purge failed",
-        description: error instanceof Error ? error.message : "Unknown",
-        variant: "destructive",
-      });
-    }
-  };
-
   const onDeleteAllChapterMCQs = async (chapterKey: string, topicId: number | undefined, chapterTitle: string) => {
     if (!topicId) return;
     if (!window.confirm(`Delete ALL MCQs in chapter "${chapterTitle}"? This cannot be undone.`)) return;
@@ -1391,19 +1349,6 @@ const AdminContent = () => {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-semibold text-cyan-700">{total.toLocaleString()} MCQs</span>
-                                    {total > 0 && (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => { e.stopPropagation(); onPurgeSubjectByName(sName); }}
-                                        className="text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 h-7 px-2 gap-1"
-                                        title={`Delete every MCQ under "${sName}" across all exam types`}
-                                      >
-                                        <Globe className="h-3.5 w-3.5" />
-                                        Wipe all categories
-                                      </Button>
-                                    )}
                                     {subjectObj && (
                                       <Button
                                         type="button"
