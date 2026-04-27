@@ -136,6 +136,7 @@ async def get_dashboard_stats(
     ]
 
     return DashboardStats(
+        user_id=str(current_user.id),
         user_name=current_user.full_name or current_user.email.split("@")[0],
         is_pro=UserRepository.is_currently_pro(current_user),
         total_subjects=len(rows),
@@ -254,6 +255,7 @@ async def get_leaderboard(
         entries.append(
             LeaderboardEntry(
                 rank=rank,
+                user_id=str(row.user_id),
                 user_name=name,
                 mcqs_solved=row.mcqs_solved or 0,
                 tests_taken=row.tests_taken,

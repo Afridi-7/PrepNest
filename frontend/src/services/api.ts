@@ -268,6 +268,7 @@ export interface SiteSettings {
 }
 
 export interface DashboardStats {
+  user_id: string;
   user_name: string;
   is_pro: boolean;
   total_subjects: number;
@@ -284,6 +285,7 @@ export interface DashboardStats {
 
 export interface LeaderboardEntry {
   rank: number;
+  user_id: string;
   user_name: string;
   mcqs_solved: number;
   tests_taken: number;
@@ -437,6 +439,7 @@ class ApiClient {
     this._adminCache = null;
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_name");
+    localStorage.removeItem("user_id");
   }
 
   /** Cached admin check – avoids repeated /users/me calls */

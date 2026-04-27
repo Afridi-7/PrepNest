@@ -335,6 +335,7 @@ class UserRewards(BaseModel):
 
 
 class DashboardStats(BaseModel):
+    user_id: str
     user_name: str
     is_pro: bool = False
     total_subjects: int
@@ -352,6 +353,7 @@ class DashboardStats(BaseModel):
 
 class LeaderboardEntry(BaseModel):
     rank: int
+    user_id: str
     user_name: str
     mcqs_solved: int
     tests_taken: int

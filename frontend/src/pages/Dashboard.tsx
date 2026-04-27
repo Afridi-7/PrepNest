@@ -36,7 +36,9 @@ const ProFeatureLocked = ({
 };
 
 /* ── Streak helper ── */
-const STREAK_KEY = "prepnest_streak";
+const STREAK_KEY_PREFIX = "prepnest_streak";
+const streakKeyFor = (userKey: string) =>
+  `${STREAK_KEY_PREFIX}::${userKey || "guest"}`;
 const toDateStr = (dt: Date) =>
   `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 
@@ -51,12 +53,21 @@ type StreakState = {
   recoverableStreak: number;
 };
 
-function buildStreak(opts?: { extraDates?: string[] }): StreakState {
+function buildStreak(userKey: string, opts?: { extraDates?: string[] }): StreakState {
   const today = toDateStr(new Date());
+  const storageKey = streakKeyFor(userKey);
   let data: { dates: string[]; best: number } = { dates: [], best: 0 };
   try {
-    const s = localStorage.getItem(STREAK_KEY);
+    const s = localStorage.getItem(storageKey);
     if (s) data = JSON.parse(s);
+    else {
+      // One-time migration from the legacy shared key so existing users keep their streak.
+      const legacy = localStorage.getItem(STREAK_KEY_PREFIX);
+      if (legacy) {
+        data = JSON.parse(legacy);
+        localStorage.removeItem(STREAK_KEY_PREFIX);
+      }
+    }
   } catch { /* */ }
   if (!data.dates.includes(today)) data.dates.push(today);
   for (const d of opts?.extraDates ?? []) {
@@ -98,7 +109,7 @@ function buildStreak(opts?: { extraDates?: string[] }): StreakState {
     week.push(data.dates.includes(toDateStr(w)));
     w.setDate(w.getDate() + 1);
   }
-  try { localStorage.setItem(STREAK_KEY, JSON.stringify(data)); } catch { /* */ }
+  try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch { /* */ }
   return { current: streak, best: data.best, lastActive: today, week, gapDate, recoverableStreak: recoverable };
 }
 
@@ -112,7 +123,14 @@ const Dashboard = () => {
     fetchedRef.current = true;
     apiClient
       .getDashboardStats()
-      .then(setStats)
+      .then((s) => {
+        setStats(s);
+        // Persist the stable user_id so per-user state (streak namespace, "You" detection)
+        // survives reloads even when display names collide across accounts.
+        try {
+          if (s?.user_id) localStorage.setItem("user_id", s.user_id);
+        } catch { /* */ }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -131,10 +149,17 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchLeaderboard]);
 
-  const [streakData, setStreakData] = useState(() => buildStreak());
-
-
   const userName = stats?.user_name || localStorage.getItem("user_name") || "Student";
+  const streakUserKey = stats?.user_id || localStorage.getItem("user_id") || "guest";
+  const currentUserId = stats?.user_id ?? null;
+
+  const [streakData, setStreakData] = useState(() => buildStreak(streakUserKey));
+
+  // Re-build streak when the resolved user changes (e.g., after stats load or account switch)
+  // so each user sees their own streak rather than a shared per-browser one.
+  useEffect(() => {
+    setStreakData(buildStreak(streakUserKey));
+  }, [streakUserKey]);
 
   const uniqueSubjects = useMemo(() => {
     const map = new Map<string, { id: number; name: string; topic_count: number; mcq_count: number }>();
@@ -232,11 +257,11 @@ const Dashboard = () => {
       setRewards(r);
       // Inject the missed day client-side so the streak now spans it
       const filled = streakData.gapDate;
-      setStreakData(buildStreak({ extraDates: [filled] }));
+      setStreakData(buildStreak(streakUserKey, { extraDates: [filled] }));
     } catch (e) {
       setClaimError(e instanceof Error ? e.message : "Couldn't use streak saver");
     }
-  }, [streakData.gapDate, rewards]);
+  }, [streakData.gapDate, rewards, streakUserKey]);
 
   /* ── Daily XP history (persisted, real) ── */
   const today = new Date().toISOString().slice(0, 10);
@@ -1137,95 +1162,76 @@ const Dashboard = () => {
                   </div>
 
                   <div className="p-4">
-                    {isProUser ? (
-                      !leaderboard || leaderboard.entries.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 py-8">
-                          <Trophy className="h-8 w-8 text-amber-300" />
-                          <p className="text-sm text-slate-400">No leaderboard data yet. Take a mock test!</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {leaderboard.entries.map((entry) => {
-                            const isFirst = entry.rank === 1;
-                            const isSecond = entry.rank === 2;
-                            const isThird = entry.rank === 3;
-                            const isTop3 = isFirst || isSecond || isThird;
-                            const isCurrentUser = entry.user_name === userName;
-                            const rankIcon = isFirst ? "🥇" : isSecond ? "🥈" : isThird ? "🥉" : null;
+                    {!leaderboard || leaderboard.entries.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-8">
+                        <Trophy className="h-8 w-8 text-amber-300" />
+                        <p className="text-sm text-slate-400">No leaderboard data yet. Take a mock test!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {leaderboard.entries.map((entry) => {
+                          const isFirst = entry.rank === 1;
+                          const isSecond = entry.rank === 2;
+                          const isThird = entry.rank === 3;
+                          const isTop3 = isFirst || isSecond || isThird;
+                          const isCurrentUser = currentUserId !== null && entry.user_id === currentUserId;
+                          const rankIcon = isFirst ? "🥇" : isSecond ? "🥈" : isThird ? "🥉" : null;
 
-                            const cardStyle = isCurrentUser && !isTop3
-                              ? { background: "linear-gradient(135deg, #eef2ff, #f5f3ff)", border: "2px solid #c7d2fe" }
-                              : isFirst
-                              ? { background: "linear-gradient(135deg, #fffbeb, #fef3c7)", border: "2px solid #fde68a" }
-                              : isSecond
-                              ? { background: "linear-gradient(135deg, #f8fafc, #f1f5f9)", border: "2px solid #e2e8f0" }
-                              : isThird
-                              ? { background: "linear-gradient(135deg, #fff7ed, #ffedd5)", border: "2px solid #fed7aa" }
-                              : { background: "#f8fafc", border: "1px solid #e2e8f0" };
+                          const cardStyle = isCurrentUser && !isTop3
+                            ? { background: "linear-gradient(135deg, #eef2ff, #f5f3ff)", border: "2px solid #c7d2fe" }
+                            : isFirst
+                            ? { background: "linear-gradient(135deg, #fffbeb, #fef3c7)", border: "2px solid #fde68a" }
+                            : isSecond
+                            ? { background: "linear-gradient(135deg, #f8fafc, #f1f5f9)", border: "2px solid #e2e8f0" }
+                            : isThird
+                            ? { background: "linear-gradient(135deg, #fff7ed, #ffedd5)", border: "2px solid #fed7aa" }
+                            : { background: "#f8fafc", border: "1px solid #e2e8f0" };
 
-                            return (
-                              <motion.div
-                                key={entry.rank}
-                                initial={{ opacity: 0, x: -8 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.45 + entry.rank * 0.04 }}
-                                className="flex items-center gap-3 rounded-2xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                style={cardStyle}
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center">
-                                  {rankIcon ? (
-                                    <span className="text-xl leading-none">{rankIcon}</span>
-                                  ) : (
-                                    <span className="text-xs font-black text-slate-400">#{entry.rank}</span>
+                          return (
+                            <motion.div
+                              key={entry.rank}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.45 + entry.rank * 0.04 }}
+                              className="flex items-center gap-3 rounded-2xl p-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
+                              style={cardStyle}
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+                                {rankIcon ? (
+                                  <span className="text-xl leading-none">{rankIcon}</span>
+                                ) : (
+                                  <span className="text-xs font-black text-slate-400">#{entry.rank}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className={`flex items-center gap-1.5 text-sm font-bold ${
+                                  isCurrentUser ? "text-indigo-700" : isFirst ? "text-amber-700" : "text-slate-700"
+                                }`}>
+                                  <span className="truncate">{entry.user_name}</span>
+                                  {isCurrentUser && (
+                                    <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase"
+                                      style={{ background: "#e0e7ff", color: "#4338ca" }}>
+                                      You
+                                    </span>
                                   )}
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className={`flex items-center gap-1.5 text-sm font-bold ${
-                                    isCurrentUser ? "text-indigo-700" : isFirst ? "text-amber-700" : "text-slate-700"
-                                  }`}>
-                                    <span className="truncate">{entry.user_name}</span>
-                                    {isCurrentUser && (
-                                      <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase"
-                                        style={{ background: "#e0e7ff", color: "#4338ca" }}>
-                                        You
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] text-slate-400">
-                                    {entry.tests_taken} test{entry.tests_taken !== 1 ? "s" : ""}
-                                  </div>
+                                <div className="text-[11px] text-slate-400">
+                                  {entry.tests_taken} test{entry.tests_taken !== 1 ? "s" : ""}
                                 </div>
-                                <div className="shrink-0 rounded-full px-2.5 py-1 text-xs font-black"
-                                  style={
-                                    isFirst
-                                      ? { background: "#fef3c7", color: "#92400e" }
-                                      : isTop3
-                                      ? { background: "#eef2ff", color: "#4338ca" }
-                                      : { background: "#f1f5f9", color: "#475569" }
-                                  }>
-                                  {entry.mcqs_solved} MCQs
-                                </div>
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 py-8">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm"
-                          style={{ background: "linear-gradient(135deg, #fffbeb, #fef3c7)" }}>
-                          <Lock className="h-6 w-6 text-amber-500" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-black text-slate-700">Pro Feature</p>
-                          <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-slate-400">
-                            Unlock Pro to see top performers and compete with the best students.
-                          </p>
-                        </div>
-                        <button className="mt-1 rounded-2xl px-6 py-2.5 text-xs font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
-                          style={{ background: "linear-gradient(135deg, #f59e0b, #f97316)" }}>
-                          Upgrade to Pro
-                        </button>
+                              </div>
+                              <div className="shrink-0 rounded-full px-2.5 py-1 text-xs font-black"
+                                style={
+                                  isFirst
+                                    ? { background: "#fef3c7", color: "#92400e" }
+                                    : isTop3
+                                    ? { background: "#eef2ff", color: "#4338ca" }
+                                    : { background: "#f1f5f9", color: "#475569" }
+                                }>
+                                {entry.mcqs_solved} MCQs
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
