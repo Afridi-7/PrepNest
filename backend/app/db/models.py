@@ -76,6 +76,20 @@ class FileAsset(Base):
     conversation: Mapped[Conversation] = relationship(back_populates="files")
 
 
+class SiteSettings(Base):
+    """Singleton-style key/value table for editable public site config (social links, etc.)."""
+
+    __tablename__ = "site_settings"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default="default")
+    instagram_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    facebook_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    youtube_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    tiktok_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Subject(Base):
     __tablename__ = "subjects"
 

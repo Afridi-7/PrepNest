@@ -5,11 +5,12 @@ import {
   BarChart2, ChevronDown, ChevronRight, BookOpen, Wrench, FileText, Settings,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import SiteSettingsEditor from "@/components/admin/SiteSettingsEditor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient, Material, MCQ, Note, Resource, Subject, Topic, type UserAdminView } from "@/services/api";
 
-type Tab = "content" | "mcqs" | "upload" | "users" | "tools";
+type Tab = "content" | "mcqs" | "upload" | "users" | "tools" | "site";
 interface MCQStat { exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number; }
 const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM"];
 
@@ -789,6 +790,7 @@ const AdminContent = () => {
     { id: "upload", label: "Upload", icon: <Upload className="h-4 w-4" /> },
     { id: "users", label: "Users", icon: <Users className="h-4 w-4" /> },
     { id: "tools", label: "Tools", icon: <Wrench className="h-4 w-4" /> },
+    { id: "site", label: "Site", icon: <Settings className="h-4 w-4" /> },
   ];
 
   return (
@@ -1603,6 +1605,8 @@ const AdminContent = () => {
               </div>
             </div>
           )}
+
+          {activeTab === "site" && <SiteSettingsEditor />}
 
         </div>
       </div>

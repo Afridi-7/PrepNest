@@ -7,6 +7,8 @@ import {
   Shield, Users, Phone, Plus, Trash2, Link as LinkIcon,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import SocialLinks from "@/components/SocialLinks";
 import { apiClient, API_ORIGIN, type ContactInfo as ContactInfoType, type ContactInfoUpdate, type Acknowledgment } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -663,16 +665,23 @@ const Contact = () => {
               ))}
             </motion.div>
 
-            {/* -- FOOTER -- */}
-            <motion.div variants={fadeUp} className="text-center pt-2 pb-4">
-              <p className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
-                @2026 PrepNest. All rights reserved.
-              </p>
+            {/* -- CONNECT WITH US -- */}
+            <motion.div variants={fadeUp} className="pt-4 pb-2">
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-8">
+                <h3 className="font-heading text-lg font-bold text-foreground sm:text-xl">Connect with us</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Stay close — follow PrepNest across your favourite platforms.
+                </p>
+                <div className="mt-5">
+                  <SocialLinks />
+                </div>
+              </div>
             </motion.div>
 
           </motion.div>
         )}
       </div>
+      <Footer />
     </>
   );
 };

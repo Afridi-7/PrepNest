@@ -70,7 +70,8 @@ const App = () => (
             <Route path="/practice" element={<RequireAuth><Practice /></RequireAuth>} />
             <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
             <Route path="/ai-tutor" element={<RequireAuth><AITutor /></RequireAuth>} />
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/about" element={<Contact />} />
+            <Route path="/contact" element={<Navigate to="/about" replace />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />

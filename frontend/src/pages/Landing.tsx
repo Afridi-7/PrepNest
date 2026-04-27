@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import Footer from "@/components/Footer";
 import {
   BookOpen,
   Brain,
@@ -265,26 +266,7 @@ const Landing = () => {
       </div>
     </section>
 
-    <footer className="border-t border-slate-100 bg-white py-10 dark:border-slate-800 dark:bg-slate-950">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 p-1">
-              <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded object-contain" />
-            </div>
-            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PrepNest AI. All rights reserved.</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <Link to="/help" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">Help</Link>
-            <Link to="/docs" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">Docs</Link>
-            <Link to="/help#faq" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">FAQs</Link>
-            <Link to="/privacy" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">Privacy Policy</Link>
-            <Link to="/terms" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">Terms of Service</Link>
-            <Link to="/contact" className="text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-300">Contact</Link>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <Footer withSocial />
   </div>
   );
 };

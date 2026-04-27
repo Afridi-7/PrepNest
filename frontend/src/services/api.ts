@@ -259,6 +259,14 @@ export interface UserRewards {
   user_xp?: number;
 }
 
+export interface SiteSettings {
+  instagram_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+}
+
 export interface DashboardStats {
   user_name: string;
   is_pro: boolean;
@@ -476,6 +484,15 @@ class ApiClient {
 
   async useStreakSaver(): Promise<UserRewards> {
     return this.request<UserRewards>("/users/me/use-streak-saver", "POST");
+  }
+
+  /** Public site settings (social links). Admin-only `updateSiteSettings`. */
+  async getSiteSettings(): Promise<SiteSettings> {
+    return this.request<SiteSettings>("/site/settings");
+  }
+
+  async updateSiteSettings(payload: Partial<SiteSettings>): Promise<SiteSettings> {
+    return this.request<SiteSettings>("/site/settings", "PUT", payload);
   }
 
   /** Get real-time public platform stats (no auth needed) */

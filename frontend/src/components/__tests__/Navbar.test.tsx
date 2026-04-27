@@ -65,9 +65,9 @@ describe("<Navbar />", () => {
     isAuthenticated.mockReturnValue(false);
     renderNavbar();
 
-    // "Home" and "Contact" are public.
+    // "Home" and "About Us" are public.
     expect(screen.getAllByRole("button", { name: /home/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /contact/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /about us/i }).length).toBeGreaterThan(0);
     // "Dashboard" is gated.
     expect(screen.queryByRole("button", { name: /^dashboard$/i })).not.toBeInTheDocument();
   });
