@@ -67,6 +67,7 @@ const Navbar = () => {
           ? "border-slate-200/60 bg-white/80 shadow-lg shadow-slate-200/30 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80 dark:shadow-black/30 dark:backdrop-blur-xl"
           : "border-slate-100/40 bg-white/60 shadow-sm backdrop-blur-lg dark:border-slate-900/40 dark:bg-slate-950/60 dark:shadow-black/20 dark:backdrop-blur-lg"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/" className="group flex items-center gap-2.5">

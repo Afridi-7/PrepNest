@@ -359,9 +359,20 @@ class LeaderboardEntry(BaseModel):
     tests_taken: int
 
 
+class PreviousMonthWinner(BaseModel):
+    user_id: str
+    user_name: str
+    mcqs_solved: int
+    month_label: str  # e.g. "March 2026"
+
+
 class LeaderboardResponse(BaseModel):
     entries: list[LeaderboardEntry]
     updated_at: str
+    period_start: str | None = None  # ISO-8601 — first day of current month (UTC)
+    period_end: str | None = None    # ISO-8601 — first day of NEXT month (UTC, exclusive)
+    period_label: str | None = None  # e.g. "April 2026"
+    previous_winner: PreviousMonthWinner | None = None
 
 
 class PracticeResultCreate(BaseModel):

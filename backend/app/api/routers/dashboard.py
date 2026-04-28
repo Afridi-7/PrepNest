@@ -20,6 +20,7 @@ from app.schemas.content import (
     DashboardSubjectStat,
     LeaderboardEntry,
     LeaderboardResponse,
+    PreviousMonthWinner,
     SubjectAttemptedStat,
     UserRewards,
 )
@@ -180,12 +181,32 @@ async def get_leaderboard(
     db: AsyncSession = Depends(get_db_session),
     _rl=Depends(rate_limit(60, "leaderboard")),
 ):
-    """Top 10 users ranked by total MCQs solved correctly (mock tests + practice)."""
+    """Top 10 users for the current month, ranked by MCQs solved correctly.
+
+    The board automatically resets at 00:00 UTC on the 1st of every month
+    because we only count rows whose ``created_at`` falls inside the current
+    month. The previous month's #1 winner is returned alongside the current
+    standings so the UI can show a small "Last month's champion" tile.
+    """
     from app.db.session import database_url
 
     is_sqlite = database_url.startswith("sqlite")
 
-    # ── Source 1: MCQ score from evaluated mock tests ──
+    # ── Current-month window (UTC) ─────────────────────────────────────────
+    now = datetime.now(timezone.utc)
+    period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if period_start.month == 12:
+        period_end = period_start.replace(year=period_start.year + 1, month=1)
+    else:
+        period_end = period_start.replace(month=period_start.month + 1)
+
+    # ── Previous month window for the "last month's winner" tile ───────────
+    if period_start.month == 1:
+        prev_start = period_start.replace(year=period_start.year - 1, month=12)
+    else:
+        prev_start = period_start.replace(month=period_start.month - 1)
+    prev_end = period_start  # exclusive upper bound = start of current month
+
     if is_sqlite:
         mcq_score_expr = func.coalesce(
             cast(func.json_extract(MockTest.result_json, "$.mcq_score"), Integer), 0
@@ -195,61 +216,65 @@ async def get_leaderboard(
             cast(MockTest.result_json.op("->>")("mcq_score"), Integer), 0
         )
 
-    mock_sub = (
-        select(
-            MockTest.user_id,
-            func.sum(mcq_score_expr).label("mcqs_solved"),
-            func.count(MockTest.id).label("sessions"),
+    def _build_top_query(window_start: datetime, window_end: datetime, limit: int):
+        mock_sub = (
+            select(
+                MockTest.user_id,
+                func.sum(mcq_score_expr).label("mcqs_solved"),
+                func.count(MockTest.id).label("sessions"),
+            )
+            .where(
+                MockTest.status == "evaluated",
+                MockTest.created_at >= window_start,
+                MockTest.created_at < window_end,
+            )
+            .group_by(MockTest.user_id)
+            .subquery()
         )
-        .where(MockTest.status == "evaluated")
-        .group_by(MockTest.user_id)
-        .subquery("mock_sub")
-    )
 
-    # ── Source 2: correct answers from practice results ──
-    practice_sub = (
-        select(
-            PracticeResult.user_id,
-            func.sum(PracticeResult.correct_answers).label("mcqs_solved"),
-            func.count(PracticeResult.id).label("sessions"),
+        practice_sub = (
+            select(
+                PracticeResult.user_id,
+                func.sum(PracticeResult.correct_answers).label("mcqs_solved"),
+                func.count(PracticeResult.id).label("sessions"),
+            )
+            .where(
+                PracticeResult.created_at >= window_start,
+                PracticeResult.created_at < window_end,
+            )
+            .group_by(PracticeResult.user_id)
+            .subquery()
         )
-        .group_by(PracticeResult.user_id)
-        .subquery("practice_sub")
-    )
 
-    # ── Combine both sources per user ──
-    stmt = (
-        select(
-            User.id.label("user_id"),
-            User.full_name,
-            User.email,
-            (
-                func.coalesce(mock_sub.c.mcqs_solved, 0)
-                + func.coalesce(practice_sub.c.mcqs_solved, 0)
-            ).label("mcqs_solved"),
-            (
-                func.coalesce(mock_sub.c.sessions, 0)
-                + func.coalesce(practice_sub.c.sessions, 0)
-            ).label("tests_taken"),
+        total_solved = (
+            func.coalesce(mock_sub.c.mcqs_solved, 0)
+            + func.coalesce(practice_sub.c.mcqs_solved, 0)
         )
-        .outerjoin(mock_sub, User.id == mock_sub.c.user_id)
-        .outerjoin(practice_sub, User.id == practice_sub.c.user_id)
-        .where(
-            (mock_sub.c.mcqs_solved.isnot(None))
-            | (practice_sub.c.mcqs_solved.isnot(None))
-        )
-        .order_by(
-            (
-                func.coalesce(mock_sub.c.mcqs_solved, 0)
-                + func.coalesce(practice_sub.c.mcqs_solved, 0)
-            ).desc()
-        )
-        .limit(10)
-    )
 
-    rows = (await db.execute(stmt)).all()
+        return (
+            select(
+                User.id.label("user_id"),
+                User.full_name,
+                User.email,
+                total_solved.label("mcqs_solved"),
+                (
+                    func.coalesce(mock_sub.c.sessions, 0)
+                    + func.coalesce(practice_sub.c.sessions, 0)
+                ).label("tests_taken"),
+            )
+            .outerjoin(mock_sub, User.id == mock_sub.c.user_id)
+            .outerjoin(practice_sub, User.id == practice_sub.c.user_id)
+            .where(
+                (mock_sub.c.mcqs_solved.isnot(None))
+                | (practice_sub.c.mcqs_solved.isnot(None))
+            )
+            .order_by(total_solved.desc())
+            .limit(limit)
+        )
 
-    entries = []
+    rows = (await db.execute(_build_top_query(period_start, period_end, 10))).all()
+
+    entries: list[LeaderboardEntry] = []
     for rank, row in enumerate(rows, 1):
         name = row.full_name or row.email.split("@")[0]
         entries.append(
@@ -262,9 +287,26 @@ async def get_leaderboard(
             )
         )
 
+    # ── Previous month #1 ──────────────────────────────────────────────────
+    prev_winner: PreviousMonthWinner | None = None
+    prev_rows = (await db.execute(_build_top_query(prev_start, prev_end, 1))).all()
+    if prev_rows:
+        prev_row = prev_rows[0]
+        prev_name = prev_row.full_name or prev_row.email.split("@")[0]
+        prev_winner = PreviousMonthWinner(
+            user_id=str(prev_row.user_id),
+            user_name=prev_name,
+            mcqs_solved=prev_row.mcqs_solved or 0,
+            month_label=prev_start.strftime("%B %Y"),
+        )
+
     return LeaderboardResponse(
         entries=entries,
         updated_at=datetime.now(timezone.utc).isoformat(),
+        period_start=period_start.isoformat(),
+        period_end=period_end.isoformat(),
+        period_label=period_start.strftime("%B %Y"),
+        previous_winner=prev_winner,
     )
 
 

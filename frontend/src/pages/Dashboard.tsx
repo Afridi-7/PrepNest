@@ -602,20 +602,20 @@ const Dashboard = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-1.5 text-center">
                                 <div title={`${correctMcqs} correct × 5 XP`}>
-                                  <div className="text-[11px] font-black text-emerald-700">+{xpFromCorrect}</div>
-                                  <div className="text-[9px] font-semibold text-slate-500 leading-tight">{correctMcqs} correct<br/><span className="text-slate-400">×5</span></div>
+                                  <div className="text-xs font-black text-emerald-700">+{xpFromCorrect}</div>
+                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{correctMcqs} correct<br/><span className="text-slate-400">×5</span></div>
                                 </div>
                                 <div title={`${userMcqsAttempted} attempted × 2 XP`}>
-                                  <div className="text-[11px] font-black text-blue-700">+{xpFromAttempts}</div>
-                                  <div className="text-[9px] font-semibold text-slate-500 leading-tight">{userMcqsAttempted} attempts<br/><span className="text-slate-400">×2</span></div>
+                                  <div className="text-xs font-black text-blue-700">+{xpFromAttempts}</div>
+                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{userMcqsAttempted} attempts<br/><span className="text-slate-400">×2</span></div>
                                 </div>
                                 <div title={`${userTestsTaken} sessions × 50 XP`}>
-                                  <div className="text-[11px] font-black text-violet-700">+{xpFromSessions}</div>
-                                  <div className="text-[9px] font-semibold text-slate-500 leading-tight">{userTestsTaken} sessions<br/><span className="text-slate-400">×50</span></div>
+                                  <div className="text-xs font-black text-violet-700">+{xpFromSessions}</div>
+                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{userTestsTaken} sessions<br/><span className="text-slate-400">×50</span></div>
                                 </div>
                                 <div title={`${streakData.current}-day streak × 20 XP`}>
-                                  <div className="text-[11px] font-black text-amber-700">+{xpFromStreak}</div>
-                                  <div className="text-[9px] font-semibold text-slate-500 leading-tight">{streakData.current}-day streak<br/><span className="text-slate-400">×20</span></div>
+                                  <div className="text-xs font-black text-amber-700">+{xpFromStreak}</div>
+                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{streakData.current}-day streak<br/><span className="text-slate-400">×20</span></div>
                                 </div>
                               </div>
                             </div>
@@ -1156,12 +1156,45 @@ const Dashboard = () => {
                 >
                   <div className="px-5 py-4"
                     style={{ background: "linear-gradient(135deg, #f59e0b, #f97316, #ef4444)" }}>
-                    <h2 className="flex items-center gap-2 text-sm font-black text-white">
-                      <Trophy className="h-4 w-4" /> Top Students Leaderboard
-                    </h2>
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="flex items-center gap-2 text-sm font-black text-white">
+                        <Trophy className="h-4 w-4" /> Top Students Leaderboard
+                      </h2>
+                      {leaderboard?.period_label && (
+                        <span
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white/95"
+                          style={{ background: "rgba(255,255,255,0.18)" }}
+                          title="Resets at the start of every month"
+                        >
+                          {leaderboard.period_label}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-4">
+                    {leaderboard?.previous_winner && (
+                      <div
+                        className="mb-3 flex items-center gap-3 rounded-2xl border border-amber-200/70 bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 px-3 py-2.5"
+                        title={`Last month's #1: ${leaderboard.previous_winner.user_name}`}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center text-lg leading-none">👑</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-black uppercase tracking-wide text-amber-700">
+                            {leaderboard.previous_winner.month_label} champion
+                          </div>
+                          <div className="truncate text-sm font-bold text-slate-700">
+                            {leaderboard.previous_winner.user_name}
+                          </div>
+                        </div>
+                        <div
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black"
+                          style={{ background: "#fef3c7", color: "#92400e" }}
+                        >
+                          {leaderboard.previous_winner.mcqs_solved} MCQs
+                        </div>
+                      </div>
+                    )}
                     {!leaderboard || leaderboard.entries.length === 0 ? (
                       <div className="flex flex-col items-center gap-2 py-8">
                         <Trophy className="h-8 w-8 text-amber-300" />

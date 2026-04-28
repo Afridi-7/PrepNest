@@ -291,9 +291,22 @@ export interface LeaderboardEntry {
   tests_taken: number;
 }
 
+export interface PreviousMonthWinner {
+  user_id: string;
+  user_name: string;
+  mcqs_solved: number;
+  month_label: string;
+}
+
 export interface LeaderboardResponse {
   entries: LeaderboardEntry[];
   updated_at: string;
+  // The following are populated by the backend's monthly leaderboard. They
+  // are optional so older API responses still parse cleanly.
+  period_start?: string;
+  period_end?: string;
+  period_label?: string;
+  previous_winner?: PreviousMonthWinner | null;
 }
 
 export interface ContactInfo {
