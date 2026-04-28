@@ -151,7 +151,7 @@ const Login = () => {
           </div>
           <div className="animate-[gentle-rock_6s_ease-in-out_infinite]">
             <div className="mx-auto mb-6 h-32 w-32 rounded-2xl bg-gradient-to-br from-blue-600/90 to-cyan-600/90 p-3 shadow-2xl shadow-blue-400/50">
-              <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
+              <img src="/logo.png" alt="PrepNest" decoding="async" className="h-full w-full rounded-xl object-contain drop-shadow-2xl" />
             </div>
           </div>
           <h2 className="mb-4 font-heading text-4xl font-bold text-white drop-shadow-lg">Welcome Back</h2>
@@ -183,7 +183,7 @@ const Login = () => {
             </button>
             <Link to="/" className="mb-8 flex items-center gap-2">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
-                <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
+                <img src="/logo.png" alt="PrepNest" decoding="async" className="h-full w-full rounded-lg object-contain" />
               </div>
               <span className="font-heading text-lg font-bold">PrepNest</span>
             </Link>

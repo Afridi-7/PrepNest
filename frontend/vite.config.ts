@@ -23,11 +23,25 @@ export default defineConfig(() => ({
   },
   plugins: [react()],
   build: {
+    target: "es2020",
+    cssCodeSplit: true,
+    sourcemap: false,
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
+        // Hash filenames so they can be cached forever (the nginx config
+        // sets `immutable` on /assets/*).
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          motion: ["framer-motion"],
+          // Splitting heavy/independent libraries into their own chunks lets
+          // the browser cache them separately and parallelize downloads.
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-motion": ["framer-motion"],
+          "vendor-markdown": ["react-markdown", "remark-gfm"],
         },
       },
     },

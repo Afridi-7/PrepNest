@@ -134,7 +134,7 @@ const ResetPassword = () => {
             </button>
             <Link to="/" className="mb-8 flex items-center gap-2">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
-                <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
+                <img src="/logo.png" alt="PrepNest" decoding="async" className="h-full w-full rounded-lg object-contain" />
               </div>
               <span className="font-heading text-lg font-bold">PrepNest</span>
             </Link>

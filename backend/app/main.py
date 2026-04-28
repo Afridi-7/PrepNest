@@ -5,6 +5,7 @@ import fastapi
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
@@ -101,6 +102,11 @@ if _is_production_env:
         )
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
+
+# Compress JSON / text responses over the wire. Skips small bodies (<500 B)
+# and bodies that are already compressed (images, PDFs, gzip). Purely
+# transport-layer; does not change response contents or status codes.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 @app.exception_handler(RequestValidationError)

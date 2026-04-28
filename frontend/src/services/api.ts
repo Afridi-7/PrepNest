@@ -422,6 +422,9 @@ export interface MockTestResult {
 class ApiClient {
   private token: string | null = null;
   private _adminCache: boolean | null = null;
+  // Shared in-flight GET registry so multiple components asking for the same
+  // resource at once collapse into a single network round-trip.
+  private static _inflight: Map<string, Promise<unknown>> = new Map();
 
   constructor() {
     this.token = localStorage.getItem("access_token");
@@ -430,6 +433,9 @@ class ApiClient {
   setToken(token: string, userName?: string) {
     this.token = token;
     this._adminCache = null;
+    // Token changed \u2014 invalidate any cached anonymous in-flight requests so
+    // the next call uses the new credentials.
+    ApiClient._inflight.clear();
     localStorage.setItem("access_token", token);
     if (userName) localStorage.setItem("user_name", userName);
   }
@@ -437,6 +443,7 @@ class ApiClient {
   clearToken() {
     this.token = null;
     this._adminCache = null;
+    ApiClient._inflight.clear();
     localStorage.removeItem("access_token");
     localStorage.removeItem("user_name");
     localStorage.removeItem("user_id");
@@ -567,6 +574,26 @@ class ApiClient {
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    // De-duplicate identical in-flight GET requests. If two components mount
+    // simultaneously and both ask for the same URL, we issue exactly one
+    // network call and share the result. Only safe for idempotent GETs that
+    // don't carry an Authorization mismatch \u2014 and we already lock to a
+    // single token via this.token.
+    if (method === "GET") {
+      const cacheKey = `${this.token ?? "anon"}::${url}`;
+      const inflight = ApiClient._inflight.get(cacheKey);
+      if (inflight) return inflight as Promise<T>;
+      const promise = this._doFetch<T>(url, method, body).finally(() => {
+        ApiClient._inflight.delete(cacheKey);
+      });
+      ApiClient._inflight.set(cacheKey, promise);
+      return promise;
+    }
+
+    return this._doFetch<T>(url, method, body);
+  }
+
+  private async _doFetch<T>(url: string, method: string, body?: any): Promise<T> {
     const options: RequestInit = {
       method,
       headers: this.getHeaders(),
@@ -590,7 +617,7 @@ class ApiClient {
       throw new Error(detailMessage || errorPayload?.message || `API error: ${response.status}`);
     }
 
-    // 204 No Content — nothing to parse
+    // 204 No Content \u2014 nothing to parse
     if (response.status === 204) return undefined as unknown as T;
 
     return response.json();

@@ -48,7 +48,7 @@ const VerifyEmail = () => {
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
         <Link to="/" className="mb-6 inline-flex items-center gap-2">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-1.5 shadow-md shadow-blue-300/40">
-            <img src="/logo.png" alt="PrepNest" className="h-full w-full rounded-lg object-contain" />
+            <img src="/logo.png" alt="PrepNest" decoding="async" className="h-full w-full rounded-lg object-contain" />
           </div>
           <span className="font-heading text-lg font-bold">PrepNest</span>
         </Link>

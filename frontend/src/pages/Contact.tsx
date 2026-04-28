@@ -238,7 +238,7 @@ const Contact = () => {
                     <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-2xl bg-white/20 border-2 border-white/40 backdrop-blur-sm shadow-2xl overflow-hidden ring-4 ring-white/10">
                       {imageUrl ? (
-                        <img src={imageUrl} alt={info?.name || "Contact"} className="h-full w-full object-cover" />
+                        <img src={imageUrl} alt={info?.name || "Contact"} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center bg-white/10">
                           <User className="h-14 w-14 text-white/60" />
@@ -577,7 +577,7 @@ const Contact = () => {
                       <div className="relative">
                         <div className="h-28 w-28 rounded-full bg-gradient-to-br from-indigo-200 to-blue-200 dark:from-indigo-700 dark:to-blue-700 flex items-center justify-center overflow-hidden shadow-sm">
                           {ack.image_url ? (
-                            <img src={resolveImageUrl(ack.image_url) ?? ""} alt={ack.name} className="h-full w-full object-cover rounded-full" />
+                            <img src={resolveImageUrl(ack.image_url) ?? ""} alt={ack.name} loading="lazy" decoding="async" className="h-full w-full object-cover rounded-full" />
                           ) : (
                             <User className="h-12 w-12 text-indigo-400 dark:text-indigo-300" />
                           )}
