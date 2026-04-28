@@ -1,11 +1,15 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt as jose_jwt
 from sqlalchemy import func, select, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_current_user, rate_limit
+from app.core.config import get_settings
 from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
@@ -26,6 +30,26 @@ from app.schemas.content import (
 )
 
 router = APIRouter(tags=["dashboard"])
+
+_oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+
+
+async def _get_optional_user(
+    token: Optional[str] = Depends(_oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db_session),
+) -> Optional[User]:
+    """Return current user if a valid token is present, else None."""
+    if not token:
+        return None
+    settings = get_settings()
+    try:
+        payload = jose_jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        user_id: str = payload.get("sub", "")
+        if not user_id:
+            return None
+    except JWTError:
+        return None
+    return await db.get(User, user_id)
 
 
 # ── Dashboard stats ──────────────────────────────────────────────────────────
@@ -179,6 +203,7 @@ def _build_user_rewards(user: User) -> UserRewards:
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
     db: AsyncSession = Depends(get_db_session),
+    current_user: Optional[User] = Depends(_get_optional_user),
     _rl=Depends(rate_limit(60, "leaderboard")),
 ):
     """Top 10 users for the current month, ranked by MCQs solved correctly.
@@ -287,6 +312,28 @@ async def get_leaderboard(
             )
         )
 
+    # ── Authed user's rank (if any) ────────────────────────────────────────
+    my_rank: int | None = None
+    my_entry: LeaderboardEntry | None = None
+    if current_user is not None:
+        # Pull a wider slice and find the user's row. The full ranked set is
+        # bounded by active monthly users, which stays small in practice.
+        all_rows = (
+            await db.execute(_build_top_query(period_start, period_end, 10_000))
+        ).all()
+        for idx, row in enumerate(all_rows, 1):
+            if str(row.user_id) == str(current_user.id):
+                name = row.full_name or row.email.split("@")[0]
+                my_rank = idx
+                my_entry = LeaderboardEntry(
+                    rank=idx,
+                    user_id=str(row.user_id),
+                    user_name=name,
+                    mcqs_solved=row.mcqs_solved or 0,
+                    tests_taken=row.tests_taken,
+                )
+                break
+
     # ── Previous month #1 ──────────────────────────────────────────────────
     prev_winner: PreviousMonthWinner | None = None
     prev_rows = (await db.execute(_build_top_query(prev_start, prev_end, 1))).all()
@@ -307,6 +354,8 @@ async def get_leaderboard(
         period_end=period_end.isoformat(),
         period_label=period_start.strftime("%B %Y"),
         previous_winner=prev_winner,
+        my_rank=my_rank,
+        my_entry=my_entry,
     )
 
 

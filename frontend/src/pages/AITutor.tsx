@@ -568,9 +568,19 @@ const AITutor = () => {
                           ? "bg-gradient-to-br from-violet-600 to-blue-600 text-white rounded-br-sm shadow-sm"
                           : "bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/80 dark:border-slate-700/80"
                       }`}>
-                        {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
-                        {msg.streaming && msg.role === "assistant" && (
-                          <span className="inline-block w-[3px] h-4 ml-0.5 rounded-sm bg-violet-500 animate-pulse" />
+                        {msg.role === "assistant" && msg.streaming && !msg.content ? (
+                          <div className="flex items-center gap-1 py-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        ) : (
+                          <>
+                            {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
+                            {msg.streaming && msg.role === "assistant" && (
+                              <span className="inline-block w-[3px] h-4 ml-0.5 rounded-sm bg-violet-500 animate-pulse align-middle" />
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -628,17 +638,14 @@ const AITutor = () => {
                 ))}
               </AnimatePresence>
 
-              {loading && !messages[messages.length - 1]?.content && (
+              {loading && messages.length > 0 && messages[messages.length - 1]?.role !== "assistant" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5">
                   <AiAvatar size={28} />
                   <div className="bg-white dark:bg-slate-800/90 rounded-2xl rounded-bl-sm px-3.5 py-2.5 border border-slate-200/80 dark:border-slate-700/80">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
-                      <span className="text-[11px] text-slate-400">Thinking...</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </motion.div>

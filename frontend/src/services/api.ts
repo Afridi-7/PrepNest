@@ -307,6 +307,8 @@ export interface LeaderboardResponse {
   period_end?: string;
   period_label?: string;
   previous_winner?: PreviousMonthWinner | null;
+  my_rank?: number | null;
+  my_entry?: LeaderboardEntry | null;
 }
 
 export interface ContactInfo {
@@ -353,6 +355,91 @@ export interface AcknowledgmentUpdate {
   name?: string;
   link_url?: string | null;
   display_order?: number;
+}
+
+// ── Query Room types ─────────────────────────────────────────────────────────
+
+export interface QueryAuthor {
+  id: string;
+  name: string;
+}
+
+export interface QueryOption {
+  label: "A" | "B" | "C" | "D";
+  text: string;
+}
+
+export interface QueryReply {
+  id: string;
+  question_id: string;
+  author: QueryAuthor;
+  body: string;
+  is_accepted: boolean;
+  upvotes: number;
+  has_upvoted: boolean;
+  created_at: string;
+}
+
+export interface QueryQuestion {
+  id: string;
+  author: QueryAuthor;
+  title: string;
+  body: string;
+  q_type: "open" | "mcq";
+  options: QueryOption[] | null;
+  correct_label: "A" | "B" | "C" | "D" | null;
+  tags: string[];
+  solved: boolean;
+  accepted_reply_id: string | null;
+  upvotes: number;
+  has_upvoted: boolean;
+  reply_count: number;
+  replies: QueryReply[] | null;
+  created_at: string;
+}
+
+export interface QueryQuestionListResponse {
+  items: QueryQuestion[];
+  total: number;
+}
+
+export interface QueryQuestionCreate {
+  title: string;
+  body: string;
+  q_type?: "open" | "mcq";
+  options?: QueryOption[] | null;
+  correct_label?: "A" | "B" | "C" | "D" | null;
+  tags?: string[];
+}
+
+export interface QueryReplyCreate {
+  body: string;
+}
+
+export interface QueryTag {
+  tag: string;
+  count: number;
+}
+
+export interface QueryLeaderEntry {
+  user_id: string;
+  user_name: string;
+  points: number;
+  posts: number;
+  replies: number;
+  accepted: number;
+  upvotes_received: number;
+}
+
+export interface QueryLeaderboardResponse {
+  entries: QueryLeaderEntry[];
+  period_label: string;
+  period_start: string;
+}
+
+export interface QueryVoteResponse {
+  upvotes: number;
+  has_upvoted: boolean;
 }
 
 // ── Mock Test types ──────────────────────────────────────────────────────────
@@ -1448,6 +1535,65 @@ class ApiClient {
       throw new Error(err.detail || err.message || `API error: ${response.status}`);
     }
     return response.json();
+  }
+
+  // ── Query Room ───────────────────────────────────────────────────────────
+
+  async listQueryQuestions(params?: {
+    tag?: string;
+    limit?: number;
+    offset?: number;
+    include_replies?: boolean;
+  }): Promise<QueryQuestionListResponse> {
+    const qs = new URLSearchParams();
+    if (params?.tag) qs.set("tag", params.tag);
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    if (params?.offset != null) qs.set("offset", String(params.offset));
+    if (params?.include_replies) qs.set("include_replies", "true");
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return this.request<QueryQuestionListResponse>(`/query-room/questions${suffix}`);
+  }
+
+  async createQueryQuestion(payload: QueryQuestionCreate): Promise<QueryQuestion> {
+    return this.request<QueryQuestion>("/query-room/questions", "POST", payload);
+  }
+
+  async getQueryQuestion(qid: string): Promise<QueryQuestion> {
+    return this.request<QueryQuestion>(`/query-room/questions/${qid}`);
+  }
+
+  async deleteQueryQuestion(qid: string): Promise<void> {
+    await this.request<void>(`/query-room/questions/${qid}`, "DELETE");
+  }
+
+  async voteQueryQuestion(qid: string): Promise<QueryVoteResponse> {
+    return this.request<QueryVoteResponse>(`/query-room/questions/${qid}/vote`, "POST");
+  }
+
+  async createQueryReply(qid: string, payload: QueryReplyCreate): Promise<QueryReply> {
+    return this.request<QueryReply>(`/query-room/questions/${qid}/replies`, "POST", payload);
+  }
+
+  async voteQueryReply(rid: string): Promise<QueryVoteResponse> {
+    return this.request<QueryVoteResponse>(`/query-room/replies/${rid}/vote`, "POST");
+  }
+
+  async deleteQueryReply(rid: string): Promise<void> {
+    await this.request<void>(`/query-room/replies/${rid}`, "DELETE");
+  }
+
+  async listMyQueryQuestions(limit = 50): Promise<QueryQuestionListResponse> {
+    return this.request<QueryQuestionListResponse>(
+      `/query-room/questions/mine?limit=${limit}`,
+    );
+  }
+
+  async getQueryTags(limit = 20): Promise<QueryTag[]> {
+    return this.request<QueryTag[]>(`/query-room/tags?limit=${limit}`);
+  }
+
+  async getQueryLeaderboard(limit = 10): Promise<QueryLeaderboardResponse> {
+    return this.request<QueryLeaderboardResponse>(`/query-room/leaderboard?limit=${limit}`);
   }
 }
 

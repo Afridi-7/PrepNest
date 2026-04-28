@@ -26,6 +26,7 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService.tsx"));
 const MockTest = lazy(() => import("./pages/MockTest.tsx"));
 const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
 const Docs = lazy(() => import("./pages/Docs.tsx"));
+const QueryRoom = lazy(() => import("./pages/QueryRoom.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/practice" element={<RequireAuth><Practice /></RequireAuth>} />
             <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
             <Route path="/ai-tutor" element={<RequireAuth><AITutor /></RequireAuth>} />
+            <Route path="/query-room" element={<RequireAuth><QueryRoom /></RequireAuth>} />
             <Route path="/about" element={<Contact />} />
             <Route path="/contact" element={<Navigate to="/about" replace />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

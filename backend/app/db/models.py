@@ -308,3 +308,66 @@ class Acknowledgment(Base):
     link_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Query Room (student Q&A board) ────────────────────────────────────────────
+
+
+class QueryQuestion(Base):
+    """A student-posted question or MCQ on the public Query Room board."""
+
+    __tablename__ = "query_questions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    q_type: Mapped[str] = mapped_column(String(16), default="open")  # "open" | "mcq"
+    options_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    correct_label: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    tags_json: Mapped[list] = mapped_column(JSON, default=list)
+    solved: Mapped[bool] = mapped_column(Boolean, default=False)
+    accepted_reply_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class QueryReply(Base):
+    """A reply / answer to a QueryQuestion."""
+
+    __tablename__ = "query_replies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    question_id: Mapped[str] = mapped_column(ForeignKey("query_questions.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    is_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QueryQuestionVote(Base):
+    """One row per (user, question) upvote pair. Composite primary key
+    enforces 'one vote per user per question'."""
+
+    __tablename__ = "query_question_votes"
+
+    question_id: Mapped[str] = mapped_column(
+        ForeignKey("query_questions.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QueryReplyVote(Base):
+    """One row per (user, reply) upvote pair."""
+
+    __tablename__ = "query_reply_votes"
+
+    reply_id: Mapped[str] = mapped_column(
+        ForeignKey("query_replies.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

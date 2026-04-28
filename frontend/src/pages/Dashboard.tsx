@@ -1267,6 +1267,53 @@ const Dashboard = () => {
                         })}
                       </div>
                     )}
+
+                    {/* Your rank — always shown when logged in */}
+                    {currentUserId && leaderboard && (
+                      <div className="mt-3 border-t border-slate-100 pt-3">
+                        <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Your rank
+                        </p>
+                        {leaderboard.my_entry && leaderboard.my_rank ? (
+                          <div
+                            className="flex items-center gap-3 rounded-2xl p-3"
+                            style={{
+                              background: "linear-gradient(135deg, #eef2ff, #f5f3ff)",
+                              border: "2px solid #c7d2fe",
+                            }}
+                          >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
+                              #{leaderboard.my_rank}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 text-sm font-bold text-indigo-700">
+                                <span className="truncate">{leaderboard.my_entry.user_name}</span>
+                                <span
+                                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase"
+                                  style={{ background: "#e0e7ff", color: "#4338ca" }}
+                                >
+                                  You
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {leaderboard.my_entry.tests_taken} test
+                                {leaderboard.my_entry.tests_taken !== 1 ? "s" : ""}
+                              </div>
+                            </div>
+                            <div
+                              className="shrink-0 rounded-full px-2.5 py-1 text-xs font-black"
+                              style={{ background: "#eef2ff", color: "#4338ca" }}
+                            >
+                              {leaderboard.my_entry.mcqs_solved} MCQs
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">
+                            Unranked — solve MCQs or take a mock test to climb the board.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

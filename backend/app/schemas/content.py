@@ -373,6 +373,8 @@ class LeaderboardResponse(BaseModel):
     period_end: str | None = None    # ISO-8601 — first day of NEXT month (UTC, exclusive)
     period_label: str | None = None  # e.g. "April 2026"
     previous_winner: PreviousMonthWinner | None = None
+    my_rank: int | None = None        # 1-based rank of the authed user, if any
+    my_entry: LeaderboardEntry | None = None  # the authed user's own row (full stats)
 
 
 class PracticeResultCreate(BaseModel):

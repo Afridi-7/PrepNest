@@ -11,6 +11,7 @@ const navLinks = [
   { label: "USAT", path: "/usat", auth: "required" as const },
   { label: "Practice", path: "/practice", auth: "required" as const },
   { label: "AI Tutor", path: "/ai-tutor", auth: "required" as const },
+  { label: "Query Room", path: "/query-room", auth: "required" as const },
   { label: "Dashboard", path: "/dashboard", auth: "required" as const },
   { label: "About Us", path: "/about", auth: "any" as const },
 ];
