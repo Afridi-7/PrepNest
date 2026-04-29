@@ -32,12 +32,11 @@ import {
   type QueryQuestion,
   type QueryQuestionCreate,
   type QueryReply,
-  type UserProfile,
 } from "@/services/api";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { ProUpgradeBanner } from "@/components/ProGate";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 const AVATAR_GRADIENTS: ReadonlyArray<readonly [string, string]> = [
   ["from-blue-500", "to-indigo-600"],
@@ -124,9 +123,7 @@ const Avatar = ({
 
 type SortMode = "new" | "top" | "unanswered" | "mine";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Page ────────────────────────────────────────────────────────────────────
 
 const QueryRoom = () => {
   const queryClient = useQueryClient();
@@ -135,12 +132,7 @@ const QueryRoom = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [sort, setSort] = useState<SortMode>("new");
 
-  const meQuery = useQuery<UserProfile>({
-    queryKey: ["users", "me"],
-    queryFn: () => apiClient.getCurrentUser(),
-    staleTime: 5 * 60_000,
-    gcTime: 10 * 60_000,
-  });
+  const meQuery = useCurrentUser();
   const meId = meQuery.data ? String(meQuery.data.id) : null;
   const isAdmin = !!meQuery.data?.is_admin;
   const isPro = !!meQuery.data?.is_pro || isAdmin;
@@ -308,23 +300,7 @@ const QueryRoom = () => {
           </div>
 
           {/* ── Free-tier upgrade banner ──────────────────────── */}
-          {meId && !isPro && (
-            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white">
-                <Lock className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-amber-900">
-                  Browsing as a free member
-                </p>
-                <p className="mt-0.5 text-xs text-amber-800">
-                  You can read every question and reply, but asking, answering,
-                  and upvoting are Pro-only features. Upgrade to join the
-                  conversation.
-                </p>
-              </div>
-            </div>
-          )}
+          <ProUpgradeBanner description="You can read every question and reply, but asking, answering, and upvoting are Pro-only features. Upgrade to join the conversation." />
 
           {/* ── Composer ──────────────────────────────────────── */}
           <AnimatePresence>
@@ -623,9 +599,7 @@ const QueryRoom = () => {
 
 export default QueryRoom;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Sub-components ──────────────────────────────────────────────────────────
 
 const Stat = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 font-medium backdrop-blur-sm">
@@ -715,9 +689,7 @@ const Podium = ({ entries, meId }: { entries: QueryLeaderEntry[]; meId: string |
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Composer
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Composer ────────────────────────────────────────────────────────────────
 
 interface ComposerProps {
   submitting: boolean;
@@ -880,9 +852,7 @@ const Composer = ({ submitting, onSubmit }: ComposerProps) => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QuestionCard
-// ─────────────────────────────────────────────────────────────────────────────
+// ── QuestionCard ────────────────────────────────────────────────────────────
 
 interface QuestionCardProps {
   question: QueryQuestion;
@@ -1158,9 +1128,7 @@ const QuestionCard = ({ question, meId, isAdmin, isPro, requirePro, onTagClick, 
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ReplyCard
-// ─────────────────────────────────────────────────────────────────────────────
+// ── ReplyCard ───────────────────────────────────────────────────────────────
 
 interface ReplyCardProps {
   reply: QueryReply;

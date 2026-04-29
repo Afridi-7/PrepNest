@@ -116,6 +116,20 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
     return JSONResponse(status_code=400, content={"detail": message})
 
 
+# AppError → structured JSON error envelope. The string ``detail`` is kept
+# stable for backward compatibility with existing clients and tests; the
+# ``code`` field is the new machine-readable handle for the frontend.
+from app.core.errors import AppError as _AppError  # noqa: E402
+
+
+@app.exception_handler(_AppError)
+async def app_error_handler(request, exc: _AppError):
+    payload: dict = {"detail": exc.message, "code": exc.code}
+    if exc.extras:
+        payload["extras"] = exc.extras
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc: Exception):
     """Catch unhandled exceptions so the response still gets CORS headers."""

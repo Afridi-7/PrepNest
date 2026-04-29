@@ -313,26 +313,81 @@ async def get_leaderboard(
         )
 
     # ── Authed user's rank (if any) ────────────────────────────────────────
+    # Computed in O(1) via a single COUNT(*) WHERE score > my_score, instead
+    # of fetching the full ranked set and scanning it in Python.
     my_rank: int | None = None
     my_entry: LeaderboardEntry | None = None
     if current_user is not None:
-        # Pull a wider slice and find the user's row. The full ranked set is
-        # bounded by active monthly users, which stays small in practice.
-        all_rows = (
-            await db.execute(_build_top_query(period_start, period_end, 10_000))
-        ).all()
-        for idx, row in enumerate(all_rows, 1):
-            if str(row.user_id) == str(current_user.id):
-                name = row.full_name or row.email.split("@")[0]
-                my_rank = idx
-                my_entry = LeaderboardEntry(
-                    rank=idx,
-                    user_id=str(row.user_id),
-                    user_name=name,
-                    mcqs_solved=row.mcqs_solved or 0,
-                    tests_taken=row.tests_taken,
+        # A dedicated, simpler scoring query for the current user. Reusing
+        # _build_top_query's subquery machinery here would need materializing
+        # the full ranked set; a direct aggregation is clearer and correct.
+        mock_user_score = (
+            select(func.coalesce(func.sum(mcq_score_expr), 0))
+            .where(
+                MockTest.status == "evaluated",
+                MockTest.user_id == current_user.id,
+                MockTest.created_at >= period_start,
+                MockTest.created_at < period_end,
+            )
+            .scalar_subquery()
+        )
+        practice_user_score = (
+            select(func.coalesce(func.sum(PracticeResult.correct_answers), 0))
+            .where(
+                PracticeResult.user_id == current_user.id,
+                PracticeResult.created_at >= period_start,
+                PracticeResult.created_at < period_end,
+            )
+            .scalar_subquery()
+        )
+        mock_user_sessions = (
+            select(func.count(MockTest.id))
+            .where(
+                MockTest.status == "evaluated",
+                MockTest.user_id == current_user.id,
+                MockTest.created_at >= period_start,
+                MockTest.created_at < period_end,
+            )
+            .scalar_subquery()
+        )
+        practice_user_sessions = (
+            select(func.count(PracticeResult.id))
+            .where(
+                PracticeResult.user_id == current_user.id,
+                PracticeResult.created_at >= period_start,
+                PracticeResult.created_at < period_end,
+            )
+            .scalar_subquery()
+        )
+        my_score_row = (
+            await db.execute(
+                select(
+                    (mock_user_score + practice_user_score).label("score"),
+                    (mock_user_sessions + practice_user_sessions).label("sessions"),
                 )
-                break
+            )
+        ).one()
+        my_score = int(my_score_row.score or 0)
+        my_sessions = int(my_score_row.sessions or 0)
+
+        if my_score > 0:
+            # Count users with strictly higher score → rank = that count + 1.
+            ahead_subq = _build_top_query(period_start, period_end, 10_000).subquery()
+            ahead_count = (
+                await db.execute(
+                    select(func.count()).select_from(ahead_subq).where(
+                        ahead_subq.c.mcqs_solved > my_score
+                    )
+                )
+            ).scalar_one()
+            my_rank = int(ahead_count) + 1
+            my_entry = LeaderboardEntry(
+                rank=my_rank,
+                user_id=str(current_user.id),
+                user_name=(current_user.full_name or current_user.email.split("@")[0]),
+                mcqs_solved=my_score,
+                tests_taken=my_sessions,
+            )
 
     # ── Previous month #1 ──────────────────────────────────────────────────
     prev_winner: PreviousMonthWinner | None = None

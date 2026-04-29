@@ -519,6 +519,34 @@ export interface MockTestResult {
   submitted_at: string | null;
 }
 
+/**
+ * Typed error for API responses. Preserves the existing `.message` shape
+ * (callers still do `err.message`) and adds:
+ *   - `status`: the HTTP status code, for branching on 401/403/etc.
+ *   - `code`:   the backend's machine-readable error code
+ *               (e.g. "pro_required") when the response is structured.
+ *
+ * Backward compatible: `instanceof Error` and `err.message` both work.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  readonly payload: unknown;
+
+  constructor(
+    message: string,
+    status: number,
+    code: string | null,
+    payload: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.payload = payload;
+  }
+}
+
 class ApiClient {
   private token: string | null = null;
   private _adminCache: boolean | null = null;
@@ -714,7 +742,11 @@ class ApiClient {
           : Array.isArray(errorPayload?.detail)
             ? errorPayload.detail.map((item: any) => item?.msg).filter(Boolean).join(", ")
             : undefined;
-      throw new Error(detailMessage || errorPayload?.message || `API error: ${response.status}`);
+      const code: string | null =
+        typeof errorPayload?.code === "string" ? errorPayload.code : null;
+      const message =
+        detailMessage || errorPayload?.message || `API error: ${response.status}`;
+      throw new ApiError(message, response.status, code, errorPayload);
     }
 
     // 204 No Content \u2014 nothing to parse

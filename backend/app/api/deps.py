@@ -135,8 +135,10 @@ def is_user_pro(user: User) -> bool:
 
 async def get_current_pro_user(current_user: User = Depends(get_current_user)) -> User:
     if not is_user_pro(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This feature requires a Pro subscription.",
-        )
+        # Raises a structured AppError → response body carries
+        # ``{detail, code: "pro_required"}`` so the frontend can branch on
+        # the code rather than substring-matching the human message.
+        from app.core.errors import AppError
+
+        raise AppError.pro_required()
     return current_user
