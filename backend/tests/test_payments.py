@@ -122,7 +122,7 @@ def test_checkout_creates_pending_payment_and_returns_redirect() -> None:
     body = resp.json()
     assert body["plan_code"] == "pro_monthly"
     assert body["tracker"].startswith("mock_")
-    assert "embedded" in body["redirect_url"]
+    assert "tracker=" in body["redirect_url"]
     # A pending Payment row should now exist.
     with sqlite3.connect(_DB_PATH) as conn:
         row = conn.execute(

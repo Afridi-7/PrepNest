@@ -40,6 +40,11 @@ os.environ["GOOGLE_CLIENT_SECRET"] = ""
 # refuses to do that (it 503s) so users don't get a broken redirect when
 # env vars are missing on Render.
 os.environ["SAFEPAY_ALLOW_MOCK"] = "1"
+# Explicitly clear Safepay keys so a developer's local `.env` (used to
+# hit the real sandbox) doesn't leak into the test process and trigger
+# real HTTP calls to Safepay during pytest runs.
+os.environ["SAFEPAY_API_KEY"] = ""
+os.environ["SAFEPAY_SECRET_KEY"] = ""
 
 # 3. Stable, deterministic JWT secret for tests so login/verify flows work.
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-do-not-use-in-prod")
