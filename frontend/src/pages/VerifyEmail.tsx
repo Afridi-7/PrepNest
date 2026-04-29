@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
+const REDIRECT_SECONDS = 4;
+
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const token = searchParams.get("token");
   const [status, setStatus] = useState<"loading" | "success" | "already" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
   const verifiedRef = useRef(false);
 
   useEffect(() => {
@@ -36,6 +40,25 @@ const VerifyEmail = () => {
         setMessage(err.message || "Verification failed. The link may be invalid or expired.");
       });
   }, [token]);
+
+  // After a successful (or already-verified) response, count down and
+  // redirect to /login automatically so the user lands where they need
+  // to be without having to click anything.
+  useEffect(() => {
+    if (status !== "success" && status !== "already") return;
+    setCountdown(REDIRECT_SECONDS);
+    const tick = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(tick);
+          navigate("/login", { replace: true, state: { justVerified: true } });
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [status, navigate]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-950">
@@ -71,10 +94,13 @@ const VerifyEmail = () => {
               <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-emerald-500" />
             </motion.div>
             <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Email Verified!</h2>
-            <p className="mb-6 text-sm text-muted-foreground">{message}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{message}</p>
+            <p className="mb-6 text-xs text-muted-foreground">
+              Redirecting you to login in {countdown}s…
+            </p>
             <Link to="/login">
               <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
-                Log In to Your Account
+                Log In Now
               </Button>
             </Link>
           </div>
@@ -84,7 +110,10 @@ const VerifyEmail = () => {
           <div className="py-8">
             <Mail className="mx-auto mb-4 h-16 w-16 text-primary" />
             <h2 className="mb-2 font-heading text-xl font-bold text-foreground">Already Verified</h2>
-            <p className="mb-6 text-sm text-muted-foreground">{message}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{message}</p>
+            <p className="mb-6 text-xs text-muted-foreground">
+              Redirecting you to login in {countdown}s…
+            </p>
             <Link to="/login">
               <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
                 Go to Login
@@ -101,7 +130,7 @@ const VerifyEmail = () => {
             <div className="space-y-3">
               <Link to="/signup">
                 <Button variant="gradient" className="h-11 w-full rounded-xl font-semibold">
-                  Sign Up Again
+                  Start a new free trial
                 </Button>
               </Link>
               <Link to="/login">

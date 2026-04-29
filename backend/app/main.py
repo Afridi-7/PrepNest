@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
 
-from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, query_room, site, usat, users
+from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, payments, query_room, site, usat, users
 from app.api.deps import rate_limit
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -533,3 +533,4 @@ app.include_router(ai_learning.router, prefix=settings.api_prefix)
 app.include_router(dashboard.router, prefix=settings.api_prefix)
 app.include_router(site.router, prefix=settings.api_prefix)
 app.include_router(query_room.router, prefix=settings.api_prefix)
+app.include_router(payments.router, prefix=settings.api_prefix)

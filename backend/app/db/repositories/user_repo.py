@@ -1,9 +1,18 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
+
+# ---------------------------------------------------------------------------
+# New-signup free trial
+# ---------------------------------------------------------------------------
+# Every brand-new account is granted Pro access for this many days, free of
+# charge. After it elapses, the user automatically falls back to the Free
+# tier (because `is_currently_pro` checks `subscription_expires_at`). Set to
+# 0 to disable.
+SIGNUP_TRIAL_DAYS = 3
 
 
 class UserRepository:
@@ -26,8 +35,24 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.google_id == google_id))
         return result.scalar_one_or_none()
 
+    @staticmethod
+    def _apply_signup_trial(user: User) -> None:
+        """Grant a free Pro trial to a freshly-created account.
+
+        Uses the same `is_pro` + `subscription_expires_at` columns as paid
+        Pro, so every existing Pro-gated feature works during the trial
+        without any new code paths. `granted_by_admin=False` ensures admin
+        revocation logic isn't confused with this auto-grant.
+        """
+        if SIGNUP_TRIAL_DAYS <= 0:
+            return
+        user.is_pro = True
+        user.subscription_expires_at = datetime.now(timezone.utc) + timedelta(days=SIGNUP_TRIAL_DAYS)
+        user.granted_by_admin = False
+
     async def create(self, *, email: str, password_hash: str | None = None, full_name: str | None = None) -> User:
         user = User(email=email, password_hash=password_hash, full_name=full_name)
+        self._apply_signup_trial(user)
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
@@ -35,6 +60,7 @@ class UserRepository:
 
     async def create_google_user(self, *, email: str, full_name: str | None, google_id: str) -> User:
         user = User(email=email, full_name=full_name, google_id=google_id, is_verified=True)
+        self._apply_signup_trial(user)
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)

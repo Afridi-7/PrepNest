@@ -371,3 +371,56 @@ class QueryReplyVote(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Subscription / payments (Safepay) ────────────────────────────────────────
+
+
+class Payment(Base):
+    """A single subscription payment attempt.
+
+    Lifecycle:
+      - row created with ``status="pending"`` when the user starts checkout
+      - ``status="paid"`` (and ``paid_at`` set) when the webhook confirms it
+      - ``status="failed"`` on declined / abandoned / expired tracker
+      - ``status="refunded"`` if the merchant later issues a refund
+
+    The Payment row does NOT itself grant Pro — it is the audit trail. Pro
+    activation goes through ``UserRepository.grant_pro`` with the same
+    expires_at we record here, so existing Pro logic is the single source
+    of truth.
+    """
+
+    __tablename__ = "payments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    plan_code: Mapped[str] = mapped_column(String(64), index=True)
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(8), default="PKR")
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    safepay_tracker: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True, index=True)
+    safepay_order_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WebhookEvent(Base):
+    """Idempotency log for Safepay (and future) webhooks.
+
+    Each incoming webhook MUST carry a stable event id; we insert that id
+    here inside the same transaction that activates the subscription. A
+    duplicate delivery (Safepay retries on non-2xx) raises an integrity
+    error which we catch and treat as a no-op success — the subscription
+    has already been processed.
+    """
+
+    __tablename__ = "webhook_events"
+
+    event_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(32), default="safepay", index=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
+    payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

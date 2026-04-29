@@ -118,6 +118,8 @@ export interface UserProfile {
   is_admin: boolean;
   is_pro: boolean;
   is_verified: boolean;
+  is_on_trial?: boolean;
+  subscription_expires_at?: string | null;
   preferences: Record<string, unknown>;
   created_at: string;
 }
@@ -130,6 +132,44 @@ export interface UserAdminView {
   is_pro: boolean;
   is_active: boolean;
   created_at: string;
+}
+
+export interface SubscriptionPlan {
+  code: string;
+  name: string;
+  description: string;
+  price_minor: number;
+  price_display: string;
+  currency: string;
+  interval_days: number;
+  badge: string | null;
+  highlight: boolean;
+}
+
+export interface CheckoutSession {
+  payment_id: string;
+  tracker: string;
+  redirect_url: string;
+  plan_code: string;
+  amount_minor: number;
+  currency: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  plan_code: string;
+  amount_minor: number;
+  currency: string;
+  status: "pending" | "paid" | "failed" | "refunded";
+  created_at: string;
+  paid_at: string | null;
+  expires_at: string | null;
+}
+
+export interface CheckoutVerifyResponse {
+  status: "pending" | "paid" | "failed" | "refunded";
+  is_pro: boolean;
+  subscription_expires_at: string | null;
 }
 
 export interface Subject {
@@ -878,6 +918,24 @@ class ApiClient {
 
   async revokeProByEmail(email: string): Promise<{ success: boolean; email: string; message: string }> {
     return this.request("/admin/revoke-pro-by-email", "POST", { email });
+  }
+
+  // ── Subscriptions / Safepay billing ────────────────────────────────────
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return this.request<SubscriptionPlan[]>("/payments/plans");
+  }
+
+  async createCheckoutSession(planCode: string): Promise<CheckoutSession> {
+    return this.request<CheckoutSession>("/payments/checkout", "POST", { plan_code: planCode });
+  }
+
+  async getMyPayments(): Promise<PaymentRecord[]> {
+    return this.request<PaymentRecord[]>("/payments/history");
+  }
+
+  async verifyCheckout(tracker: string): Promise<CheckoutVerifyResponse> {
+    return this.request<CheckoutVerifyResponse>(`/payments/verify/${encodeURIComponent(tracker)}`);
   }
 
   async listSubjects(): Promise<Subject[]> {

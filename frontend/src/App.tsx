@@ -7,6 +7,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { apiClient } from "./services/api";
+import TrialBanner from "./components/TrialBanner";
 
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -27,6 +28,9 @@ const MockTest = lazy(() => import("./pages/MockTest.tsx"));
 const AdminContent = lazy(() => import("./pages/AdminContent.tsx"));
 const Docs = lazy(() => import("./pages/Docs.tsx"));
 const QueryRoom = lazy(() => import("./pages/QueryRoom.tsx"));
+const Pricing = lazy(() => import("./pages/Pricing.tsx"));
+const BillingSuccess = lazy(() => import("./pages/BillingSuccess.tsx"));
+const BillingCancel = lazy(() => import("./pages/BillingCancel.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -56,6 +60,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
+          <TrialBanner />
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" /></div>}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -72,6 +77,9 @@ const App = () => (
             <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
             <Route path="/ai-tutor" element={<RequireAuth><AITutor /></RequireAuth>} />
             <Route path="/query-room" element={<RequireAuth><QueryRoom /></RequireAuth>} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/billing/success" element={<RequireAuth><BillingSuccess /></RequireAuth>} />
+            <Route path="/billing/cancel" element={<BillingCancel />} />
             <Route path="/about" element={<Contact />} />
             <Route path="/contact" element={<Navigate to="/about" replace />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

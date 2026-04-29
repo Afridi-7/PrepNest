@@ -23,8 +23,23 @@ const Login = () => {
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
 
-  const loginState = location.state as { from?: string; reason?: string; flashMessage?: string } | null;
+  const loginState = location.state as { from?: string; reason?: string; flashMessage?: string; justVerified?: boolean } | null;
   const redirectTo = loginState?.from || "/dashboard";
+
+  // When the user lands here straight from /verify-email, surface a clear
+  // confirmation toast so they know their email is verified before they
+  // type their password.
+  useEffect(() => {
+    if (loginState?.justVerified) {
+      toast({
+        title: "Email verified",
+        description: "Your account is ready — log in to continue.",
+      });
+      // Clear the state so a refresh doesn't re-toast.
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogleCallback = useCallback(async (response: any) => {
     if (!response.credential) return;
@@ -269,7 +284,7 @@ const Login = () => {
           <div ref={googleBtnRef} className="flex w-full justify-center [&>div]:!w-full" />
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account? <Link to="/signup" className="font-medium text-primary hover:underline">Sign up</Link>
+            Don&apos;t have an account? <Link to="/signup" className="font-medium text-primary hover:underline">Sign up for a free trial</Link>
           </p>
         </motion.div>
       </div>

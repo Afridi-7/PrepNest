@@ -62,5 +62,7 @@ class UserResponse(BaseModel):
     is_admin: bool = False
     is_pro: bool = False
     is_verified: bool = False
+    is_on_trial: bool = False
+    subscription_expires_at: datetime | None = None
     preferences: dict
     created_at: datetime

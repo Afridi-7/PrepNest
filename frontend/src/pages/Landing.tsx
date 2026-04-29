@@ -18,6 +18,7 @@ import {
   FileText,
   Layers,
   Shield,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
@@ -60,6 +61,7 @@ const fadeUp = {
 const Landing = () => {
   const [userCount, setUserCount] = useState<number | null>(null);
   const [mcqCount, setMcqCount] = useState<number | null>(null);
+  const isAuthenticated = apiClient.isAuthenticated();
 
   useEffect(() => {
     apiClient.getPublicStats().then((s) => {
@@ -246,6 +248,68 @@ const Landing = () => {
             </motion.div>
           ))}
         </div>
+      </div>
+    </section>
+
+    <section id="pricing" className="relative overflow-hidden bg-gradient-to-br from-violet-50/60 via-white to-blue-50/40 py-20 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,hsl(262_83%_58%/0.08),transparent)] dark:bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,hsl(262_83%_68%/0.12),transparent)]" />
+      <div className="container relative mx-auto px-4">
+        <div className="mb-12 text-center">
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-violet-200/60 bg-gradient-to-r from-violet-100 to-blue-100 px-4 py-1.5 text-xs font-bold text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/15 dark:text-violet-200">
+            <Crown className="h-3.5 w-3.5" /> Simple Pricing
+          </span>
+          <h2 className="mb-3 font-heading text-3xl font-bold text-foreground md:text-4xl">Start free. Upgrade when you're ready.</h2>
+          <p className="mx-auto max-w-xl text-muted-foreground">
+            {isAuthenticated
+              ? "Continue with PrepNest Pro for full access — unlimited AI tutoring, mock tests, and analytics."
+              : "Every new account gets a 3-day Pro trial — no card needed. Continue with PrepNest Pro for full access."}
+          </p>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto max-w-md rounded-3xl border-2 border-violet-200/80 bg-gradient-to-br from-white via-white to-violet-50/40 p-8 shadow-xl shadow-violet-200/40 dark:border-violet-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/50 dark:shadow-black/30"
+        >
+          <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
+            <Sparkles className="h-3 w-3" /> Most Popular
+          </div>
+          <h3 className="mt-3 font-heading text-2xl font-bold text-foreground">PrepNest Pro</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Unlimited AI tutoring, mock tests, and analytics.</p>
+          <div className="mt-5 flex items-baseline gap-2">
+            <span className="font-heading text-5xl font-extrabold text-foreground">PKR 850</span>
+            <span className="text-sm font-medium text-muted-foreground">/ month</span>
+          </div>
+          <ul className="mt-6 space-y-3 text-sm">
+            {[
+              "Unlimited AI tutor conversations",
+              "Full-length mock tests with analytics",
+              "Past papers + curated study materials",
+              "Pay securely via card, JazzCash or Easypaisa",
+              "Cancel anytime",
+            ].map((item, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-foreground">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <Link to="/pricing" className="mt-7 block">
+            <Button size="lg" variant="gradient" className="w-full gap-2">
+              <Crown className="h-4 w-4" /> Upgrade to Pro
+            </Button>
+          </Link>
+          {!isAuthenticated && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              New here?{" "}
+              <Link to="/signup" className="font-semibold text-violet-600 hover:underline dark:text-violet-300">
+                Start your free 3-day trial
+              </Link>
+            </p>
+          )}
+        </motion.div>
       </div>
     </section>
 

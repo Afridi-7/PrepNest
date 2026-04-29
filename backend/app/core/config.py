@@ -102,6 +102,33 @@ class Settings(BaseSettings):
 
     default_learning_level: str = "intermediate"
 
+    # ── Safepay (subscription billing) ────────────────────────────────────
+    # Public/secret API keys are taken from the Safepay merchant dashboard.
+    # `safepay_env` selects sandbox vs production endpoints. The webhook
+    # secret is a separate shared secret used to verify HMAC-SHA256
+    # signatures on incoming webhook payloads.
+    safepay_api_key: str = ""
+    safepay_secret_key: str = ""
+    safepay_webhook_secret: str = ""
+    safepay_env: str = "sandbox"  # "sandbox" | "production"
+
+    @property
+    def safepay_api_base(self) -> str:
+        return (
+            "https://api.getsafepay.com"
+            if self.safepay_env.lower() == "production"
+            else "https://sandbox.api.getsafepay.com"
+        )
+
+    @property
+    def safepay_checkout_base(self) -> str:
+        # Hosted checkout / embedded redirect base
+        return (
+            "https://getsafepay.com"
+            if self.safepay_env.lower() == "production"
+            else "https://sandbox.api.getsafepay.com"
+        )
+
     @property
     def upload_dir_path(self) -> Path:
         path = Path(self.local_upload_dir)

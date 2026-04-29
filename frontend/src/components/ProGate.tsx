@@ -12,7 +12,8 @@
  * Both rely on `useCurrentUser` so the cache is shared with everything else.
  */
 
-import { Lock } from "lucide-react";
+import { Crown, Lock, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useCurrentUser, useIsPro } from "@/hooks/use-current-user";
@@ -29,7 +30,7 @@ export function ProUpgradeBanner({
   // before they've even logged in would be misleading.
   if (!data || isPro) return null;
   return (
-    <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
+    <div className="mb-4 flex flex-col sm:flex-row items-start gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white">
         <Lock className="h-4 w-4" />
       </div>
@@ -39,6 +40,12 @@ export function ProUpgradeBanner({
         </p>
         <p className="mt-0.5 text-xs text-amber-800">{description}</p>
       </div>
+      <Link
+        to="/pricing"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3.5 py-2 text-xs font-bold text-white shadow hover:from-blue-700 hover:to-cyan-700"
+      >
+        <Sparkles className="h-3.5 w-3.5" /> See Pro plans
+      </Link>
     </div>
   );
 }
@@ -47,6 +54,7 @@ export function ProUpgradeBanner({
 export function useRequirePro() {
   const { data } = useCurrentUser();
   const isPro = useIsPro();
+  const navigate = useNavigate();
 
   return (action: string): boolean => {
     if (!data) {
@@ -56,9 +64,28 @@ export function useRequirePro() {
     if (!isPro) {
       toast.error(`Upgrade to Pro to ${action}.`, {
         description: "Free accounts can browse but cannot post or vote.",
+        action: {
+          label: "See plans",
+          onClick: () => navigate("/pricing"),
+        },
       });
       return false;
     }
     return true;
   };
+}
+
+/** Compact "Upgrade to Pro" pill button that links to /pricing. */
+export function ProUpgradeButton({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      to="/pricing"
+      className={[
+        "inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 px-3.5 py-2 text-xs font-bold text-white shadow hover:from-blue-700 hover:to-cyan-700",
+        className,
+      ].join(" ")}
+    >
+      <Crown className="h-3.5 w-3.5" /> Upgrade to Pro
+    </Link>
+  );
 }

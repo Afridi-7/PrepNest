@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Sparkles, Moon, Sun, Shield } from "lucide-react";
+import { Menu, X, Sparkles, Moon, Sun, Shield, Gift } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
@@ -135,9 +135,9 @@ const Navbar = () => {
               <Link to="/login">
                 <Button variant="ghost" size="sm" className="rounded-xl font-semibold hover:bg-blue-50 hover:text-blue-700 dark:text-slate-100 dark:hover:bg-slate-800 dark:hover:text-blue-100">Log In</Button>
               </Link>
-              <Link to="/signup">
+              <Link to="/signup" aria-label="Start free trial">
                 <Button size="sm" variant="gradient" className="gap-1.5 rounded-xl shadow-md shadow-blue-300/40">
-                  <Sparkles className="h-3.5 w-3.5" /> Sign Up
+                  <Gift className="h-3.5 w-3.5" /> Start free trial
                 </Button>
               </Link>
             </>
@@ -213,8 +213,10 @@ const Navbar = () => {
                   <Link to="/login" className="flex-1">
                     <Button variant="outline" size="sm" className="w-full rounded-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Log In</Button>
                   </Link>
-                  <Link to="/signup" className="flex-1">
-                    <Button size="sm" variant="gradient" className="w-full rounded-xl">Sign Up</Button>
+                  <Link to="/signup" className="flex-1" aria-label="Start free trial">
+                    <Button size="sm" variant="gradient" className="w-full gap-1.5 rounded-xl">
+                      <Gift className="h-3.5 w-3.5" /> Start free trial
+                    </Button>
                   </Link>
                 </div>
               )}

@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import math
 
 from app.api.deps import get_current_admin, get_current_user
-from app.db.models import MockTest, PracticeResult, User
+from app.db.models import MockTest, Payment, PracticeResult, User
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session, database_url
 from app.schemas.user_crud import DeleteUserResponse, SetProRequest, UserAdminView, UserPublic
@@ -22,13 +22,35 @@ _MAX_PREFERENCES_BYTES = 8 * 1024
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> UserResponse:
+    # "On trial" = currently Pro, not admin-granted, and no paid Payment row
+    # exists. We compute this once on /me so the frontend can render the
+    # trial countdown without leaking payment internals.
+    is_pro_now = UserRepository.is_currently_pro(current_user)
+    is_on_trial = False
+    if (
+        is_pro_now
+        and not current_user.is_admin
+        and not current_user.granted_by_admin
+        and current_user.subscription_expires_at is not None
+    ):
+        paid_count = await db.scalar(
+            select(func.count())
+            .select_from(Payment)
+            .where(Payment.user_id == current_user.id, Payment.status == "paid")
+        )
+        is_on_trial = (paid_count or 0) == 0
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
         is_admin=current_user.is_admin,
-        is_pro=UserRepository.is_currently_pro(current_user),
+        is_pro=is_pro_now,
+        is_on_trial=is_on_trial,
+        subscription_expires_at=current_user.subscription_expires_at,
         preferences=current_user.preferences or {},
         created_at=current_user.created_at,
     )

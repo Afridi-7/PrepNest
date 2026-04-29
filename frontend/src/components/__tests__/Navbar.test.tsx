@@ -52,12 +52,12 @@ describe("<Navbar />", () => {
     checkIsAdmin.mockResolvedValue(false);
   });
 
-  it("shows Log In and Sign Up CTAs when the visitor is anonymous", () => {
+  it("shows Log In and Start free trial CTAs when the visitor is anonymous", () => {
     isAuthenticated.mockReturnValue(false);
     renderNavbar();
 
     expect(screen.getByRole("link", { name: /log in/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sign up/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start free trial/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /logout/i })).not.toBeInTheDocument();
   });
 

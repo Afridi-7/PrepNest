@@ -132,7 +132,7 @@ async def create_user_signup(payload: UserRegisterRequest, db: AsyncSession) -> 
     await _send_verification(user, user_repo)
 
     return SignupResponse(
-        message="Account created! Please check your email to verify your account.",
+        message="Account created! Your 3-day free Pro trial is active. Please check your email to verify your account.",
     )
 
 

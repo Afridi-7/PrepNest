@@ -26,10 +26,10 @@ const ProFeatureLocked = ({
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-white/70 backdrop-blur-[2px] dark:bg-slate-900/70">
         <Lock className="h-5 w-5 text-slate-400" />
         <span className="text-xs font-semibold text-slate-500">{label}</span>
-        <button className="mt-1 rounded-full px-4 py-1.5 text-[11px] font-bold text-white shadow-lg transition-transform hover:scale-105"
+        <Link to="/pricing" className="mt-1 rounded-full px-4 py-1.5 text-[11px] font-bold text-white shadow-lg transition-transform hover:scale-105"
           style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
           Upgrade
-        </button>
+        </Link>
       </div>
     </div>
   );

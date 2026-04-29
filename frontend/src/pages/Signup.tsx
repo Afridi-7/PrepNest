@@ -94,7 +94,7 @@ const Signup = () => {
       setSignupDone(true);
     } catch (error: any) {
       toast({
-        title: "Sign Up Failed",
+        title: "Couldn't start your trial",
         description: error.message || "Could not create account",
         variant: "destructive",
       });
@@ -195,8 +195,11 @@ const Signup = () => {
                   </div>
                   <span className="font-heading text-lg font-bold">PrepNest</span>
                 </Link>
-                <h1 className="mb-1 font-heading text-2xl font-bold text-foreground sm:text-3xl">Create Account</h1>
-                <p className="text-sm text-slate-400">Join PrepNest and begin your exam prep journey</p>
+                <h1 className="mb-1 font-heading text-2xl font-bold text-foreground sm:text-3xl">Start your 3-day free trial</h1>
+                <p className="text-sm text-slate-400">Join PrepNest and unlock every Pro feature for 3 days — no card required.</p>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                  <Sparkles className="h-3.5 w-3.5" /> 3 days of Pro free on sign up — no card required
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -256,10 +259,10 @@ const Signup = () => {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
+                      Creating account...
                     </>
                   ) : (
-                    "Create Account"
+                    "Start free 3-day trial"
                   )}
                 </Button>
               </form>
