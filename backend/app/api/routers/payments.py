@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -86,6 +87,22 @@ async def get_plans(
     return [_plan_to_schema(p) for p in list_plans()]
 
 
+@router.get("/_status")
+async def payments_status() -> dict[str, Any]:
+    """Quick health probe so we can verify the deployed backend actually
+    sees the Safepay env vars without leaking their values. Returns only
+    booleans + the env name."""
+    s = get_settings()
+    return {
+        "safepay_api_key_set": bool(s.safepay_api_key),
+        "safepay_secret_key_set": bool(s.safepay_secret_key),
+        "safepay_webhook_secret_set": bool(s.safepay_webhook_secret),
+        "safepay_env": s.safepay_env,
+        "is_live": safepay_client.is_live,
+        "frontend_url": s.frontend_url,
+    }
+
+
 # â”€â”€ Auth: create checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
@@ -104,6 +121,23 @@ async def create_checkout(
             detail="Unknown subscription plan.",
         )
 
+    # Without real Safepay credentials we'd hand the user back a redirect
+    # carrying a mock_xxx tracker that Safepay's hosted page rejects with
+    # a 401 (the "/reporter/.../mock_..." 401 the user sees). Surface a
+    # clear 503 instead so they know the issue is configuration, not a
+    # transient bug. Tests opt into the mock flow via SAFEPAY_ALLOW_MOCK.
+    if not safepay_client.is_live and os.environ.get("SAFEPAY_ALLOW_MOCK") != "1":
+        logger.error(
+            "Checkout requested but Safepay is not configured "
+            "(api_key set=%s, secret_key set=%s, env=%s)",
+            bool(get_settings().safepay_api_key),
+            bool(get_settings().safepay_secret_key),
+            get_settings().safepay_env,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Online payments aren't configured yet. Please contact support.",
+        )
 
     settings = get_settings()
     frontend = settings.frontend_url.rstrip("/")
