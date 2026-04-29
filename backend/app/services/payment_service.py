@@ -99,7 +99,14 @@ class SafepayClient:
         }
         # Safepay now requires the webhook secret header for TBT requests.
         if path == "/client/passport/v1/token":
-            headers["X-SFPY-MERCHANT-WEBHOOK-SECRET"] = self.settings.safepay_webhook_secret
+            secret = self.settings.safepay_webhook_secret or ""
+            logger.error(
+                "DEBUG: webhook secret len=%d startswith=%r endswith=%r",
+                len(secret),
+                secret[:4],
+                secret[-4:],
+            )
+            headers["X-SFPY-MERCHANT-WEBHOOK-SECRET"] = secret
         try:
             async with httpx.AsyncClient(timeout=timeout) as http:
                 resp = await http.post(url, json=body, headers=headers)
