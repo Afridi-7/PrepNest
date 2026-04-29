@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,6 +12,7 @@ import {
   Lock,
   MessageSquare,
   Plus,
+  Search,
   Shield,
   Sparkles,
   Trash2,
@@ -89,6 +90,12 @@ const parseTagsInput = (raw: string): string[] =>
     .filter(Boolean)
     .slice(0, 6);
 
+const normalizeTagSearch = (raw: string): string => {
+  const hashtagMatch = raw.match(/#([a-zA-Z0-9-]+)/);
+  const candidate = hashtagMatch?.[1] ?? raw.trim().split(/[\s,]+/)[0] ?? "";
+  return candidate.replace(/^#+/, "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+};
+
 const nextResetLabel = (): string => {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -131,6 +138,7 @@ const QueryRoom = () => {
   const activeTag = searchParams.get("tag") || "";
   const [composerOpen, setComposerOpen] = useState(false);
   const [sort, setSort] = useState<SortMode>("new");
+  const [tagSearch, setTagSearch] = useState(activeTag ? `#${activeTag}` : "");
 
   const meQuery = useCurrentUser();
   const meId = meQuery.data ? String(meQuery.data.id) : null;
@@ -189,9 +197,19 @@ const QueryRoom = () => {
     queryClient.invalidateQueries({ queryKey: ["query-room"] });
   };
 
+  useEffect(() => {
+    setTagSearch(activeTag ? `#${activeTag}` : "");
+  }, [activeTag]);
+
   const setTag = (tag: string | null) => {
     if (tag) setSearchParams({ tag });
     else setSearchParams({});
+  };
+
+  const handleTagSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const tag = normalizeTagSearch(tagSearch);
+    setTag(tag || null);
   };
 
   const createQuestion = useMutation({
@@ -318,6 +336,32 @@ const QueryRoom = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          <form
+            onSubmit={handleTagSearch}
+            className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/85 p-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center"
+          >
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="search"
+                value={tagSearch}
+                onChange={(e) => setTagSearch(e.target.value)}
+                placeholder="Search hashtags like #chemistry or #debrecen"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" className="shrink-0">
+                Search
+              </Button>
+              {activeTag && (
+                <Button type="button" variant="outline" onClick={() => setTag(null)}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </form>
 
           {/* ── Active filter ─────────────────────────────────── */}
           {activeTag && (
