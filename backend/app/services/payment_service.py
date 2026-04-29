@@ -89,7 +89,7 @@ class SafepayClient:
     ) -> dict[str, Any]:
         """POST helper. Sends both the secret (Authorization) and the public
         key (X-SFPY-MERCHANT-API-KEY); endpoints accept whichever they need
-        and ignore the other."""
+        and ignore the other. Adds the webhook secret header for TBT requests."""
         url = f"{self.settings.safepay_api_base}{path}"
         headers = {
             "Authorization": f"Bearer {self.settings.safepay_secret_key}",
@@ -97,6 +97,9 @@ class SafepayClient:
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
+        # Safepay now requires the webhook secret header for TBT requests.
+        if path == "/client/passport/v1/token":
+            headers["X-SFPY-MERCHANT-WEBHOOK-SECRET"] = self.settings.safepay_webhook_secret
         try:
             async with httpx.AsyncClient(timeout=timeout) as http:
                 resp = await http.post(url, json=body, headers=headers)
