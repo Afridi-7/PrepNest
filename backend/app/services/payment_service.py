@@ -106,6 +106,16 @@ class SafepayClient:
 
         if resp.status_code >= 400:
             logger.error("Safepay %s failed: %s %s", path, resp.status_code, resp.text[:500])
+            # Help the operator self-diagnose key-mapping mistakes without
+            # ever leaking the actual values into logs.
+            if body and "merchant_api_key" in body:
+                key_val = body["merchant_api_key"] or ""
+                logger.error(
+                    "merchant_api_key shape: len=%d prefix=%r looks_like_uuid_format=%s",
+                    len(key_val),
+                    key_val[:4],
+                    key_val.startswith("sec_") and len(key_val) >= 30,
+                )
             raise SafepayError(
                 f"Safepay rejected the request to {path} (HTTP {resp.status_code})."
             )
