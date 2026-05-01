@@ -57,37 +57,6 @@ export default function Pricing() {
   const [plans, setPlans] = useState<SubscriptionPlan[] | null>(null);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeCheckout, setActiveCheckout] = useState<{ tracker: string; url: string } | null>(
-    null,
-  );
-
-  // While a checkout modal is open, poll the verify endpoint so we can
-  // close it and route to the success page the moment Safepay's webhook
-  // marks the payment as paid.
-  useEffect(() => {
-    if (!activeCheckout) return;
-    let cancelled = false;
-    const interval = setInterval(async () => {
-      try {
-        const res = await apiClient.verifyCheckout(activeCheckout.tracker);
-        if (cancelled) return;
-        if (res.status === "succeeded" || res.is_pro) {
-          setActiveCheckout(null);
-          toast.success("Payment received — welcome to Pro!");
-          navigate("/billing/success");
-        } else if (res.status === "failed" || res.status === "cancelled") {
-          setActiveCheckout(null);
-          toast.error("Payment was not completed.");
-        }
-      } catch {
-        /* keep polling — transient errors are fine */
-      }
-    }, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [activeCheckout, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,14 +85,13 @@ export default function Pricing() {
     setLoadingPlan(plan.code);
     try {
       const session = await apiClient.createCheckoutSession(plan.code);
-      // In-app checkout: render Safepay's hosted page inside an iframe
-      // modal so the user never leaves PrepNest. Card / JazzCash / Easypaisa
-      // selection happens on Safepay's side.
-      setActiveCheckout({ tracker: session.tracker, url: session.redirect_url });
+      // Safepay's hosted checkout sets frame-blocking headers and is meant
+      // for top-level navigation. Redirect the whole page; Safepay will
+      // bring the user back to /billing/success or /billing/cancel.
+      window.location.assign(session.redirect_url);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not start checkout.";
       toast.error(msg);
-    } finally {
       setLoadingPlan(null);
     }
   };
@@ -413,35 +381,6 @@ export default function Pricing() {
       </section>
 
       <Footer />
-
-      {/* In-app Safepay checkout — iframe modal. The user never leaves
-          PrepNest; we poll /payments/verify until the webhook activates
-          their subscription, then we close and route to /billing/success. */}
-      {activeCheckout ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Complete your purchase"
-        >
-          <div className="relative w-full max-w-md h-[90vh] max-h-[720px] rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-slate-900">
-            <button
-              type="button"
-              onClick={() => setActiveCheckout(null)}
-              className="absolute top-2 right-2 z-10 inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 shadow hover:bg-white dark:hover:bg-slate-800 transition"
-              aria-label="Close checkout"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <iframe
-              src={activeCheckout.url}
-              title="Safepay checkout"
-              className="w-full h-full border-0"
-              allow="payment"
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -175,7 +175,7 @@ class SafepayClient:
             # Deterministic mock tracker for local dev / tests.
             tracker = f"mock_{secrets.token_hex(12)}"
             redirect = (
-                f"{self.settings.safepay_checkout_base}"
+                f"{self.settings.safepay_checkout_base}/embedded"
                 f"?environment={self.settings.safepay_env}"
                 f"&tracker={tracker}&source=custom&tbt=mock"
             )
@@ -222,7 +222,7 @@ class SafepayClient:
                 "cancel_url": cancel_url,
             }
         )
-        redirect = f"{self.settings.safepay_checkout_base}?{params}"
+        redirect = f"{self.settings.safepay_checkout_base}/embedded?{params}"
         return {"tracker": str(tracker), "redirect_url": redirect}
 
     # ── Webhook signature verification ────────────────────────────────────
