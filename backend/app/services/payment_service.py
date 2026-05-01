@@ -78,13 +78,19 @@ class SafepayClient:
     def is_live(self) -> bool:
         """True only when the credentials we actually use are configured.
 
-        The real flow needs the merchant API key (sent in the order body)
-        and the webhook secret (sent as ``X-SFPY-MERCHANT-SECRET`` on every
-        request). In dev/test we fall back to a mock flow so contributors
-        don't need real Safepay credentials.
+        The real flow needs:
+          * the **merchant API secret** (``safepay_secret_key``) — sent as
+            ``X-SFPY-MERCHANT-SECRET`` on every request to authenticate the
+            caller (this is the value the PHP SDK passes to its client
+            constructor, NOT the webhook signing secret).
+          * the **merchant API key** (``safepay_api_key``, the ``sec_…``
+            value) — sent in the order request body as ``merchant_api_key``.
+
+        ``safepay_webhook_secret`` is intentionally **not** required here:
+        it is used only to verify HMAC signatures on incoming webhooks.
         """
         return bool(
-            self.settings.safepay_api_key and self.settings.safepay_webhook_secret
+            self.settings.safepay_api_key and self.settings.safepay_secret_key
         )
 
     async def _post_json(
@@ -97,15 +103,18 @@ class SafepayClient:
         """POST helper.
 
         The official Safepay PHP SDK authenticates EVERY request with a
-        single header: ``X-SFPY-MERCHANT-SECRET: <webhook_secret>``. The
-        ``merchant_api_key`` (the ``sec_…`` public key) is passed in the
-        request body for endpoints that need it (e.g. ``/order/payments/v3/``).
+        single header: ``X-SFPY-MERCHANT-SECRET: <merchant_api_secret>``
+        — the value passed to ``new SafepayClient($apiKey)``. This is the
+        merchant *API secret* from the Safepay dashboard (Developers → API
+        Keys), **not** the webhook signing secret. The ``merchant_api_key``
+        (the ``sec_…`` public key) is passed in the request body for
+        endpoints that need it (e.g. ``/order/payments/v3/``).
         See https://github.com/getsafepay/sfpy-php/blob/main/lib/ApiRequestor.php
         """
         url = f"{self.settings.safepay_api_base}{path}"
-        secret = self.settings.safepay_webhook_secret or ""
+        merchant_secret = self.settings.safepay_secret_key or ""
         headers = {
-            "X-SFPY-MERCHANT-SECRET": secret,
+            "X-SFPY-MERCHANT-SECRET": merchant_secret,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
