@@ -238,14 +238,24 @@ class SafepayClient:
         belt-and-braces measure we also check SHA-256 in case Safepay
         ever rotates the algorithm — both comparisons are constant-time.
         """
-        secret = (self.settings.safepay_webhook_secret or "").encode()
-        if not secret or not signature_header:
+        raw_secret = (self.settings.safepay_webhook_secret or "").strip()
+        if not raw_secret or not signature_header:
             return False
         provided = signature_header.split("=", 1)[-1].strip().lower()
-        for algo in ("sha512", "sha256"):
-            expected = hmac.new(secret, raw_body, algo).hexdigest()
-            if hmac.compare_digest(expected, provided):
-                return True
+        # Try secret as a string of bytes (PHP SDK style) AND as the
+        # hex-decoded raw bytes. 64-char hex secrets are ambiguous —
+        # different SDKs interpret them differently.
+        secret_variants: list[bytes] = [raw_secret.encode()]
+        try:
+            if len(raw_secret) % 2 == 0:
+                secret_variants.append(bytes.fromhex(raw_secret))
+        except ValueError:
+            pass
+        for secret in secret_variants:
+            for algo in ("sha512", "sha256"):
+                expected = hmac.new(secret, raw_body, algo).hexdigest()
+                if hmac.compare_digest(expected, provided):
+                    return True
         # One last attempt: some webhook samples sign the JSON-decoded /
         # re-encoded body without slashes-escaped (Laravel example uses
         # ``json_encode($request->input(), JSON_UNESCAPED_SLASHES)``).
@@ -259,10 +269,11 @@ class SafepayClient:
                 separators=(",", ":"),
                 ensure_ascii=False,
             ).encode("utf-8")
-            for algo in ("sha512", "sha256"):
-                expected = hmac.new(secret, reencoded, algo).hexdigest()
-                if hmac.compare_digest(expected, provided):
-                    return True
+            for secret in secret_variants:
+                for algo in ("sha512", "sha256"):
+                    expected = hmac.new(secret, reencoded, algo).hexdigest()
+                    if hmac.compare_digest(expected, provided):
+                        return True
         except Exception:
             pass
         return False
