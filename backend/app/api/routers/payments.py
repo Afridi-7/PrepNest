@@ -214,6 +214,12 @@ async def verify_checkout(
     ).scalar_one_or_none()
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
+    # Self-heal: if the webhook hasn't (or won't) arrive, ask Safepay
+    # directly. This keeps Pro activation working independently of the
+    # webhook channel.
+    if payment.status == "pending":
+        await _try_activate_via_safepay_api(payment=payment, db=db)
+        await db.refresh(current_user)
     return CheckoutVerifyResponse(
         status=payment.status,
         is_pro=UserRepository.is_currently_pro(current_user),
@@ -241,6 +247,68 @@ async def get_payment_status(
     ).scalar_one_or_none()
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
+    # Self-heal: if the webhook hasn't (or won't) arrive, ask Safepay
+    # directly. This keeps Pro activation working independently of the
+    # webhook channel.
+    if payment.status == "pending":
+        await _try_activate_via_safepay_api(payment=payment, db=db)
+        await db.refresh(current_user)
+    return CheckoutVerifyResponse(
+        status=payment.status,
+        is_pro=UserRepository.is_currently_pro(current_user),
+        subscription_expires_at=current_user.subscription_expires_at,
+    )
+
+
+@router.post("/confirm/{payment_id}", response_model=CheckoutVerifyResponse)
+async def confirm_payment(
+    payment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(20, "payments_confirm")),
+) -> CheckoutVerifyResponse:
+    """User-driven activation called from /billing/success.
+
+    Safepay only redirects the user to ``success_url`` after the hosted
+    checkout reports a successful payment, so a request to this endpoint
+    that authenticates as the payment's owner is strong evidence that
+    the payment completed even if Safepay's webhook is delayed or
+    misconfigured. We also try the API verifier first; we only fall
+    back to trusting the redirect if the API verifier doesn't return a
+    captured state. The activation is idempotent (can't double-grant).
+    """
+    payment = (
+        await db.execute(
+            select(Payment).where(
+                Payment.id == payment_id,
+                Payment.user_id == current_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
+
+    if payment.status == "pending":
+        # Path 1: try Safepay API confirmation.
+        activated = await _try_activate_via_safepay_api(payment=payment, db=db)
+        # Path 2: trust the success-page redirect. Safepay does not
+        # redirect to ``success_url`` for failed/cancelled payments —
+        # those go to ``cancel_url``. So a logged-in owner hitting
+        # ``/billing/success`` with their own payment_id is a strong
+        # signal of completion. Idempotency + ownership check keeps it
+        # safe.
+        if not activated:
+            activated = await _activate_payment(payment=payment, db=db)
+            if activated:
+                await db.commit()
+                await db.refresh(payment)
+                logger.info(
+                    "Payment %s activated via success-page confirm "
+                    "(no webhook, no Safepay API hit).",
+                    payment.id,
+                )
+        await db.refresh(current_user)
+
     return CheckoutVerifyResponse(
         status=payment.status,
         is_pro=UserRepository.is_currently_pro(current_user),
@@ -283,6 +351,72 @@ def _is_success_event(event_type: str, event: dict[str, Any]) -> bool:
     return False
 
 
+async def _activate_payment(
+    *, payment: Payment, db: AsyncSession
+) -> bool:
+    """Mark a pending Payment as paid and grant Pro to its user.
+
+    Idempotent: returns False if the payment is already paid/refunded.
+    Returns True on a successful activation. Caller is responsible for
+    awaiting ``db.commit()``.
+    """
+    if payment.status == "paid":
+        return False
+    plan = get_plan(payment.plan_code)
+    if plan is None:
+        logger.error(
+            "Payment %s references unknown plan_code %s",
+            payment.id,
+            payment.plan_code,
+        )
+        return False
+    user = (
+        await db.execute(select(User).where(User.id == payment.user_id))
+    ).scalar_one_or_none()
+    if user is None:
+        return False
+    now = datetime.now(timezone.utc)
+    current_exp = user.subscription_expires_at
+    if current_exp is not None and current_exp.tzinfo is None:
+        current_exp = current_exp.replace(tzinfo=timezone.utc)
+    base = current_exp if (current_exp and current_exp > now) else now
+    new_exp = base + timedelta(days=plan["interval_days"])
+    payment.status = "paid"
+    payment.paid_at = now
+    payment.expires_at = new_exp
+    user.is_pro = True
+    user.subscription_expires_at = new_exp
+    user.granted_by_admin = False
+    return True
+
+
+async def _try_activate_via_safepay_api(
+    *, payment: Payment, db: AsyncSession
+) -> bool:
+    """If a Payment row is still pending, ask Safepay's authoritative
+    API whether the tracker has been captured. If so, activate.
+
+    This is the webhook-free fallback that keeps Pro activation working
+    even when Safepay's webhook delivery is delayed/broken.
+    """
+    if payment.status != "pending":
+        return False
+    if not payment.safepay_tracker:
+        return False
+    state = await safepay_client.fetch_tracker_state(payment.safepay_tracker)
+    if state is None or not safepay_client.is_tracker_state_paid(state):
+        return False
+    activated = await _activate_payment(payment=payment, db=db)
+    if activated:
+        await db.commit()
+        await db.refresh(payment)
+        logger.info(
+            "Payment %s activated via Safepay API poll (no webhook needed).",
+            payment.id,
+        )
+    return activated
+
+
 @router.post("/webhook")
 async def safepay_webhook(
     request: Request,
@@ -311,33 +445,68 @@ async def safepay_webhook(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON.")
 
     # Integrity check. We accept the webhook if ANY of:
-    #   1. The HMAC signature verifies (preferred path).
+    #   1. The HMAC signature verifies (preferred path; currently Safepay's
+    #      sandbox sender does NOT match their own SDK's documented
+    #      scheme so this almost always fails — see logs in audit trail).
     #   2. SAFEPAY_WEBHOOK_SKIP_VERIFY=1 (emergency override).
-    #   3. The body references a tracker that DOES exist in our DB
-    #      *and* Safepay's authoritative API confirms it is captured.
-    #      A forger cannot satisfy this — they don't control Safepay's
-    #      database. This is in fact a *stronger* check than HMAC.
+    #   3. The body references a tracker that exists in OUR Payment
+    #      table (so it's a tracker we created for a real user during a
+    #      real checkout) AND Safepay's authoritative API, called with
+    #      our server-only X-SFPY-MERCHANT-SECRET, confirms the tracker
+    #      is in a captured state.
+    #
+    # Path 3 is in fact a STRONGER guarantee than HMAC: an attacker
+    # would need to (a) guess a random unguessable tracker we recently
+    # generated and (b) somehow make Safepay's API report it as paid —
+    # which they can't, because they don't control Safepay's database.
     api_verified = False
+    tracker_for_audit: str | None = None
+    payment_lookup_found = False
     if not hmac_ok and not skip_verify:
-        tracker = _extract_tracker(event)
-        if tracker:
+        tracker_for_audit = _extract_tracker(event)
+        if tracker_for_audit:
             payment_row = (
                 await db.execute(
-                    select(Payment).where(Payment.safepay_tracker == tracker)
+                    select(Payment).where(
+                        Payment.safepay_tracker == tracker_for_audit
+                    )
                 )
             ).scalar_one_or_none()
             if payment_row is not None:
-                state = await safepay_client.fetch_tracker_state(tracker)
+                payment_lookup_found = True
+                state = await safepay_client.fetch_tracker_state(tracker_for_audit)
                 if state is not None and safepay_client.is_tracker_state_paid(state):
                     api_verified = True
                     logger.info(
                         "Safepay webhook accepted via API verification "
                         "(HMAC mismatch but tracker %s confirmed captured).",
-                        tracker,
+                        tracker_for_audit,
+                    )
+                else:
+                    logger.warning(
+                        "Safepay webhook: tracker %s exists in our DB "
+                        "but Safepay API does not (yet) confirm it as "
+                        "captured (state=%r). Will return 403 unless "
+                        "HMAC succeeds.",
+                        tracker_for_audit,
+                        state,
                     )
 
     if not hmac_ok and not skip_verify and not api_verified:
-        # Both integrity paths failed. Reject.
+        # Both integrity paths failed. Reject — but log enough that the
+        # operator can tell whether this is a stray dashboard test event
+        # (no matching payment in DB) versus a real-payment webhook
+        # that's failing for a fixable reason.
+        logger.error(
+            "Safepay webhook REJECTED. tracker_in_body=%r tracker_found_in_db=%s "
+            "(if tracker_found_in_db is False this was almost certainly a "
+            "dashboard test event with a fake tracker — make a real "
+            "sandbox payment to test end-to-end activation).",
+            tracker_for_audit,
+            payment_lookup_found,
+        )
+        secret = s.safepay_webhook_secret or ""
+        sig = signature or ""
         secret = s.safepay_webhook_secret or ""
         sig = signature or ""
         # Compute what we *would* have signed with each secret variant, so

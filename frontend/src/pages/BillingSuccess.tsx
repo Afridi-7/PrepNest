@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, Crown, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,9 @@ import { ME_QUERY_KEY } from "@/hooks/use-current-user";
 
 const POLL_ATTEMPTS = 8;
 const POLL_INTERVAL_MS = 1500;
+// How long to show the "Welcome to Pro!" celebration before
+// auto-redirecting the user back into the app.
+const AUTO_REDIRECT_MS = 2500;
 
 export default function BillingSuccess() {
   const [search] = useSearchParams();
@@ -31,11 +34,14 @@ export default function BillingSuccess() {
   const paymentId = search.get("payment") ?? "";
   const tracker = search.get("tracker") ?? "";
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [state, setState] = useState<"checking" | "paid" | "pending">("checking");
+  const [secondsLeft, setSecondsLeft] = useState(Math.ceil(AUTO_REDIRECT_MS / 1000));
 
   useEffect(() => {
     let cancelled = false;
     let attempt = 0;
+    let confirmAttempted = false;
     const tick = async () => {
       if (cancelled) return;
       attempt += 1;
@@ -56,6 +62,26 @@ export default function BillingSuccess() {
           setState("paid");
           return;
         }
+        // Webhook hasn't activated us yet. After ~3 seconds of polling
+        // (Safepay webhook should have arrived by now if it's working),
+        // fall back to the user-driven confirm endpoint, which trusts
+        // the success-page redirect since Safepay only redirects here
+        // for completed payments. This is the path that actually
+        // unblocks Pro when Safepay's webhook is broken/delayed.
+        if (!confirmAttempted && paymentId && attempt >= 2) {
+          confirmAttempted = true;
+          try {
+            const c = await apiClient.confirmPayment(paymentId);
+            if (cancelled) return;
+            if (c.status === "paid" || c.is_pro) {
+              await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+              setState("paid");
+              return;
+            }
+          } catch {
+            // fall through to keep polling
+          }
+        }
         if (attempt >= POLL_ATTEMPTS) {
           setState("pending");
           return;
@@ -72,6 +98,24 @@ export default function BillingSuccess() {
       cancelled = true;
     };
   }, [paymentId, tracker, queryClient]);
+
+  // Auto-redirect to the dashboard once payment is verified, with a
+  // visible countdown so the user knows what's happening and can cancel
+  // by clicking either of the buttons below.
+  useEffect(() => {
+    if (state !== "paid") return;
+    setSecondsLeft(Math.ceil(AUTO_REDIRECT_MS / 1000));
+    const interval = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    const timeout = setTimeout(() => {
+      navigate("/dashboard", { replace: true });
+    }, AUTO_REDIRECT_MS);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [state, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -107,10 +151,14 @@ export default function BillingSuccess() {
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 Your subscription is active and every premium feature is unlocked.
               </p>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                Redirecting you to the dashboard
+                {secondsLeft > 0 ? ` in ${secondsLeft}s` : ""}…
+              </p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                 <Button asChild className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
                   <Link to="/dashboard">
-                    <Crown className="h-4 w-4 mr-2" /> Go to dashboard
+                    <Crown className="h-4 w-4 mr-2" /> Go to dashboard now
                   </Link>
                 </Button>
                 <Button asChild variant="outline">

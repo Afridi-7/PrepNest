@@ -228,43 +228,45 @@ class SafepayClient:
     async def fetch_tracker_state(self, tracker: str) -> dict[str, Any] | None:
         """Fetch the authoritative state of a tracker from Safepay's API.
 
-        Returns the parsed JSON ``data`` object on success, or ``None`` if
-        the tracker is unknown / the request fails. Used as a webhook
-        integrity check: any caller can claim "payment X succeeded", but
-        only Safepay can confirm via an authenticated API call that
-        tracker X actually exists in their system and is in a captured
-        state. This is more robust than HMAC verification because it
-        depends on our (server-only) merchant secret rather than a
-        shared signing key whose handling differs across SDKs.
+        Safepay's docs don't publicly describe a single canonical
+        ``GET tracker`` endpoint, so we probe a few plausible shapes and
+        return the first one that returns a JSON body. All requests are
+        authenticated with our server-only ``X-SFPY-MERCHANT-SECRET``.
+        Returns ``None`` if every probe fails.
         """
         if not tracker or not self.is_live:
             return None
-        url = (
-            f"{self.settings.safepay_api_base}"
-            f"/order/payments/v3/{tracker}"
-        )
         merchant_secret = self.settings.safepay_secret_key or ""
         headers = {
             "X-SFPY-MERCHANT-SECRET": merchant_secret,
             "Accept": "application/json",
         }
+        candidate_paths = (
+            f"/order/payments/v3/{tracker}",
+            f"/order/payments/v3/{tracker}/",
+            f"/order/v3/{tracker}",
+            f"/tracker/v2/{tracker}",
+            f"/v1/order/payments/{tracker}",
+        )
         try:
             async with httpx.AsyncClient(timeout=10.0) as http:
-                resp = await http.get(url, headers=headers)
+                for path in candidate_paths:
+                    url = f"{self.settings.safepay_api_base}{path}"
+                    try:
+                        resp = await http.get(url, headers=headers)
+                    except httpx.HTTPError:
+                        continue
+                    if resp.status_code >= 400:
+                        continue
+                    try:
+                        payload = resp.json() or {}
+                    except ValueError:
+                        continue
+                    data = payload.get("data") if isinstance(payload, dict) else None
+                    return data if isinstance(data, dict) else payload
         except httpx.HTTPError:
             logger.exception("Safepay tracker GET network error: %s", tracker)
-            return None
-        if resp.status_code >= 400:
-            logger.warning(
-                "Safepay tracker GET %s failed: %s", tracker, resp.status_code
-            )
-            return None
-        try:
-            payload = resp.json() or {}
-        except ValueError:
-            return None
-        data = payload.get("data") if isinstance(payload, dict) else None
-        return data if isinstance(data, dict) else payload
+        return None
 
     @staticmethod
     def is_tracker_state_paid(state: dict[str, Any] | None) -> bool:

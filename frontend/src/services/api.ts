@@ -942,6 +942,13 @@ class ApiClient {
     return this.request<CheckoutVerifyResponse>(`/payments/status/${encodeURIComponent(paymentId)}`);
   }
 
+  async confirmPayment(paymentId: string): Promise<CheckoutVerifyResponse> {
+    return this.request<CheckoutVerifyResponse>(
+      `/payments/confirm/${encodeURIComponent(paymentId)}`,
+      "POST",
+    );
+  }
+
   async listSubjects(): Promise<Subject[]> {
     return this.request<Subject[]>("/usat/subjects");
   }
