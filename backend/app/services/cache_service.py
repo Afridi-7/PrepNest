@@ -56,6 +56,41 @@ class CacheService:
         async with self._lock:
             self._memory_cache[key] = (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds), serialized)
 
+    async def delete(self, key: str) -> None:
+        """Delete a single cache entry. Safe to call for non-existent keys."""
+        if self._redis:
+            try:
+                await self._redis.delete(key)
+            except Exception as exc:
+                logger.warning("Redis delete failed for %s: %s", key, exc)
+            return
+        async with self._lock:
+            self._memory_cache.pop(key, None)
+
+    async def delete_pattern(self, prefix: str) -> int:
+        """Delete every cache entry whose key starts with ``prefix``.
+
+        Used by admin-write paths that invalidate a whole family of cached
+        responses (e.g. ``site:*``, ``usat:*``). On Redis we use SCAN +
+        UNLINK so this never blocks. On the in-memory fallback we just walk
+        the dict under the lock.
+        """
+        if self._redis:
+            try:
+                count = 0
+                async for key in self._redis.scan_iter(match=f"{prefix}*", count=200):
+                    await self._redis.unlink(key)
+                    count += 1
+                return count
+            except Exception as exc:
+                logger.warning("Redis delete_pattern failed for %s: %s", prefix, exc)
+                return 0
+        async with self._lock:
+            keys = [k for k in self._memory_cache if k.startswith(prefix)]
+            for k in keys:
+                self._memory_cache.pop(k, None)
+            return len(keys)
+
     async def check_rate_limit(self, key: str, limit_per_minute: int) -> bool:
         if self._redis:
             bucket_key = f"rate:{key}:{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"

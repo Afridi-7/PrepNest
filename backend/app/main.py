@@ -1,4 +1,7 @@
 import logging
+import time
+import uuid
+from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 import fastapi
@@ -9,11 +12,14 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select, text
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, payments, query_room, site, usat, users
 from app.api.deps import rate_limit
 from app.core.config import get_settings
-from app.core.logging import configure_logging
+from app.core.errors import AppError as _AppError
+from app.core.logging import configure_logging, request_id_ctx, get_request_id
 from app.db.base import Base
 from app.db.models import MCQ, User, Topic, Subject
 from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
@@ -119,7 +125,6 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
 # AppError → structured JSON error envelope. The string ``detail`` is kept
 # stable for backward compatibility with existing clients and tests; the
 # ``code`` field is the new machine-readable handle for the frontend.
-from app.core.errors import AppError as _AppError  # noqa: E402
 
 
 @app.exception_handler(_AppError)
@@ -133,12 +138,13 @@ async def app_error_handler(request, exc: _AppError):
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc: Exception):
     """Catch unhandled exceptions so the response still gets CORS headers."""
-    logging.getLogger(__name__).error("Unhandled error: %s", exc, exc_info=True)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
-
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
+    rid = get_request_id() or "-"
+    logging.getLogger(__name__).error(
+        "Unhandled error on %s %s: %s", request.method, request.url.path, exc, exc_info=True
+    )
+    payload = {"detail": "Internal server error", "request_id": rid}
+    headers = {"X-Request-ID": rid} if rid and rid != "-" else None
+    return JSONResponse(status_code=500, content=payload, headers=headers)
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -343,7 +349,63 @@ class GlobalRateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(GlobalRateLimitMiddleware)
 
 
-@app.on_event("startup")
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    """Per-request correlation ID + structured access log.
+
+    Outermost middleware so ``request_id`` is set before any inner
+    middleware/handler emits a log line, and the response header is added
+    on every code path including 429 / 5xx returned from inner middleware.
+
+    - Accepts an inbound ``X-Request-ID`` (so an upstream proxy / frontend
+      can stitch traces together) or generates a fresh UUID4 hex.
+    - Echoes it back as ``X-Request-ID`` on every response.
+    - Emits a single structured log line per request with method, path,
+      status, and duration_ms. Health probes are skipped to keep logs clean.
+    """
+
+    _SKIP_LOG_PREFIXES = ("/health",)
+    # Cap the inbound ID length to defend against log-injection / DoS via
+    # unbounded header values. UUIDs are 32 hex chars; allow generous slack.
+    _MAX_ID_LEN = 64
+
+    @staticmethod
+    def _sanitize(rid: str) -> str:
+        # Keep alphanumeric, dash, underscore — strip anything else so a
+        # forged header can't smuggle CR/LF or control chars into logs.
+        return "".join(ch for ch in rid if ch.isalnum() or ch in "-_")[: RequestContextMiddleware._MAX_ID_LEN]
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        inbound = request.headers.get("x-request-id")
+        rid = self._sanitize(inbound) if inbound else uuid.uuid4().hex
+        if not rid:
+            rid = uuid.uuid4().hex
+        token = request_id_ctx.set(rid)
+        start = time.perf_counter()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            response.headers["X-Request-ID"] = rid
+            return response
+        finally:
+            duration_ms = (time.perf_counter() - start) * 1000.0
+            path = request.url.path
+            if not any(path.startswith(p) for p in self._SKIP_LOG_PREFIXES):
+                logging.getLogger("app.access").info(
+                    "%s %s -> %s in %.1fms",
+                    request.method,
+                    path,
+                    status,
+                    duration_ms,
+                )
+            request_id_ctx.reset(token)
+
+
+# Registered LAST → outermost wrapper, ensuring rid is bound before any
+# inner middleware (rate limit, body size, etc.) runs.
+app.add_middleware(RequestContextMiddleware)
+
+
 async def on_startup() -> None:
     if settings.jwt_secret_key == "change-me-in-production":
         env_name = settings.app_env.lower()
@@ -396,6 +458,34 @@ async def on_startup() -> None:
                 )
         except Exception as exc:
             logging.warning("DB: index creation skipped: %s", exc)
+        # Mirror the Phase 1 scalability indexes for SQLite (test env).
+        # SQLite tolerates ORDER BY DESC inside CREATE INDEX from 3.3+; we
+        # wrap each in its own transaction so an unfamiliar table (e.g. the
+        # test DB hasn't created it yet) doesn't roll back the others.
+        sqlite_indexes = [
+            "CREATE INDEX IF NOT EXISTS ix_payments_user_status_created ON payments (user_id, status, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_practice_results_user_created ON practice_results (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_practice_results_user_subject_created ON practice_results (user_id, subject_name, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_mock_tests_user_created ON mock_tests (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_mock_tests_user_status_created ON mock_tests (user_id, status, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_user_updated ON conversations (user_id, updated_at)",
+            "CREATE INDEX IF NOT EXISTS ix_messages_conv_created ON messages (conversation_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_questions_created ON query_questions (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_questions_user_created ON query_questions (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_replies_question_created ON query_replies (question_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_replies_user_created ON query_replies (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_question_votes_created ON query_question_votes (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_reply_votes_created ON query_reply_votes (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_mcqs_topic_id_id ON mcqs (topic_id, id)",
+            "CREATE INDEX IF NOT EXISTS ix_file_assets_user_created ON file_assets (user_id, created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_user_notes_user_created ON user_notes (user_id, created_at)",
+        ]
+        for stmt in sqlite_indexes:
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(text(stmt))
+            except Exception as exc:
+                logging.debug("DB sqlite index skipped (%s...): %s", stmt[:60], exc)
     else:
         pg_migrations = [
             "ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT",
@@ -415,6 +505,45 @@ async def on_startup() -> None:
             "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL",
             # Mark pre-existing users as verified
             "UPDATE users SET is_verified = TRUE WHERE is_verified IS NOT DISTINCT FROM FALSE AND verification_token IS NULL",
+            # ── Phase 1 scalability indexes ────────────────────────────
+            # Composite indexes targeting the hottest read patterns:
+            #   • payments self-heal on /me  →  WHERE user_id=? AND status='pending' ORDER BY created_at DESC
+            #   • dashboard practice rollups →  WHERE user_id=? AND created_at >= ?  +  GROUP BY subject_name
+            #   • mock-test history           →  WHERE user_id=? ORDER BY created_at DESC
+            #   • conversations list          →  WHERE user_id=? ORDER BY updated_at DESC
+            #   • messages window             →  WHERE conversation_id=? ORDER BY created_at DESC
+            #   • query-room leaderboard      →  COUNT(*) GROUP BY user_id with monthly created_at filter
+            #   • MCQ practice fetch          →  WHERE topic_id=? — composite (topic_id, id) speeds index-only scans
+            # All `IF NOT EXISTS` so re-running on every boot is a no-op.
+            "CREATE INDEX IF NOT EXISTS ix_payments_user_status_created ON payments (user_id, status, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_practice_results_user_created ON practice_results (user_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_practice_results_user_subject_created ON practice_results (user_id, subject_name, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_mock_tests_user_created ON mock_tests (user_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_mock_tests_user_status_created ON mock_tests (user_id, status, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_user_updated ON conversations (user_id, updated_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_messages_conv_created ON messages (conversation_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_query_questions_created ON query_questions (created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_query_questions_user_created ON query_questions (user_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_query_replies_question_created ON query_replies (question_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_query_replies_user_created ON query_replies (user_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_query_question_votes_created ON query_question_votes (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_query_reply_votes_created ON query_reply_votes (created_at)",
+            "CREATE INDEX IF NOT EXISTS ix_mcqs_topic_id_id ON mcqs (topic_id, id)",
+            "CREATE INDEX IF NOT EXISTS ix_file_assets_user_created ON file_assets (user_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS ix_user_notes_user_created ON user_notes (user_id, created_at DESC)",
+            # Update planner statistics so the new indexes are picked up immediately
+            # on the next query plan. Cheap (single ANALYZE per table) and only
+            # runs once per cold start.
+            "ANALYZE payments",
+            "ANALYZE practice_results",
+            "ANALYZE mock_tests",
+            "ANALYZE conversations",
+            "ANALYZE messages",
+            "ANALYZE query_questions",
+            "ANALYZE query_replies",
+            "ANALYZE query_question_votes",
+            "ANALYZE query_reply_votes",
+            "ANALYZE mcqs",
         ]
         for stmt in pg_migrations:
             try:
@@ -438,7 +567,6 @@ async def on_startup() -> None:
     await cache_service.connect()
 
 
-@app.on_event("shutdown")
 async def on_shutdown() -> None:
     try:
         await close_pg_pool()
@@ -447,9 +575,72 @@ async def on_shutdown() -> None:
     await cache_service.close()
 
 
+# ── Lifespan wiring ──────────────────────────────────────────────────────
+# FastAPI deprecated ``on_event`` in favour of an async context manager.
+# We keep the two functions above as stand-alone callables so they remain
+# easy to test in isolation, and bind them to a single lifespan here.
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    await on_startup()
+    try:
+        yield
+    finally:
+        await on_shutdown()
+
+
+# Late-bind: setting ``router.lifespan_context`` is what FastAPI's
+# constructor does internally when ``lifespan=`` is passed. Assigning it
+# here lets us keep the rest of ``main.py`` in its current order without
+# moving every dependency above the ``FastAPI(...)`` call.
+app.router.lifespan_context = _lifespan
+
+
 @app.get("/health")
 async def healthcheck() -> dict:
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/health/ready")
+async def readiness_check() -> JSONResponse:
+    """Deep readiness probe: verifies DB + cache connectivity.
+
+    Used by orchestrators (Render, k8s, uptime monitors) that need to know
+    whether the instance can actually serve traffic — distinct from the
+    cheap liveness ``/health`` ping above. Returns 200 only when *all*
+    critical dependencies are reachable; otherwise 503 with a per-component
+    breakdown so operators can see which dep is degraded.
+    """
+    components: dict[str, dict] = {}
+    overall_ok = True
+
+    try:
+        async with SessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        components["database"] = {"status": "ok"}
+    except Exception as exc:  # noqa: BLE001 — surface message to operators
+        overall_ok = False
+        components["database"] = {"status": "error", "detail": str(exc)[:200]}
+
+    try:
+        # Best-effort cache ping. The service falls back to in-memory if
+        # Redis is unconfigured, so we mark it healthy in that mode too.
+        redis_client = getattr(cache_service, "_redis", None)
+        backend = "redis" if redis_client else "memory"
+        if redis_client is not None:
+            await redis_client.ping()
+        components["cache"] = {"status": "ok", "backend": backend}
+    except Exception as exc:  # noqa: BLE001
+        overall_ok = False
+        components["cache"] = {"status": "error", "detail": str(exc)[:200]}
+
+    body = {
+        "status": "ok" if overall_ok else "error",
+        "service": settings.app_name,
+        "components": components,
+    }
+    return JSONResponse(status_code=200 if overall_ok else 503, content=body)
 
 
 @app.get("/health/db")

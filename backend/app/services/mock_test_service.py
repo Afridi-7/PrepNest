@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import MCQ, EssayPrompt, MockTest, Subject, Topic
+from app.services.cache_service import cache_service
 from app.services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
@@ -509,6 +510,7 @@ async def evaluate_mock_test(
     mock_test.status = "evaluated"
     mock_test.submitted_at = datetime.now(timezone.utc)
     await db.commit()
+    await cache_service.delete(f"dash:{mock_test.user_id}")
 
     return result
 

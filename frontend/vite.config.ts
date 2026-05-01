@@ -22,12 +22,22 @@ export default defineConfig(() => ({
     },
   },
   plugins: [react()],
+  esbuild: {
+    // Strip console.* and debugger statements from production bundles.
+    // We keep console.error so genuine runtime errors are still observable.
+    drop: process.env.NODE_ENV === "production" ? ["debugger"] : [],
+    pure: process.env.NODE_ENV === "production" ? ["console.log", "console.debug", "console.info"] : [],
+    legalComments: "none",
+  },
   build: {
     target: "es2020",
     cssCodeSplit: true,
+    cssMinify: "esbuild",
+    minify: "esbuild",
     sourcemap: false,
     reportCompressedSize: false,
     chunkSizeWarningLimit: 1000,
+    modulePreload: { polyfill: true },
     rollupOptions: {
       output: {
         // Hash filenames so they can be cached forever (the nginx config
@@ -42,6 +52,14 @@ export default defineConfig(() => ({
           "vendor-query": ["@tanstack/react-query"],
           "vendor-motion": ["framer-motion"],
           "vendor-markdown": ["react-markdown", "remark-gfm"],
+          "vendor-radix": [
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-label",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+          ],
+          "vendor-icons": ["lucide-react"],
         },
       },
     },

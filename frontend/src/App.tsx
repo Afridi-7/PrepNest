@@ -34,7 +34,25 @@ const BillingCancel = lazy(() => import("./pages/BillingCancel.tsx"));
 const RefundPolicy = lazy(() => import("./pages/RefundPolicy.tsx"));
 const OwnershipStatement = lazy(() => import("./pages/OwnershipStatement.tsx"));
 
-const queryClient = new QueryClient();
+// Sensible production defaults: cache responses for 60 s before they become
+// stale (per-query `staleTime` still wins), keep them in memory for 5 min, and
+// don't hammer the API on every tab refocus. Network/auth retries are kept
+// minimal so transient failures surface quickly to the UI.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      retry: 1,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 const ScrollToTop = () => {
   const location = useLocation();

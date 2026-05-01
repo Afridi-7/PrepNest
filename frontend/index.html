@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Warm up the API + Google identity TLS handshakes early so the first
+         /me + GSI requests don't pay full RTT after the JS chunks parse. -->
+    <link rel="preconnect" href="https://prepnest.onrender.com" crossorigin />
+    <link rel="dns-prefetch" href="https://prepnest.onrender.com" />
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />

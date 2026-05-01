@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.db.models import MCQ, Acknowledgment, ContactInfo, MockTest, PracticeResult, Subject, Topic, User
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import get_db_session
+from app.services.cache_service import cache_service
 from app.services.supabase_storage import async_upload_bytes
 from app.schemas.content import (
     AcknowledgmentCreate,
@@ -54,12 +55,20 @@ async def _get_optional_user(
 
 # ── Dashboard stats ──────────────────────────────────────────────────────────
 
+_DASH_TTL = 45  # seconds — short enough to feel fresh, long enough to absorb stampedes
+
+
 @router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
     _rl=Depends(rate_limit(60, "dash_stats")),
 ):
+    cache_key = f"dash:{current_user.id}"
+    cached = await cache_service.get_json(cache_key)
+    if cached:
+        return DashboardStats(**cached)
+
     # Single aggregation query instead of N+1 loop
     topic_count_sq = (
         select(Topic.subject_id, func.count(Topic.id).label("topic_count"))
@@ -160,7 +169,7 @@ async def get_dashboard_stats(
         for r in per_subject_rows
     ]
 
-    return DashboardStats(
+    result = DashboardStats(
         user_id=str(current_user.id),
         user_name=current_user.full_name or current_user.email.split("@")[0],
         is_pro=UserRepository.is_currently_pro(current_user),
@@ -175,6 +184,8 @@ async def get_dashboard_stats(
         subject_attempted=subject_attempted,
         rewards=_build_user_rewards(current_user),
     )
+    await cache_service.set_json(cache_key, result.model_dump(mode="json"), ttl_seconds=_DASH_TTL)
+    return result
 
 
 def _build_user_rewards(user: User) -> UserRewards:
@@ -241,6 +252,15 @@ async def get_leaderboard(
             cast(MockTest.result_json.op("->>")("mcq_score"), Integer), 0
         )
 
+    # ── Global parts: top 10 + previous winner ────────────────────────────
+    # These are identical for every viewer in the same minute, so we cache
+    # the heavy aggregation under a month-stamped key with a short TTL. The
+    # period rolls over naturally on the 1st of every month because the
+    # cache key includes ``period_start.strftime("%Y%m")``.
+    period_key = period_start.strftime("%Y%m")
+    cache_key = f"dashboard:leaderboard:global:{period_key}"
+    cached_global = await cache_service.get_json(cache_key)
+
     def _build_top_query(window_start: datetime, window_end: datetime, limit: int):
         mock_sub = (
             select(
@@ -297,19 +317,51 @@ async def get_leaderboard(
             .limit(limit)
         )
 
-    rows = (await db.execute(_build_top_query(period_start, period_end, 10))).all()
+    if cached_global is not None:
+        entries = [LeaderboardEntry(**e) for e in cached_global.get("entries", [])]
+        prev_winner_dict = cached_global.get("previous_winner")
+        prev_winner: PreviousMonthWinner | None = (
+            PreviousMonthWinner(**prev_winner_dict) if prev_winner_dict else None
+        )
+    else:
+        rows = (await db.execute(_build_top_query(period_start, period_end, 10))).all()
 
-    entries: list[LeaderboardEntry] = []
-    for rank, row in enumerate(rows, 1):
-        name = row.full_name or row.email.split("@")[0]
-        entries.append(
-            LeaderboardEntry(
-                rank=rank,
-                user_id=str(row.user_id),
-                user_name=name,
-                mcqs_solved=row.mcqs_solved or 0,
-                tests_taken=row.tests_taken,
+        entries = []
+        for rank, row in enumerate(rows, 1):
+            name = row.full_name or row.email.split("@")[0]
+            entries.append(
+                LeaderboardEntry(
+                    rank=rank,
+                    user_id=str(row.user_id),
+                    user_name=name,
+                    mcqs_solved=row.mcqs_solved or 0,
+                    tests_taken=row.tests_taken,
+                )
             )
+
+        prev_winner = None
+        prev_rows = (await db.execute(_build_top_query(prev_start, prev_end, 1))).all()
+        if prev_rows:
+            prev_row = prev_rows[0]
+            prev_name = prev_row.full_name or prev_row.email.split("@")[0]
+            prev_winner = PreviousMonthWinner(
+                user_id=str(prev_row.user_id),
+                user_name=prev_name,
+                mcqs_solved=prev_row.mcqs_solved or 0,
+                month_label=prev_start.strftime("%B %Y"),
+            )
+
+        # 60 s TTL: short enough that practice rows show up quickly while still
+        # absorbing large request bursts onto a single computation per minute.
+        await cache_service.set_json(
+            cache_key,
+            {
+                "entries": [e.model_dump(mode="json") for e in entries],
+                "previous_winner": (
+                    prev_winner.model_dump(mode="json") if prev_winner else None
+                ),
+            },
+            ttl_seconds=60,
         )
 
     # ── Authed user's rank (if any) ────────────────────────────────────────
@@ -389,19 +441,6 @@ async def get_leaderboard(
                 tests_taken=my_sessions,
             )
 
-    # ── Previous month #1 ──────────────────────────────────────────────────
-    prev_winner: PreviousMonthWinner | None = None
-    prev_rows = (await db.execute(_build_top_query(prev_start, prev_end, 1))).all()
-    if prev_rows:
-        prev_row = prev_rows[0]
-        prev_name = prev_row.full_name or prev_row.email.split("@")[0]
-        prev_winner = PreviousMonthWinner(
-            user_id=str(prev_row.user_id),
-            user_name=prev_name,
-            mcqs_solved=prev_row.mcqs_solved or 0,
-            month_label=prev_start.strftime("%B %Y"),
-        )
-
     return LeaderboardResponse(
         entries=entries,
         updated_at=datetime.now(timezone.utc).isoformat(),
@@ -416,6 +455,23 @@ async def get_leaderboard(
 
 # ── Contact info (singleton row) ────────────────────────────────────────────
 
+# Cache keys for contact + acknowledgments. Both are admin-edited so we
+# explicitly invalidate from every write path. 1 h TTL is a backstop in
+# case an invalidation is somehow missed (e.g. a future write path that
+# forgets to call ``cache_service.delete``).
+_CONTACT_CACHE_KEY = "dashboard:contact"
+_ACK_CACHE_KEY = "dashboard:acknowledgments"
+_CONTENT_CACHE_TTL = 3600
+
+
+async def _invalidate_contact_cache() -> None:
+    await cache_service.delete(_CONTACT_CACHE_KEY)
+
+
+async def _invalidate_ack_cache() -> None:
+    await cache_service.delete(_ACK_CACHE_KEY)
+
+
 async def _get_or_create_contact(db: AsyncSession) -> ContactInfo:
     result = await db.execute(select(ContactInfo).limit(1))
     row = result.scalar_one_or_none()
@@ -429,7 +485,15 @@ async def _get_or_create_contact(db: AsyncSession) -> ContactInfo:
 
 @router.get("/contact", response_model=ContactInfoRead)
 async def get_contact_info(db: AsyncSession = Depends(get_db_session)):
-    return await _get_or_create_contact(db)
+    cached = await cache_service.get_json(_CONTACT_CACHE_KEY)
+    if cached is not None:
+        return ContactInfoRead.model_validate(cached)
+    row = await _get_or_create_contact(db)
+    payload = ContactInfoRead.model_validate(row)
+    await cache_service.set_json(
+        _CONTACT_CACHE_KEY, payload.model_dump(mode="json"), ttl_seconds=_CONTENT_CACHE_TTL
+    )
+    return payload
 
 
 @router.put("/contact", response_model=ContactInfoRead)
@@ -444,6 +508,7 @@ async def update_contact_info(
         setattr(row, field, value)
     await db.commit()
     await db.refresh(row)
+    await _invalidate_contact_cache()
     return row
 
 
@@ -466,6 +531,7 @@ async def upload_contact_image(
     row.image_url = image_url
     await db.commit()
     await db.refresh(row)
+    await _invalidate_contact_cache()
     return row
 
 
@@ -473,10 +539,19 @@ async def upload_contact_image(
 
 @router.get("/acknowledgments", response_model=list[AcknowledgmentRead])
 async def list_acknowledgments(db: AsyncSession = Depends(get_db_session)):
+    cached = await cache_service.get_json(_ACK_CACHE_KEY)
+    if cached is not None:
+        return [AcknowledgmentRead.model_validate(item) for item in cached]
     rows = (await db.execute(
         select(Acknowledgment).order_by(Acknowledgment.display_order, Acknowledgment.id)
     )).scalars().all()
-    return rows
+    payload = [AcknowledgmentRead.model_validate(r) for r in rows]
+    await cache_service.set_json(
+        _ACK_CACHE_KEY,
+        [p.model_dump(mode="json") for p in payload],
+        ttl_seconds=_CONTENT_CACHE_TTL,
+    )
+    return payload
 
 
 @router.post("/acknowledgments", response_model=AcknowledgmentRead, status_code=status.HTTP_201_CREATED)
@@ -489,6 +564,7 @@ async def create_acknowledgment(
     db.add(row)
     await db.commit()
     await db.refresh(row)
+    await _invalidate_ack_cache()
     return row
 
 
@@ -506,6 +582,7 @@ async def update_acknowledgment(
         setattr(row, field, value)
     await db.commit()
     await db.refresh(row)
+    await _invalidate_ack_cache()
     return row
 
 
@@ -520,6 +597,7 @@ async def delete_acknowledgment(
         raise HTTPException(status_code=404, detail="Acknowledgment not found")
     await db.delete(row)
     await db.commit()
+    await _invalidate_ack_cache()
 
 
 @router.post("/acknowledgments/{ack_id}/image", response_model=AcknowledgmentRead)
@@ -544,4 +622,5 @@ async def upload_acknowledgment_image(
     row.image_url = image_url
     await db.commit()
     await db.refresh(row)
+    await _invalidate_ack_cache()
     return row

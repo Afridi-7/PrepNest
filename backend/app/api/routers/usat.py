@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import daily_quota, get_current_user, rate_limit, is_user_pro
 from app.core.config import get_settings
+from app.services.cache_service import cache_service
 from app.db.models import MCQ, EssayPrompt, Material, Note, PastPaper, Resource, Subject, SubjectResource, Tip, Topic, UserNote
 from app.db.session import get_db_session
 from app.models import User
@@ -477,6 +478,7 @@ async def submit_practice_result(
     )
     db.add(row)
     await db.commit()
+    await cache_service.delete(f"dash:{current_user.id}")
     return {"ok": True}
 
 
