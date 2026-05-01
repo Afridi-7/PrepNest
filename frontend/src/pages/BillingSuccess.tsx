@@ -25,6 +25,10 @@ const POLL_INTERVAL_MS = 1500;
 
 export default function BillingSuccess() {
   const [search] = useSearchParams();
+  // Safepay redirects with the URL we provided, which carries our own
+  // Payment.id as ``?payment=<id>``. We poll /payments/status/<id> until
+  // the webhook flips the row to "paid" (or we exhaust attempts).
+  const paymentId = search.get("payment") ?? "";
   const tracker = search.get("tracker") ?? "";
   const queryClient = useQueryClient();
   const [state, setState] = useState<"checking" | "paid" | "pending">("checking");
@@ -36,14 +40,16 @@ export default function BillingSuccess() {
       if (cancelled) return;
       attempt += 1;
       try {
-        // If no tracker, just refresh /me and trust whatever it says.
-        if (!tracker) {
+        // No id in the URL → just refresh /me and trust whatever it says.
+        if (!paymentId && !tracker) {
           await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
           const me = await apiClient.getCurrentUser();
           if (!cancelled) setState(me.is_pro ? "paid" : "pending");
           return;
         }
-        const v = await apiClient.verifyCheckout(tracker);
+        const v = paymentId
+          ? await apiClient.getPaymentStatus(paymentId)
+          : await apiClient.verifyCheckout(tracker);
         if (cancelled) return;
         if (v.status === "paid" || v.is_pro) {
           await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
@@ -65,7 +71,7 @@ export default function BillingSuccess() {
     return () => {
       cancelled = true;
     };
-  }, [tracker, queryClient]);
+  }, [paymentId, tracker, queryClient]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">

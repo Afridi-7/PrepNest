@@ -170,7 +170,6 @@ async def create_checkout(
     payment.safepay_tracker = result["tracker"]
     await db.commit()
     await db.refresh(payment)
-
     return CheckoutCreateResponse(
         payment_id=payment.id,
         tracker=result["tracker"],
@@ -222,7 +221,31 @@ async def verify_checkout(
     )
 
 
-# â”€â”€ Webhook (no auth, HMAC-verified) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@router.get("/status/{payment_id}", response_model=CheckoutVerifyResponse)
+async def get_payment_status(
+    payment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(60, "payments_status")),
+) -> CheckoutVerifyResponse:
+    """Same as ``/verify/{tracker}`` but keyed by our own ``Payment.id``.
+
+    Used by ``/billing/success`` which receives ``?payment=<id>`` in the
+    URL — we keep the Safepay tracker server-side and use our own id as
+    the polling handle.
+    """
+    payment = (
+        await db.execute(
+            select(Payment).where(Payment.id == payment_id, Payment.user_id == current_user.id)
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
+    return CheckoutVerifyResponse(
+        status=payment.status,
+        is_pro=UserRepository.is_currently_pro(current_user),
+        subscription_expires_at=current_user.subscription_expires_at,
+    )
 
 
 def _extract_event_id(event: dict[str, Any], raw: bytes) -> str:

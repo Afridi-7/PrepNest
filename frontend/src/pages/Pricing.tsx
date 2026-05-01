@@ -73,6 +73,21 @@ export default function Pricing() {
     };
   }, []);
 
+  // If the user clicks "Upgrade" and then hits Back from Safepay, the
+  // browser may restore this page from bfcache with `loadingPlan` still
+  // set, leaving the button stuck on "Redirecting…". Clear it on
+  // pageshow / when the tab becomes visible again.
+  useEffect(() => {
+    const reset = () => setLoadingPlan(null);
+    window.addEventListener("pageshow", reset);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") reset();
+    });
+    return () => {
+      window.removeEventListener("pageshow", reset);
+    };
+  }, []);
+
   const handleUpgrade = async (plan: SubscriptionPlan) => {
     if (!user) {
       navigate("/login", { state: { from: "/pricing", reason: "auth-required" } });
