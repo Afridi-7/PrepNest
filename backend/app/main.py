@@ -348,78 +348,80 @@ async def on_startup() -> None:
     if settings.jwt_secret_key == "change-me-in-production":
         env_name = settings.app_env.lower()
         if env_name not in ("development", "dev", "local", "test"):
-            # In production / staging, refuse to start with the default secret.
-            # This prevents a catastrophic deploy where forging tokens is trivial.
             raise RuntimeError(
                 "JWT_SECRET_KEY is set to the insecure default in a non-development "
                 "environment. Set a strong secret in your environment before starting."
             )
         logging.warning("JWT_SECRET_KEY is using the insecure default — set a strong secret in .env!")
+
+    # ── Step 1: create any missing tables ─────────────────────────────────
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        logging.info("DB: create_all completed successfully.")
+    except Exception as exc:
+        logging.error("DB: create_all FAILED: %s", exc, exc_info=True)
 
-            # Detect backend so we can use the right SQL dialect
-            is_sqlite = engine.url.get_backend_name() == "sqlite"
+    # ── Step 2: add missing columns — each in its own transaction so a
+    #    single failure cannot roll back the others or the create_all above.
+    is_sqlite = engine.url.get_backend_name() == "sqlite"
 
-            if is_sqlite:
-                # SQLite: check existing columns and only add missing ones
-                for table, column, col_def in [
-                    ("contact_info", "whatsapp_url", "TEXT"),
-                    ("users", "is_verified", "BOOLEAN DEFAULT FALSE"),
-                    ("users", "is_pro", "BOOLEAN DEFAULT FALSE"),
-                    ("users", "google_id", "VARCHAR(255)"),
-                    ("users", "verification_token", "VARCHAR(512)"),
-                    ("users", "reset_password_token_hash", "VARCHAR(128)"),
-                    ("users", "reset_password_token_expires_at", "TIMESTAMP"),
-                    ("users", "reset_password_requested_at", "TIMESTAMP"),
-                ]:
+    if is_sqlite:
+        sqlite_migrations = [
+            ("contact_info", "whatsapp_url", "TEXT"),
+            ("users", "is_verified", "BOOLEAN DEFAULT FALSE"),
+            ("users", "is_pro", "BOOLEAN DEFAULT FALSE"),
+            ("users", "subscription_expires_at", "TIMESTAMP"),
+            ("users", "granted_by_admin", "BOOLEAN DEFAULT FALSE"),
+            ("users", "preferences", "JSON DEFAULT '{}'"),
+            ("users", "google_id", "VARCHAR(255)"),
+            ("users", "verification_token", "VARCHAR(512)"),
+            ("users", "reset_password_token_hash", "VARCHAR(128)"),
+            ("users", "reset_password_token_expires_at", "TIMESTAMP"),
+            ("users", "reset_password_requested_at", "TIMESTAMP"),
+        ]
+        for table, column, col_def in sqlite_migrations:
+            try:
+                async with engine.begin() as conn:
                     cols = await conn.execute(text(f"PRAGMA table_info({table})"))
                     existing = {row[1] for row in cols}
                     if column not in existing:
                         await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+            except Exception as exc:
+                logging.warning("DB migration (sqlite) %s.%s skipped: %s", table, column, exc)
+        try:
+            async with engine.begin() as conn:
                 await conn.execute(
                     text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
                 )
-            else:
-                # PostgreSQL: use IF NOT EXISTS / ALTER COLUMN syntax
-                await conn.execute(
-                    text("ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_pro BOOLEAN DEFAULT FALSE")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_hash VARCHAR(128)")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_expires_at TIMESTAMP")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_requested_at TIMESTAMP")
-                )
-                await conn.execute(
-                    text("CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)")
-                )
-                await conn.execute(
-                    text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL")
-                )
-
-            # One-time: mark all pre-existing users as verified
-            await conn.execute(
-                text("UPDATE users SET is_verified = TRUE WHERE is_verified = FALSE AND verification_token IS NULL")
-            )
-    except Exception as exc:
-        logging.warning("Database schema init skipped during startup: %s", exc)
+        except Exception as exc:
+            logging.warning("DB: index creation skipped: %s", exc)
+    else:
+        pg_migrations = [
+            "ALTER TABLE contact_info ADD COLUMN IF NOT EXISTS whatsapp_url TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_pro BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS granted_by_admin BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb",
+            # Note: google_id UNIQUE is intentionally a separate step so a constraint
+            # conflict never rolls back the other column additions.
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(512)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_hash VARCHAR(128)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token_expires_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_requested_at TIMESTAMP WITH TIME ZONE",
+            "CREATE INDEX IF NOT EXISTS ix_users_reset_password_token_hash ON users (reset_password_token_hash)",
+            "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL",
+            # Mark pre-existing users as verified
+            "UPDATE users SET is_verified = TRUE WHERE is_verified IS NOT DISTINCT FROM FALSE AND verification_token IS NULL",
+        ]
+        for stmt in pg_migrations:
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(text(stmt))
+            except Exception as exc:
+                logging.warning("DB migration skipped (%s...): %s", stmt[:60], exc)
 
     try:
         await init_pg_pool()

@@ -103,6 +103,84 @@ async def payments_status() -> dict[str, Any]:
     }
 
 
+@router.get("/debug/me")
+async def debug_my_payment_state(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Diagnostic endpoint — shows the raw DB state of your account and
+    your most recent payments. Safe to expose: auth-gated, no secrets."""
+    from sqlalchemy import text as sa_text
+
+    # Raw column check so we can tell if is_pro / subscription_expires_at
+    # columns actually exist in the DB (they may be missing if migrations failed).
+    try:
+        raw = (await db.execute(
+            sa_text(
+                "SELECT id, email, is_pro, subscription_expires_at, granted_by_admin "
+                "FROM users WHERE id = :uid"
+            ),
+            {"uid": current_user.id},
+        )).mappings().one()
+        user_raw = dict(raw)
+    except Exception as exc:
+        user_raw = {"error": str(exc)}
+
+    # Recent payments
+    try:
+        rows = (await db.execute(
+            select(Payment)
+            .where(Payment.user_id == current_user.id)
+            .order_by(Payment.created_at.desc())
+            .limit(5)
+        )).scalars().all()
+        payments_raw = [
+            {
+                "id": p.id,
+                "plan_code": p.plan_code,
+                "status": p.status,
+                "safepay_tracker": p.safepay_tracker,
+                "paid_at": str(p.paid_at) if p.paid_at else None,
+                "expires_at": str(p.expires_at) if p.expires_at else None,
+                "created_at": str(p.created_at),
+            }
+            for p in rows
+        ]
+    except Exception as exc:
+        payments_raw = [{"error": str(exc)}]
+
+    # Check tables exist
+    try:
+        tables_result = await db.execute(
+            sa_text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name IN ('users', 'payments', 'webhook_events')"
+            )
+        )
+        tables = [r[0] for r in tables_result]
+    except Exception:
+        # SQLite fallback
+        try:
+            tables_result = await db.execute(sa_text("SELECT name FROM sqlite_master WHERE type='table'"))
+            tables = [r[0] for r in tables_result]
+        except Exception as exc2:
+            tables = [f"error: {exc2}"]
+
+    return {
+        "user_from_orm": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "is_pro": current_user.is_pro,
+            "subscription_expires_at": str(current_user.subscription_expires_at),
+            "granted_by_admin": current_user.granted_by_admin,
+            "is_currently_pro": UserRepository.is_currently_pro(current_user),
+        },
+        "user_raw_sql": user_raw,
+        "recent_payments": payments_raw,
+        "tables_in_db": tables,
+    }
+
+
 # â”€â”€ Auth: create checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
@@ -197,7 +275,82 @@ async def get_my_payments(
     return [PaymentRecord.model_validate(r) for r in rows]
 
 
-# â”€â”€ Auth: poll verification (used by /billing/success) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@router.post("/force-activate")
+async def force_activate_pro(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(5, "payments_force_activate")),
+) -> dict[str, Any]:
+    """Emergency self-service activation.
+
+    Finds the authenticated user's most recent pending payment and activates
+    Pro using direct SQL — bypassing all ORM so there is zero chance of a
+    silent ORM-layer failure. Only works when a pending payment row exists
+    (i.e. the user genuinely paid and went through checkout). Idempotent.
+    """
+    from sqlalchemy import text as sa_text
+    from datetime import timedelta
+
+    payment = (
+        await db.execute(
+            select(Payment)
+            .where(Payment.user_id == current_user.id, Payment.status == "pending")
+            .order_by(Payment.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if payment is None:
+        paid = (
+            await db.execute(
+                select(Payment)
+                .where(Payment.user_id == current_user.id, Payment.status == "paid")
+                .order_by(Payment.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if paid:
+            return {"activated": False, "reason": "already_paid", "payment_id": paid.id}
+        return {"activated": False, "reason": "no_pending_payment"}
+
+    plan = get_plan(payment.plan_code)
+    interval_days = plan["interval_days"] if plan else 30
+    now = datetime.now(timezone.utc)
+    new_exp = now + timedelta(days=interval_days)
+
+    try:
+        await db.execute(
+            sa_text(
+                "UPDATE payments SET status='paid', paid_at=:now, expires_at=:exp "
+                "WHERE id=:pid AND user_id=:uid"
+            ),
+            {"now": now, "exp": new_exp, "pid": payment.id, "uid": current_user.id},
+        )
+        await db.execute(
+            sa_text(
+                "UPDATE users SET is_pro=TRUE, subscription_expires_at=:exp, granted_by_admin=FALSE "
+                "WHERE id=:uid"
+            ),
+            {"exp": new_exp, "uid": current_user.id},
+        )
+        await db.commit()
+    except Exception as exc:
+        logger.exception("force-activate SQL UPDATE failed for user %s", current_user.id)
+        raise HTTPException(status_code=500, detail=f"Activation failed: {exc}")
+
+    logger.info(
+        "Payment %s force-activated for user %s. expires=%s",
+        payment.id, current_user.id, new_exp,
+    )
+    return {
+        "activated": True,
+        "payment_id": payment.id,
+        "subscription_expires_at": new_exp.isoformat(),
+        "message": "Pro activated. Refresh the app.",
+    }
+
+
+
 
 
 @router.get("/verify/{tracker}", response_model=CheckoutVerifyResponse)
@@ -289,14 +442,18 @@ async def confirm_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
 
     if payment.status == "pending":
-        # Trust the success-page redirect directly. Safepay only redirects
-        # the buyer to ``success_url`` after a captured payment — failed /
-        # cancelled flows go to ``cancel_url``. An authenticated owner
-        # landing here is therefore strong evidence that the payment
-        # completed. Skipping the Safepay API probe (which probes 5
-        # candidate paths, each up to 10 s) keeps this endpoint fast and
-        # reliable. Activation is idempotent (returns False if already paid).
-        activated = await _activate_payment(payment=payment, db=db)
+        try:
+            activated = await _activate_payment(payment=payment, db=db)
+        except Exception:
+            logger.exception(
+                "Payment %s: _activate_payment raised an exception. "
+                "Check DB schema — subscription_expires_at / granted_by_admin columns may be missing.",
+                payment.id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Payment activation failed. Please contact support.",
+            )
         if activated:
             await db.commit()
             await db.refresh(payment)

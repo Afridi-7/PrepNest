@@ -949,6 +949,14 @@ class ApiClient {
     );
   }
 
+  async forceActivatePro(): Promise<{ activated: boolean; reason?: string; payment_id?: string; subscription_expires_at?: string; message?: string }> {
+    return this.request("/payments/force-activate", "POST");
+  }
+
+  async debugMyPaymentState(): Promise<Record<string, unknown>> {
+    return this.request("/payments/debug/me");
+  }
+
   async listSubjects(): Promise<Subject[]> {
     return this.request<Subject[]>("/usat/subjects");
   }

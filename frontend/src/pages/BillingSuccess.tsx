@@ -193,14 +193,22 @@ export default function BillingSuccess() {
                 click <strong>Activate Pro Access</strong> below to unlock your subscription immediately.
               </p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                {paymentId && (
                   <Button
                     className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
                     onClick={async () => {
                       setState("checking");
                       try {
-                        const c = await apiClient.confirmPayment(paymentId);
-                        if (c.status === "paid" || c.is_pro) {
+                        // Try the targeted confirm first, then the force-activate fallback.
+                        let activated = false;
+                        if (paymentId) {
+                          const c = await apiClient.confirmPayment(paymentId);
+                          activated = c.status === "paid" || c.is_pro;
+                        }
+                        if (!activated) {
+                          const f = await apiClient.forceActivatePro();
+                          activated = f.activated === true;
+                        }
+                        if (activated) {
                           await queryClient.refetchQueries({ queryKey: ME_QUERY_KEY });
                           setState("paid");
                         } else {
@@ -213,7 +221,6 @@ export default function BillingSuccess() {
                   >
                     Activate Pro Access
                   </Button>
-                )}
                 <Button onClick={() => window.location.reload()} variant="outline">
                   Refresh status
                 </Button>
