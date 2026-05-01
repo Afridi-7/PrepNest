@@ -9,8 +9,13 @@ class HistoryService:
         self.conversation_repo = ConversationRepository(db)
         self.message_repo = MessageRepository(db)
 
-    async def list_conversations(self, user_id: str) -> list[dict]:
-        rows = await self.conversation_repo.list_for_user(user_id)
+    async def list_conversations(
+        self,
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        rows = await self.conversation_repo.list_for_user(user_id, limit=limit, offset=offset)
         return [
             {
                 "id": row.id,
@@ -20,6 +25,9 @@ class HistoryService:
             }
             for row in rows
         ]
+
+    async def count_conversations(self, user_id: str) -> int:
+        return await self.conversation_repo.count_for_user(user_id)
 
     async def get_conversation(self, user_id: str, conversation_id: str) -> dict | None:
         row = await self.conversation_repo.get_by_id(conversation_id, user_id)

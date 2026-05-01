@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { apiClient } from "./services/api";
 import TrialBanner from "./components/TrialBanner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -82,6 +83,7 @@ const App = () => (
           <ScrollToTop />
           <TrialBanner />
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" /></div>}>
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -112,6 +114,7 @@ const App = () => (
             <Route path="/faq" element={<Navigate to="/help#faq" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ErrorBoundary>
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>

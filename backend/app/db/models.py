@@ -69,7 +69,14 @@ class FileAsset(Base):
     filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     storage_path: Mapped[str] = mapped_column(String(512))
-    status: Mapped[str] = mapped_column(String(32), default="uploaded")
+    # Lifecycle: "uploaded" → "pending" → "processing" → "ready"/"indexed"
+    # → terminal "failed". Older rows may use the legacy values
+    # ("uploaded", "indexed") and are still valid; new code should prefer
+    # the canonical set above.
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -424,3 +431,56 @@ class WebhookEvent(Base):
     event_type: Mapped[str] = mapped_column(String(64), index=True)
     payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── AI usage / cost tracking (Phase 5) ────────────────────────────────────
+
+
+class AiUsage(Base):
+    """Per-call OpenAI usage record.
+
+    Written by the AI tutor pipeline after every chat completion / embedding
+    call. Used both for daily quota enforcement (free vs pro tiers can be
+    capped on token spend, not just call count) and for admin analytics.
+
+    All fields are denormalised on purpose so analytics queries don't need to
+    join through ``messages`` / ``conversations``.
+    """
+
+    __tablename__ = "ai_usage"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    model: Mapped[str] = mapped_column(String(64), index=True)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="ok")  # "ok" | "error" | "timeout"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+# ── pgvector document chunks (Phase 3) ────────────────────────────────────
+# This is a deliberately minimal SQLAlchemy declaration. The real table is
+# created with the proper ``vector(N)`` column type by Alembic migration
+# 0002_perf_indexes (which also creates the IVFFlat index). The ORM mapping
+# here is only used for non-vector reads (e.g. fetching chunk_text by id);
+# vector similarity itself goes through ``app.services.pgvector_store``,
+# which executes raw SQL with pgvector operators.
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    file_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chunk_text: Mapped[str] = mapped_column(Text)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Note: ``embedding`` column is created by Alembic (vector(N) on Postgres,
+    # bytea fallback elsewhere) and is intentionally not mapped here.

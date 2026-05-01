@@ -15,11 +15,12 @@ from sqlalchemy import func, select, text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
-from app.api.routers import admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, payments, query_room, site, usat, users
+from app.api.routers import admin_analytics, admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, payments, query_room, site, usat, users
 from app.api.deps import rate_limit
 from app.core.config import get_settings
 from app.core.errors import AppError as _AppError
 from app.core.logging import configure_logging, request_id_ctx, get_request_id
+from app.core.observability import init_sentry
 from app.db.base import Base
 from app.db.models import MCQ, User, Topic, Subject
 from app.db.pg_pool import close_pg_pool, get_pg_pool, init_pg_pool
@@ -30,6 +31,8 @@ from app.services.supabase_storage import ensure_bucket_exists
 
 settings = get_settings()
 configure_logging(logging.DEBUG if settings.app_debug else logging.INFO)
+# Sentry is best-effort — a missing DSN simply disables it.
+init_sentry()
 
 app = FastAPI(title=settings.app_name, version="1.0.0")
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_dir_path)), name="uploads")
@@ -739,6 +742,7 @@ app.include_router(conversations.router, prefix=settings.api_prefix)
 app.include_router(usat.router, prefix=settings.api_prefix)
 app.include_router(mock_tests.router, prefix=settings.api_prefix)
 app.include_router(admin_content.router, prefix=settings.api_prefix)
+app.include_router(admin_analytics.router, prefix=settings.api_prefix)
 app.include_router(ai_learning.router, prefix=settings.api_prefix)
 app.include_router(dashboard.router, prefix=settings.api_prefix)
 app.include_router(site.router, prefix=settings.api_prefix)

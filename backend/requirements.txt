@@ -3,9 +3,11 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 python-dotenv==1.0.1
 sqlalchemy==2.0.41
+alembic==1.13.2
 greenlet==3.2.4
 aiosqlite==0.21.0
 asyncpg==0.30.0
+pgvector==0.3.6
 pydantic==2.12.3
 pydantic-settings==2.10.1
 email-validator==2.2.0
@@ -21,4 +23,5 @@ pillow==11.2.1
 matplotlib==3.10.1
 boto3==1.38.3
 celery==5.5.1
+sentry-sdk[fastapi]==2.18.0
 pytest==8.3.5

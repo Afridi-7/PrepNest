@@ -30,6 +30,10 @@ from app.schemas.user import (
     UserRegisterRequest,
 )
 from app.services.email_service import async_send_password_reset_email, async_send_verification_email
+from app.features.ai_tutor.workers.email_tasks import (
+    enqueue_password_reset_email,
+    enqueue_verification_email,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -68,10 +72,13 @@ def _build_password_reset_url(token: str) -> str:
 async def _send_verification(user, repo: UserRepository) -> None:
     token = create_verification_token(user.id)
     await repo.set_verification_token(user, token)
+    # Phase 2: hand off email delivery to Celery so registration returns
+    # immediately. The helper falls back to inline send if the broker is
+    # unreachable, so a Redis outage never blocks sign-up.
     try:
-        await async_send_verification_email(user.email, _build_verification_url(token))
+        enqueue_verification_email(user.email, _build_verification_url(token))
     except Exception as exc:
-        logger.error("Email send failed for %s: %s", _mask_email(user.email), exc)
+        logger.error("Email enqueue failed for %s: %s", _mask_email(user.email), exc)
 
 
 def _is_reset_token_expired(user) -> bool:
@@ -108,13 +115,13 @@ async def _issue_password_reset(user, repo: UserRepository) -> None:
         requested_at=datetime.now(timezone.utc),
     )
     try:
-        await async_send_password_reset_email(
+        enqueue_password_reset_email(
             user.email,
             _build_password_reset_url(token),
             settings.password_reset_token_exp_minutes,
         )
     except Exception as exc:
-        logger.error("Password reset email send failed for %s: %s", _mask_email(user.email), exc)
+        logger.error("Password reset email enqueue failed for %s: %s", _mask_email(user.email), exc)
 
 
 async def create_user_signup(payload: UserRegisterRequest, db: AsyncSession) -> SignupResponse:

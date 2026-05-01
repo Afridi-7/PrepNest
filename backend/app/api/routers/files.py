@@ -7,7 +7,7 @@ from app.models import User
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.file_repo import FileAssetRepository
 from app.db.session import get_db_session
-from app.schemas.file import FileAssetResponse, FileUploadResponse
+from app.schemas.file import FileAssetResponse, FileStatusResponse, FileUploadResponse
 from app.services.file_service import FileService
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -97,4 +97,29 @@ async def get_file(
         url=asset.storage_path,
         metadata=asset.metadata_json or {},
         created_at=asset.created_at,
+    )
+
+
+@router.get("/{file_id}/status", response_model=FileStatusResponse)
+async def get_file_status(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    _rl=Depends(rate_limit(120, "files_status")),
+) -> FileStatusResponse:
+    """Lightweight poll endpoint for the upload progress UI.
+
+    Returns the current ``FileAsset.status`` (``pending``, ``processing``,
+    ``ready``/``indexed`` or ``failed``) and any error message recorded by
+    the ingestion worker.
+    """
+    repo = FileAssetRepository(db)
+    asset = await repo.get_by_id(file_id, current_user.id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileStatusResponse(
+        id=asset.id,
+        status=asset.status,
+        error=asset.error_message,
+        processed_at=asset.processed_at,
     )

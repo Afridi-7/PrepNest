@@ -21,14 +21,28 @@ class ConversationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_for_user(self, user_id: str, limit: int = 50) -> list[Conversation]:
+    async def list_for_user(
+        self,
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[Conversation]:
         result = await self.db.execute(
             select(Conversation)
             .where(Conversation.user_id == user_id)
             .order_by(desc(Conversation.updated_at), desc(Conversation.created_at))
             .limit(limit)
+            .offset(offset)
         )
         return list(result.scalars().all())
+
+    async def count_for_user(self, user_id: str) -> int:
+        from sqlalchemy import func
+
+        result = await self.db.execute(
+            select(func.count(Conversation.id)).where(Conversation.user_id == user_id)
+        )
+        return int(result.scalar_one() or 0)
 
     async def rename_if_default(self, conversation: Conversation, new_title: str) -> None:
         if conversation.title == "New Conversation":

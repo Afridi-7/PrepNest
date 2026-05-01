@@ -18,3 +18,12 @@ class FileAssetResponse(BaseModel):
     url: str
     metadata: dict
     created_at: datetime
+
+
+class FileStatusResponse(BaseModel):
+    """Lightweight status payload for the upload progress poller."""
+
+    id: str
+    status: str  # "pending" | "processing" | "ready" | "indexed" | "failed"
+    error: str | None = None
+    processed_at: datetime | None = None
