@@ -459,11 +459,17 @@ async def confirm_payment(
             await db.refresh(payment)
             logger.info("Payment %s activated via success-page confirm.", payment.id)
         else:
+            # Activation returned False AND the row is still pending — this
+            # means the ORM mutation didn't take (rare but possible if the
+            # session detached the row). Fall back to a raw atomic UPDATE
+            # so the user is not left stranded.
             logger.warning(
-                "Payment %s confirm: _activate_payment returned False "
-                "(status=%s, plan=%s, user=%s). No change made.",
-                payment.id, payment.status, payment.plan_code, payment.user_id,
+                "Payment %s: _activate_payment returned False while still pending. "
+                "Falling back to raw SQL UPDATE.",
+                payment.id,
             )
+            await _raw_sql_activate(payment=payment, db=db)
+            await db.refresh(payment)
         # Refresh so the response reflects the committed state.
         await db.refresh(current_user)
 
@@ -514,11 +520,29 @@ async def _activate_payment(
 ) -> bool:
     """Mark a pending Payment as paid and grant Pro to its user.
 
-    Idempotent: returns False if the payment is already paid/refunded.
-    Returns True on a successful activation. Caller is responsible for
-    awaiting ``db.commit()``.
+    Idempotent and race-safe: takes a row-level lock on the Payment so
+    two concurrent webhook deliveries (or webhook + /confirm) can never
+    double-extend the subscription. Returns False if the payment is
+    already paid/refunded. Returns True on a successful activation.
+    Caller is responsible for awaiting ``db.commit()``.
     """
+    # Re-fetch the payment row WITH a lock so concurrent activations
+    # serialize. Falls back gracefully on backends without FOR UPDATE
+    # (e.g. SQLite in tests).
+    try:
+        locked = (
+            await db.execute(
+                select(Payment).where(Payment.id == payment.id).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if locked is not None:
+            payment = locked
+    except Exception:
+        # SQLite doesn't support FOR UPDATE; fall through to non-locked path.
+        pass
+
     if payment.status == "paid":
+        logger.info("Payment %s already paid — activation is a no-op.", payment.id)
         return False
     plan = get_plan(payment.plan_code)
     if plan is None:
@@ -532,6 +556,7 @@ async def _activate_payment(
         await db.execute(select(User).where(User.id == payment.user_id))
     ).scalar_one_or_none()
     if user is None:
+        logger.error("Payment %s: user %s not found", payment.id, payment.user_id)
         return False
     now = datetime.now(timezone.utc)
     current_exp = user.subscription_expires_at
@@ -545,7 +570,52 @@ async def _activate_payment(
     user.is_pro = True
     user.subscription_expires_at = new_exp
     user.granted_by_admin = False
+    logger.info(
+        "Payment %s activated. user=%s plan=%s expires_at=%s",
+        payment.id, user.id, payment.plan_code, new_exp.isoformat(),
+    )
     return True
+
+
+async def _raw_sql_activate(*, payment: Payment, db: AsyncSession) -> bool:
+    """Last-resort raw SQL activation. Used when ORM activation reports
+    failure but the payment is still pending (e.g. detached session,
+    odd race). Atomically flips status='paid' and grants Pro. Idempotent.
+    """
+    from sqlalchemy import text as sa_text
+
+    plan = get_plan(payment.plan_code)
+    interval_days = plan["interval_days"] if plan else 30
+    now = datetime.now(timezone.utc)
+    new_exp = now + timedelta(days=interval_days)
+    try:
+        await db.execute(
+            sa_text(
+                "UPDATE payments SET status='paid', paid_at=:now, expires_at=:exp "
+                "WHERE id=:pid AND status='pending'"
+            ),
+            {"now": now, "exp": new_exp, "pid": payment.id},
+        )
+        await db.execute(
+            sa_text(
+                "UPDATE users SET is_pro=TRUE, subscription_expires_at=:exp, granted_by_admin=FALSE "
+                "WHERE id=:uid"
+            ),
+            {"exp": new_exp, "uid": payment.user_id},
+        )
+        await db.commit()
+        logger.info(
+            "Payment %s activated via RAW SQL fallback. user=%s expires_at=%s",
+            payment.id, payment.user_id, new_exp.isoformat(),
+        )
+        return True
+    except Exception:
+        logger.exception(
+            "Payment %s: raw SQL activation failed. user=%s",
+            payment.id, payment.user_id,
+        )
+        await db.rollback()
+        return False
 
 
 async def _try_activate_via_safepay_api(
@@ -739,8 +809,21 @@ async def safepay_webhook(
         )
 
     event_id = _extract_event_id(event, raw)
-    event_type = str(event.get("type") or event.get("event") or "unknown")[:64]
+    # Safepay's actual webhook payload uses ``notification_type`` (e.g.
+    # "payment.captured"). Older docs / dashboard test events use
+    # ``type`` or ``event``. Accept all three so logging is meaningful
+    # and ``_is_success_event`` can branch on the type string.
+    event_type = str(
+        event.get("type")
+        or event.get("event")
+        or event.get("notification_type")
+        or "unknown"
+    )[:64]
     payload_hash = hashlib.sha256(raw).hexdigest()
+    logger.info(
+        "Safepay webhook accepted. event_id=%s event_type=%s hmac_ok=%s api_verified=%s skip_verify=%s",
+        event_id, event_type, hmac_ok, api_verified, skip_verify,
+    )
 
     # Idempotency guard: insert the event id; if it already exists, no-op.
     db.add(

@@ -42,12 +42,21 @@ export default function BillingSuccess() {
     let cancelled = false;
     let attempt = 0;
     let confirmAttempted = false;
+    let forceActivateAttempted = false;
 
     const markPaid = async () => {
-      // Force an immediate refetch so the dashboard receives fresh user data
-      // (is_pro=true) before the auto-redirect fires. invalidateQueries is
-      // fire-and-forget; refetchQueries awaits the network call.
+      // Force a synchronous refetch on /me so the dashboard receives
+      // fresh user data (is_pro=true) before the auto-redirect fires.
+      // Then invalidate every other cache that surfaces Pro state so no
+      // page renders stale "Free" UI after activation. invalidateQueries
+      // is fire-and-forget and is the correct primitive here — the
+      // affected pages will refetch on their next mount/focus.
       await queryClient.refetchQueries({ queryKey: ME_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["practice-status"] });
+      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       if (!cancelled) setState("paid");
     };
 
@@ -95,6 +104,24 @@ export default function BillingSuccess() {
         }
 
         if (attempt >= POLL_ATTEMPTS) {
+          // Last-resort safety net: try the raw-SQL force-activate
+          // endpoint once before declaring "pending". This bypasses
+          // every ORM and webhook concern and is idempotent — if the
+          // payment isn't actually paid, it returns activated=false
+          // and we land on the manual-button screen as before.
+          if (!forceActivateAttempted) {
+            forceActivateAttempted = true;
+            try {
+              const f = await apiClient.forceActivatePro();
+              if (cancelled) return;
+              if (f.activated || f.reason === "already_paid") {
+                await markPaid();
+                return;
+              }
+            } catch {
+              // fall through to pending state
+            }
+          }
           setState("pending");
           return;
         }

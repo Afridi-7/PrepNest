@@ -129,8 +129,11 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
 
 
 def is_user_pro(user: User) -> bool:
-    """Return True if the user has pro access (paid or admin)."""
-    return bool(user.is_pro or user.is_admin)
+    """Return True if the user has pro access (paid, admin, or non-expired
+    subscription). Uses the same expiry-aware check that ``/users/me``
+    surfaces so the auth gate and the UI agree on who is Pro.
+    """
+    return UserRepository.is_currently_pro(user)
 
 
 async def get_current_pro_user(current_user: User = Depends(get_current_user)) -> User:
