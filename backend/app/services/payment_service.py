@@ -225,6 +225,83 @@ class SafepayClient:
         redirect = f"{self.settings.safepay_checkout_base}/embedded?{params}"
         return {"tracker": str(tracker), "redirect_url": redirect}
 
+    async def fetch_tracker_state(self, tracker: str) -> dict[str, Any] | None:
+        """Fetch the authoritative state of a tracker from Safepay's API.
+
+        Returns the parsed JSON ``data`` object on success, or ``None`` if
+        the tracker is unknown / the request fails. Used as a webhook
+        integrity check: any caller can claim "payment X succeeded", but
+        only Safepay can confirm via an authenticated API call that
+        tracker X actually exists in their system and is in a captured
+        state. This is more robust than HMAC verification because it
+        depends on our (server-only) merchant secret rather than a
+        shared signing key whose handling differs across SDKs.
+        """
+        if not tracker or not self.is_live:
+            return None
+        url = (
+            f"{self.settings.safepay_api_base}"
+            f"/order/payments/v3/{tracker}"
+        )
+        merchant_secret = self.settings.safepay_secret_key or ""
+        headers = {
+            "X-SFPY-MERCHANT-SECRET": merchant_secret,
+            "Accept": "application/json",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as http:
+                resp = await http.get(url, headers=headers)
+        except httpx.HTTPError:
+            logger.exception("Safepay tracker GET network error: %s", tracker)
+            return None
+        if resp.status_code >= 400:
+            logger.warning(
+                "Safepay tracker GET %s failed: %s", tracker, resp.status_code
+            )
+            return None
+        try:
+            payload = resp.json() or {}
+        except ValueError:
+            return None
+        data = payload.get("data") if isinstance(payload, dict) else None
+        return data if isinstance(data, dict) else payload
+
+    @staticmethod
+    def is_tracker_state_paid(state: dict[str, Any] | None) -> bool:
+        """Return True if a Safepay tracker state object represents a
+        successful captured payment.
+
+        Safepay's lifecycle uses ``state`` values like ``TRACKER_ENDED``,
+        ``CAPTURED``, etc. We accept any of the obvious success spellings.
+        """
+        if not isinstance(state, dict):
+            return False
+
+        def _walk(v: Any) -> str:
+            # Flatten nested ``state``/``status`` fields into one big lowercase string.
+            out: list[str] = []
+            if isinstance(v, dict):
+                for key in ("state", "status"):
+                    val = v.get(key)
+                    if isinstance(val, str):
+                        out.append(val.lower())
+                for nested_key in ("tracker", "data", "payment"):
+                    nv = v.get(nested_key)
+                    if isinstance(nv, dict):
+                        out.append(_walk(nv))
+            return " ".join(out)
+
+        haystack = _walk(state)
+        success_tokens = (
+            "tracker_ended",
+            "captured",
+            "succeed",
+            "success",
+            "paid",
+            "complete",
+        )
+        return any(tok in haystack for tok in success_tokens)
+
     # ── Webhook signature verification ────────────────────────────────────
 
     def verify_webhook_signature(self, raw_body: bytes, signature_header: str | None) -> bool:

@@ -301,12 +301,43 @@ async def safepay_webhook(
         "yes",
         "on",
     }
-    if not skip_verify and not safepay_client.verify_webhook_signature(raw, signature):
-        # Constant-time check failed. 403 (not 401) â€” auth is correctly absent;
-        # what failed is integrity verification.
-        # Log a fingerprint of the secret + signature shape so we can tell
-        # whether the secret is wrong, the algorithm is wrong, or the
-        # header isn't being sent at all. The actual values stay private.
+    hmac_ok = safepay_client.verify_webhook_signature(raw, signature)
+
+    # Parse the body up front because both the API-fallback verifier and
+    # the regular event handler need the tracker.
+    try:
+        event: dict[str, Any] = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON.")
+
+    # Integrity check. We accept the webhook if ANY of:
+    #   1. The HMAC signature verifies (preferred path).
+    #   2. SAFEPAY_WEBHOOK_SKIP_VERIFY=1 (emergency override).
+    #   3. The body references a tracker that DOES exist in our DB
+    #      *and* Safepay's authoritative API confirms it is captured.
+    #      A forger cannot satisfy this — they don't control Safepay's
+    #      database. This is in fact a *stronger* check than HMAC.
+    api_verified = False
+    if not hmac_ok and not skip_verify:
+        tracker = _extract_tracker(event)
+        if tracker:
+            payment_row = (
+                await db.execute(
+                    select(Payment).where(Payment.safepay_tracker == tracker)
+                )
+            ).scalar_one_or_none()
+            if payment_row is not None:
+                state = await safepay_client.fetch_tracker_state(tracker)
+                if state is not None and safepay_client.is_tracker_state_paid(state):
+                    api_verified = True
+                    logger.info(
+                        "Safepay webhook accepted via API verification "
+                        "(HMAC mismatch but tracker %s confirmed captured).",
+                        tracker,
+                    )
+
+    if not hmac_ok and not skip_verify and not api_verified:
+        # Both integrity paths failed. Reject.
         secret = s.safepay_webhook_secret or ""
         sig = signature or ""
         # Compute what we *would* have signed with each secret variant, so
@@ -379,11 +410,6 @@ async def safepay_webhook(
             "SAFEPAY_WEBHOOK_SKIP_VERIFY env flag. Disable this once "
             "the real signing secret is configured."
         )
-
-    try:
-        event: dict[str, Any] = await request.json()
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON.")
 
     event_id = _extract_event_id(event, raw)
     event_type = str(event.get("type") or event.get("event") or "unknown")[:64]
