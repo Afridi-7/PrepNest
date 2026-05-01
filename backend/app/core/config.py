@@ -111,6 +111,14 @@ class Settings(BaseSettings):
     safepay_secret_key: str = ""
     safepay_webhook_secret: str = ""
     safepay_env: str = "sandbox"  # "sandbox" | "production"
+    # Emergency override: when "1"/"true", the webhook handler will
+    # process events WITHOUT verifying the HMAC signature. ONLY use
+    # this temporarily while debugging a signing-secret mismatch.
+    # The handler still requires a valid Safepay-shaped payload and
+    # a known event id, so it isn't a wide-open hole, but it removes
+    # the integrity guarantee — turn it back off as soon as the real
+    # secret is sorted.
+    safepay_webhook_skip_verify: str = "0"
 
     @property
     def safepay_api_base(self) -> str:

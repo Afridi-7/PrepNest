@@ -294,27 +294,65 @@ async def safepay_webhook(
         or request.headers.get("x-sfpy-merchant-signature")
         or request.headers.get("x-sfpy-webhook-signature")
     )
-    if not safepay_client.verify_webhook_signature(raw, signature):
+    s = get_settings()
+    skip_verify = str(s.safepay_webhook_skip_verify or "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if not skip_verify and not safepay_client.verify_webhook_signature(raw, signature):
         # Constant-time check failed. 403 (not 401) â€” auth is correctly absent;
         # what failed is integrity verification.
         # Log a fingerprint of the secret + signature shape so we can tell
         # whether the secret is wrong, the algorithm is wrong, or the
         # header isn't being sent at all. The actual values stay private.
-        s = get_settings()
         secret = s.safepay_webhook_secret or ""
         sig = signature or ""
+        # Compute what we *would* have signed with each secret variant, so
+        # the user can paste these into Safepay's dashboard test tool or
+        # cross-check against their support team without leaking the
+        # secret itself. We log only the first 16 hex chars of each.
+        try:
+            import hmac as _hmac
+            import hashlib as _hashlib
+
+            secret_bytes = secret.encode()
+            try:
+                secret_hex_bytes = bytes.fromhex(secret) if secret else b""
+            except ValueError:
+                secret_hex_bytes = b""
+            ours_str_512 = _hmac.new(secret_bytes, raw, _hashlib.sha512).hexdigest()
+            ours_hex_512 = (
+                _hmac.new(secret_hex_bytes, raw, _hashlib.sha512).hexdigest()
+                if secret_hex_bytes
+                else "n/a"
+            )
+        except Exception:
+            ours_str_512 = ours_hex_512 = "err"
         logger.error(
             "Safepay webhook signature mismatch: header_present=%s sig_len=%d "
-            "sig_prefix=%r secret_set=%s secret_len=%d secret_prefix=%r body_len=%d",
+            "sig_prefix=%r secret_set=%s secret_len=%d secret_prefix=%r "
+            "body_len=%d body_sha256_prefix=%r ours_str512_prefix=%r "
+            "ours_hex512_prefix=%r",
             bool(signature),
             len(sig),
-            sig[:8],
+            sig[:16],
             bool(secret),
             len(secret),
             secret[:4],
             len(raw),
+            hashlib.sha256(raw).hexdigest()[:16],
+            ours_str_512[:16],
+            ours_hex512[:16],
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature.")
+    if skip_verify:
+        logger.warning(
+            "Safepay webhook signature verification BYPASSED via "
+            "SAFEPAY_WEBHOOK_SKIP_VERIFY env flag. Disable this once "
+            "the real signing secret is configured."
+        )
 
     try:
         event: dict[str, Any] = await request.json()
