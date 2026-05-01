@@ -347,7 +347,7 @@ const QueryRoom = () => {
                 type="search"
                 value={tagSearch}
                 onChange={(e) => setTagSearch(e.target.value)}
-                placeholder="Search hashtags like #chemistry or #debrecen"
+                placeholder="Search hashtags like #chemistry  or  #debrecen"
                 className="pl-9"
               />
             </div>

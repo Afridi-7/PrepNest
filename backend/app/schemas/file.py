@@ -15,5 +15,6 @@ class FileAssetResponse(BaseModel):
     filename: str
     content_type: str | None
     status: str
+    url: str
     metadata: dict
     created_at: datetime

@@ -1,6 +1,7 @@
 import json
 import logging
 
+from app.core.config import get_settings
 from app.features.ai_tutor.agents.base import AgentContext
 from app.services.llm_service import llm_service
 
@@ -45,7 +46,14 @@ class RouterAgent:
                     f"Recent history: {history_summary or 'none'}"
                 )},
             ]
-            raw = await llm_service.complete(messages, temperature=0.0)
+            raw = await llm_service.complete(
+                messages,
+                # Routing is purely classification — cheap/fast model is
+                # sufficient and avoids burning tutor-model tokens on
+                # every request before generation even starts.
+                model=get_settings().router_model,
+                temperature=0.0,
+            )
             # Strip markdown fences if present
             cleaned = raw.strip()
             if cleaned.startswith("```"):

@@ -5,8 +5,9 @@ from app.api.deps import get_current_user, rate_limit
 from app.core.config import get_settings
 from app.models import User
 from app.db.repositories.conversation_repo import ConversationRepository
+from app.db.repositories.file_repo import FileAssetRepository
 from app.db.session import get_db_session
-from app.schemas.file import FileUploadResponse
+from app.schemas.file import FileAssetResponse, FileUploadResponse
 from app.services.file_service import FileService
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -75,3 +76,25 @@ async def upload_file(
         conversation_id=conversation_id,
     )
     return FileUploadResponse(**result)
+
+
+@router.get("/{file_id}", response_model=FileAssetResponse)
+async def get_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> FileAssetResponse:
+    """Return metadata and the Supabase public URL for an uploaded file."""
+    repo = FileAssetRepository(db)
+    asset = await repo.get_by_id(file_id, current_user.id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileAssetResponse(
+        id=asset.id,
+        filename=asset.filename,
+        content_type=asset.content_type,
+        status=asset.status,
+        url=asset.storage_path,
+        metadata=asset.metadata_json or {},
+        created_at=asset.created_at,
+    )

@@ -108,6 +108,41 @@ class CacheService:
             bucket.append(now)
             return True
 
+    async def check_hourly_rate_limit(self, key: str, limit_per_hour: int) -> tuple[bool, int]:
+        """Increment a per-user per-clock-hour counter and return (allowed, retry_after_seconds).
+
+        ``retry_after_seconds`` is the number of seconds remaining until the
+        top of the next UTC hour — suitable for the ``Retry-After`` header.
+
+        On Redis the key format is ``rl:hourly:{key}:{YYYYMMDDHH}`` with a TTL
+        of 3700 s (a little over one hour to absorb clock-skew).  On the
+        in-memory fallback a 3600-second sliding window is used instead.
+        """
+        now = datetime.now(timezone.utc)
+        seconds_until_reset = (59 - now.minute) * 60 + (60 - now.second)
+
+        if self._redis:
+            try:
+                bucket_key = f"rl:hourly:{key}:{now.strftime('%Y%m%d%H')}"
+                count = await self._redis.incr(bucket_key)
+                if count == 1:
+                    # Set TTL only on first write; avoids resetting the window
+                    # on every request.
+                    await self._redis.expire(bucket_key, 3700)
+                return count <= limit_per_hour, seconds_until_reset
+            except Exception as exc:
+                logger.warning("Redis error in check_hourly_rate_limit: %s", exc)
+                return True, seconds_until_reset  # degrade gracefully
+
+        async with self._lock:
+            bucket = self._rate_limit_buckets[f"hourly:{key}"]
+            while bucket and (now - bucket[0]).total_seconds() > 3600:
+                bucket.popleft()
+            if len(bucket) >= limit_per_hour:
+                return False, seconds_until_reset
+            bucket.append(now)
+            return True, seconds_until_reset
+
     async def check_daily_quota(self, key: str, limit_per_day: int) -> bool:
         """Increment a per-day counter and return False once the cap is hit.
 

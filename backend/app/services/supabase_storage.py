@@ -103,26 +103,28 @@ def upload_bytes(data: bytes, path: str, content_type: str | None = None) -> str
     """Upload *data* to *path* inside the configured bucket (sync version).
 
     Returns the **public URL** of the uploaded object.
-    Falls back to local-disk write when Supabase is not configured.
+    Raises ``RuntimeError`` if Supabase Storage is not configured.
     """
+    if not _is_supabase_configured():
+        raise RuntimeError(
+            "Supabase Storage is not configured. "
+            "Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables."
+        )
     settings = _settings()
     mime = content_type or _guess_mime(path)
-
-    if _is_supabase_configured():
-        return _upload_supabase(data, path, mime, settings)
-
-    return _save_local(data, path, settings)
+    return _upload_supabase(data, path, mime, settings)
 
 
 async def async_upload_bytes(data: bytes, path: str, content_type: str | None = None) -> str:
     """Async version of upload_bytes — won't block the event loop."""
+    if not _is_supabase_configured():
+        raise RuntimeError(
+            "Supabase Storage is not configured. "
+            "Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables."
+        )
     settings = _settings()
     mime = content_type or _guess_mime(path)
-
-    if _is_supabase_configured():
-        return await _async_upload_supabase(data, path, mime, settings)
-
-    return await asyncio.to_thread(_save_local, data, path, settings)
+    return await _async_upload_supabase(data, path, mime, settings)
 
 
 # -- Supabase path ---------------------------------------------------------
@@ -174,16 +176,6 @@ async def _async_upload_supabase(data: bytes, path: str, mime: str, settings) ->
     public_url = f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
     logger.info("Uploaded to Supabase: %s", public_url)
     return public_url
-
-
-# -- Local fallback --------------------------------------------------------
-
-
-def _save_local(data: bytes, path: str, settings) -> str:
-    dest = settings.upload_dir_path / path
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-    return f"/uploads/{path}"
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+from app.core.config import get_settings
 from app.features.ai_tutor.agents.base import AgentContext, AgentOutput
 from app.services.llm_service import llm_service
 
@@ -80,12 +81,12 @@ class TutorAgent:
 
     async def generate_answer(self, ctx: AgentContext, compiled_context: dict) -> AgentOutput:
         messages = self._build_messages(ctx, compiled_context)
-        answer = await llm_service.complete(messages, temperature=0.3)
+        answer = await llm_service.complete(messages, model=get_settings().tutor_model, temperature=0.3)
         return AgentOutput(name=self.name, content=answer)
 
     async def stream_answer(self, ctx: AgentContext, compiled_context: dict) -> AsyncGenerator[str, None]:
         messages = self._build_messages(ctx, compiled_context)
-        async for token in llm_service.stream_complete(messages, temperature=0.3):
+        async for token in llm_service.stream_complete(messages, model=get_settings().tutor_model, temperature=0.3):
             yield token
 
     def _build_messages(self, ctx: AgentContext, compiled_context: dict) -> list[dict]:

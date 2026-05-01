@@ -25,8 +25,5 @@ class StorageService:
         guessed, _ = mimetypes.guess_type(path)
         return guessed or fallback
 
-    def as_path(self, storage_path: str) -> Path:
-        return Path(storage_path)
-
 
 storage_service = StorageService()

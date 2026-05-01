@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     )
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
+    # Model used for the query-routing classifier. Routing is a simple
+    # classification task (structured JSON output, no generation), so a
+    # cheaper/faster model is sufficient and meaningfully reduces per-request
+    # cost compared to the full tutor model.
+    router_model: str = "gpt-4o-mini"
+    # Model used for the main tutor / answer-generation agents. Falls back to
+    # openai_model when not explicitly set.
+    tutor_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
     web_search_api_url: str | None = None
     web_search_api_key: str | None = None
