@@ -76,9 +76,16 @@ class SafepayClient:
 
     @property
     def is_live(self) -> bool:
-        """True only when both keys are configured. In dev/test we fall back
-        to a mock flow so contributors don't need real Safepay credentials."""
-        return bool(self.settings.safepay_secret_key and self.settings.safepay_api_key)
+        """True only when the credentials we actually use are configured.
+
+        The real flow needs the merchant API key (sent in the order body)
+        and the webhook secret (sent as ``X-SFPY-MERCHANT-SECRET`` on every
+        request). In dev/test we fall back to a mock flow so contributors
+        don't need real Safepay credentials.
+        """
+        return bool(
+            self.settings.safepay_api_key and self.settings.safepay_webhook_secret
+        )
 
     async def _post_json(
         self,
@@ -87,26 +94,21 @@ class SafepayClient:
         *,
         timeout: float = 15.0,
     ) -> dict[str, Any]:
-        """POST helper. Sends both the secret (Authorization) and the public
-        key (X-SFPY-MERCHANT-API-KEY); endpoints accept whichever they need
-        and ignore the other. Adds the webhook secret header for TBT requests."""
+        """POST helper.
+
+        The official Safepay PHP SDK authenticates EVERY request with a
+        single header: ``X-SFPY-MERCHANT-SECRET: <webhook_secret>``. The
+        ``merchant_api_key`` (the ``sec_…`` public key) is passed in the
+        request body for endpoints that need it (e.g. ``/order/payments/v3/``).
+        See https://github.com/getsafepay/sfpy-php/blob/main/lib/ApiRequestor.php
+        """
         url = f"{self.settings.safepay_api_base}{path}"
+        secret = self.settings.safepay_webhook_secret or ""
         headers = {
-            "Authorization": f"Bearer {self.settings.safepay_secret_key}",
-            "X-SFPY-MERCHANT-API-KEY": self.settings.safepay_api_key,
+            "X-SFPY-MERCHANT-SECRET": secret,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        # Safepay now requires the webhook secret header for TBT requests.
-        if path == "/client/passport/v1/token":
-            secret = self.settings.safepay_webhook_secret or ""
-            logger.error(
-                "DEBUG: webhook secret len=%d startswith=%r endswith=%r",
-                len(secret),
-                secret[:4],
-                secret[-4:],
-            )
-            headers["X-SFPY-MERCHANT-WEBHOOK-SECRET"] = secret
         try:
             async with httpx.AsyncClient(timeout=timeout) as http:
                 resp = await http.post(url, json=body, headers=headers)
