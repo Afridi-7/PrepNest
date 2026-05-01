@@ -1,3 +1,4 @@
+import random
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -41,12 +42,25 @@ USAT_CATEGORIES: dict[str, dict[str, str]] = {
 }
 
 
+_CATEGORIES_CACHE_KEY = "usat:categories"
+_CATEGORIES_TTL = 3600  # 1 h — pure in-memory constant, no DB
+
+
 @router.get("/categories", response_model=list[USATCategoryRead])
 async def list_usat_categories() -> list[USATCategoryRead]:
-    return [
+    cached = await cache_service.get_json(_CATEGORIES_CACHE_KEY)
+    if cached is not None:
+        return [USATCategoryRead(**item) for item in cached]
+    data = [
         USATCategoryRead(code=code, title=meta["title"], description=meta["description"])
         for code, meta in USAT_CATEGORIES.items()
     ]
+    await cache_service.set_json(
+        _CATEGORIES_CACHE_KEY,
+        [item.model_dump(mode="json") for item in data],
+        ttl_seconds=_CATEGORIES_TTL,
+    )
+    return data
 
 
 import asyncio
@@ -130,53 +144,104 @@ async def get_subject_bulk_data(
     )
 
 
+_CATEGORY_SUBJECTS_TTL = 300  # 5 min — rarely changes
+
+
 @router.get("/{category}/subjects", response_model=list[SubjectRead])
 async def list_usat_category_subjects(
     category: str,
     db: AsyncSession = Depends(get_db_session),
 ) -> list[SubjectRead]:
     normalized_category = _validate_category(category)
+    cache_key = f"usat:subjects:{normalized_category}"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return [SubjectRead(**item) for item in cached]
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.ilike(normalized_category))
         .order_by(Subject.id.asc())
     )
+    data = [SubjectRead.model_validate(item) for item in result.scalars().all()]
+    await cache_service.set_json(
+        cache_key,
+        [item.model_dump(mode="json") for item in data],
+        ttl_seconds=_CATEGORY_SUBJECTS_TTL,
+    )
+    return data
 
-    return [SubjectRead.model_validate(item) for item in result.scalars().all()]
+
+_ALL_SUBJECTS_CACHE_KEY = "usat:all_subjects"
 
 
 @router.get("/subjects", response_model=list[SubjectRead])
 async def list_all_usat_subjects(db: AsyncSession = Depends(get_db_session)) -> list[SubjectRead]:
+    cached = await cache_service.get_json(_ALL_SUBJECTS_CACHE_KEY)
+    if cached is not None:
+        return [SubjectRead(**item) for item in cached]
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.in_(list(USAT_CATEGORIES.keys())))
         .order_by(Subject.exam_type.asc(), Subject.id.asc())
     )
-    return [SubjectRead.model_validate(item) for item in result.scalars().all()]
+    data = [SubjectRead.model_validate(item) for item in result.scalars().all()]
+    await cache_service.set_json(
+        _ALL_SUBJECTS_CACHE_KEY,
+        [item.model_dump(mode="json") for item in data],
+        ttl_seconds=_CATEGORY_SUBJECTS_TTL,
+    )
+    return data
+
+
+_ALL_TOPICS_CACHE_KEY = "usat:all_topics"
 
 
 @router.get("/all-topics", response_model=list[TopicRead])
 async def list_all_topics(db: AsyncSession = Depends(get_db_session)) -> list[TopicRead]:
     """Return every topic (chapter) across all USAT subjects in one request."""
+    cached = await cache_service.get_json(_ALL_TOPICS_CACHE_KEY)
+    if cached is not None:
+        return [TopicRead(**item) for item in cached]
     result = await db.execute(
         select(Topic)
         .join(Subject, Topic.subject_id == Subject.id)
         .where(Subject.exam_type.in_(list(USAT_CATEGORIES.keys())))
         .order_by(Topic.subject_id.asc(), Topic.created_at.desc())
     )
-    return [TopicRead.model_validate(item) for item in result.scalars().all()]
+    data = [TopicRead.model_validate(item) for item in result.scalars().all()]
+    await cache_service.set_json(
+        _ALL_TOPICS_CACHE_KEY,
+        [item.model_dump(mode="json") for item in data],
+        ttl_seconds=_CATEGORY_SUBJECTS_TTL,
+    )
+    return data
 
 
 @router.get("/subjects/{subject_id}/chapters", response_model=list[TopicRead])
 async def list_subject_chapters(subject_id: int, db: AsyncSession = Depends(get_db_session)) -> list[TopicRead]:
-    subject = await db.get(Subject, subject_id)
-    if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-
+    cache_key = f"usat:chapters:{subject_id}"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return [TopicRead(**item) for item in cached]
+    # Verify subject exists while fetching chapters in one query
     result = await db.execute(
-        select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.id.asc())
+        select(Topic)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(Topic.subject_id == subject_id)
+        .order_by(Topic.id.asc())
     )
-    return [TopicRead.model_validate(item) for item in result.scalars().all()]
+    rows = result.scalars().all()
+    # Confirm the subject exists (rows can be empty for a valid subject with no topics)
+    subject_check = await db.execute(select(Subject.id).where(Subject.id == subject_id))
+    if subject_check.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    data = [TopicRead.model_validate(item) for item in rows]
+    await cache_service.set_json(
+        cache_key,
+        [item.model_dump(mode="json") for item in data],
+        ttl_seconds=_CATEGORY_SUBJECTS_TTL,
+    )
+    return data
 
 
 @router.get("/chapters/{chapter_id}/materials", response_model=list[MaterialRead])
@@ -343,6 +408,8 @@ async def list_category_practice_mcqs(
     - If `subject_ids` is provided, only MCQs from those subjects are included.
     - Otherwise, MCQs from ALL subjects in the category are returned.
     One request replaces N per-subject calls from the frontend.
+    Uses a fast two-step random selection (fetch IDs → shuffle → fetch rows)
+    to avoid the full-table sort that ORDER BY random() causes on large pools.
     """
     normalized_category = _validate_category(category)
 
@@ -352,7 +419,6 @@ async def list_category_practice_mcqs(
             ids = [int(s.strip()) for s in subject_ids.split(",") if s.strip()]
         except ValueError:
             raise HTTPException(status_code=400, detail="subject_ids must be comma-separated integers")
-        # Verify they belong to the stated category
         result = await db.execute(
             select(Subject.id).where(Subject.exam_type == normalized_category, Subject.id.in_(ids))
         )
@@ -378,12 +444,24 @@ async def list_category_practice_mcqs(
     )
     topic_subj_map: dict[int, int] = {row[0]: row[1] for row in topic_result.all()}
 
-    topic_subq = select(Topic.id).where(Topic.subject_id.in_(valid_ids)).scalar_subquery()
+    # Fast random selection: fetch only IDs (index-only), shuffle in Python,
+    # then fetch the chosen rows by primary key. Avoids ORDER BY random() which
+    # forces a full sequential scan + sort on large MCQ tables.
+    topic_ids = list(topic_subj_map.keys())
+    if not topic_ids:
+        return []
+
+    id_rows = await db.execute(
+        select(MCQ.id).where(MCQ.topic_id.in_(topic_ids))
+    )
+    all_ids = [r[0] for r in id_rows.all()]
+    if not all_ids:
+        return []
+    random.shuffle(all_ids)
+    chosen_ids = all_ids[:limit]
+
     result = await db.execute(
-        select(MCQ)
-        .where(MCQ.topic_id.in_(topic_subq))
-        .order_by(func.random())
-        .limit(limit)
+        select(MCQ).where(MCQ.id.in_(chosen_ids))
     )
     mcqs = []
     for m in result.scalars().all():
@@ -391,6 +469,7 @@ async def list_category_practice_mcqs(
         sid = topic_subj_map.get(m.topic_id)
         mcq.subject_name = subj_name_map.get(sid) if sid else None
         mcqs.append(mcq)
+    random.shuffle(mcqs)  # re-shuffle since IN clause returns in arbitrary order
     return mcqs
 
 
@@ -401,19 +480,35 @@ async def list_subject_practice_mcqs(
     db: AsyncSession = Depends(get_db_session),
     _rl=Depends(rate_limit(120, "practice")),
 ) -> list[MCQRead]:
-    """Return random MCQs across all chapters of a subject (for Practice mode)."""
-    subject = await db.get(Subject, subject_id)
-    if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-
-    topic_subq = select(Topic.id).where(Topic.subject_id == subject_id).scalar_subquery()
-    result = await db.execute(
-        select(MCQ)
-        .where(MCQ.topic_id.in_(topic_subq))
-        .order_by(func.random())
-        .limit(limit)
+    """Return random MCQs across all chapters of a subject (for Practice mode).
+    Uses fast ID-shuffle approach to avoid ORDER BY random() table scan.
+    """
+    topic_ids_q = await db.execute(
+        select(Topic.id).where(Topic.subject_id == subject_id)
     )
-    return [MCQRead.model_validate(m) for m in result.scalars().all()]
+    topic_ids = [r[0] for r in topic_ids_q.all()]
+    if not topic_ids:
+        # subject either doesn't exist or has no topics
+        subject_check = await db.execute(select(Subject.id).where(Subject.id == subject_id))
+        if subject_check.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Subject not found")
+        return []
+
+    id_rows = await db.execute(
+        select(MCQ.id).where(MCQ.topic_id.in_(topic_ids))
+    )
+    all_ids = [r[0] for r in id_rows.all()]
+    if not all_ids:
+        return []
+    random.shuffle(all_ids)
+    chosen_ids = all_ids[:limit]
+
+    result = await db.execute(
+        select(MCQ).where(MCQ.id.in_(chosen_ids))
+    )
+    mcqs = list(result.scalars().all())
+    random.shuffle(mcqs)
+    return [MCQRead.model_validate(m) for m in mcqs]
 
 
 # ── Practice result submission ───────────────────────────────────────────────

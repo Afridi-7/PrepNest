@@ -157,16 +157,23 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
     _CACHEABLE_PREFIXES = (
         f"{settings.api_prefix}/usat/categories",
+        f"{settings.api_prefix}/usat/subjects",
+        f"{settings.api_prefix}/usat/all-topics",
     )
+    # Paths with category-specific subjects (e.g. /usat/USAT-E/subjects)
+    _CACHEABLE_SUFFIX = "/subjects"
 
     async def dispatch(self, request: StarletteRequest, call_next):
         response = await call_next(request)
         if (
             request.method == "GET"
             and response.status_code == 200
-            and any(request.url.path.startswith(p) for p in self._CACHEABLE_PREFIXES)
+            and (
+                any(request.url.path.startswith(p) for p in self._CACHEABLE_PREFIXES)
+                or request.url.path.endswith(self._CACHEABLE_SUFFIX)
+            )
         ):
-            response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+            response.headers["Cache-Control"] = "public, max-age=120, stale-while-revalidate=300"
         return response
 
 
@@ -391,13 +398,23 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             duration_ms = (time.perf_counter() - start) * 1000.0
             path = request.url.path
             if not any(path.startswith(p) for p in self._SKIP_LOG_PREFIXES):
-                logging.getLogger("app.access").info(
-                    "%s %s -> %s in %.1fms",
-                    request.method,
-                    path,
-                    status,
-                    duration_ms,
-                )
+                log = logging.getLogger("app.access")
+                if duration_ms > 500:
+                    log.warning(
+                        "SLOW %s %s -> %s in %.1fms",
+                        request.method,
+                        path,
+                        status,
+                        duration_ms,
+                    )
+                else:
+                    log.info(
+                        "%s %s -> %s in %.1fms",
+                        request.method,
+                        path,
+                        status,
+                        duration_ms,
+                    )
             request_id_ctx.reset(token)
 
 

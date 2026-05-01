@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo, useRef, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   BookOpen, Brain, Target, TrendingUp, Award, AlertTriangle, Flame,
-  BarChart3, ArrowUpRight, Loader2, Trophy, Lock, CheckCircle,
+  BarChart3, ArrowUpRight, Trophy, Lock, CheckCircle,
   Sparkles, Gift, Zap, Calendar, Rocket, Crown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -114,40 +115,30 @@ function buildStreak(userKey: string, opts?: { extraDates?: string[] }): StreakS
 }
 
 const Dashboard = () => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const fetchedRef = useRef(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    apiClient
-      .getDashboardStats()
-      .then((s) => {
-        setStats(s);
-        // Persist the stable user_id so per-user state (streak namespace, "You" detection)
-        // survives reloads even when display names collide across accounts.
-        try {
-          if (s?.user_id) localStorage.setItem("user_id", s.user_id);
-        } catch { /* */ }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const s = await apiClient.getDashboardStats();
+      try {
+        if (s?.user_id) localStorage.setItem("user_id", s.user_id);
+      } catch { /* */ }
+      return s;
+    },
+    staleTime: 45_000, // matches server-side Redis TTL
+    retry: false,
+  });
 
   const isProUser = stats?.is_pro === true;
 
-  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
-
-  const fetchLeaderboard = useCallback(() => {
-    apiClient.getLeaderboard().then(setLeaderboard).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchLeaderboard();
-    const interval = setInterval(fetchLeaderboard, 3_600_000);
-    return () => clearInterval(interval);
-  }, [fetchLeaderboard]);
+  const { data: leaderboard } = useQuery({
+    queryKey: ["leaderboard"],
+    queryFn: () => apiClient.getLeaderboard(),
+    staleTime: 60_000,
+    refetchInterval: 3_600_000,
+    retry: false,
+  });
 
   const userName = stats?.user_name || localStorage.getItem("user_name") || "Student";
   const streakUserKey = stats?.user_id || localStorage.getItem("user_id") || "guest";
@@ -240,7 +231,7 @@ const Dashboard = () => {
       setRewards(r);
       // Pro-trial just got granted server-side: refetch dashboard so is_pro flips
       if (level === 5) {
-        try { const fresh = await apiClient.getDashboardStats(); setStats(fresh); } catch { /* */ }
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       }
     } catch (e) {
       setClaimError(e instanceof Error ? e.message : "Couldn't claim reward");
@@ -384,10 +375,30 @@ const Dashboard = () => {
         </div>
 
         {loading ? (
-          <div className="flex h-[60vh] items-center justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full shadow-xl"
-              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}>
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+          <div className="container relative z-10 mx-auto px-4 max-w-6xl">
+            {/* Hero banner skeleton */}
+            <div className="mb-8 h-40 animate-pulse rounded-3xl bg-gradient-to-r from-indigo-200 via-purple-200 to-sky-200 opacity-60" />
+            {/* Stat cards skeleton row */}
+            <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl bg-white/70 p-5 shadow">
+                  <div className="mb-3 h-3 w-12 rounded bg-slate-200" />
+                  <div className="h-7 w-20 rounded bg-slate-200" />
+                </div>
+              ))}
+            </div>
+            {/* Content area skeletons */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl bg-white/70 p-6 shadow">
+                  <div className="mb-4 h-4 w-32 rounded bg-slate-200" />
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, j) => (
+                      <div key={j} className="h-3 w-full rounded bg-slate-200" />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : (

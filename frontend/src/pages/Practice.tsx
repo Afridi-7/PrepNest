@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Settings,
@@ -65,12 +66,42 @@ const subjectPill = (s: string) => SUBJECT_PILLS[s]?.pill ?? "bg-slate-100 text-
 const Practice = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<"config" | "quiz" | "result" | "essay" | "essay-result">("config");
+  const queryClient = useQueryClient();
 
-  const [categories, setCategories] = useState<USATCategory[]>([]);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["usat-categories"],
+    queryFn: () => apiClient.listUSATCategories(),
+    staleTime: 300_000, // 5 min — matches backend Redis TTL
+    retry: false,
+  });
+
   const [selectedCategory, setSelectedCategory] = useState<USATCategory | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  // Prefetch subjects for every category as soon as the category list lands —
+  // so picking a category shows subjects instantly without a spinner.
+  useEffect(() => {
+    if (!categories.length) return;
+    categories.forEach((cat) => {
+      queryClient.prefetchQuery({
+        queryKey: ["usat-subjects", cat.code],
+        queryFn: () => apiClient.listUSATCategorySubjects(cat.code),
+        staleTime: 300_000,
+      });
+    });
+  }, [categories, queryClient]);
+
+  const { data: rawSubjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ["usat-subjects", selectedCategory?.code],
+    queryFn: () => apiClient.listUSATCategorySubjects(selectedCategory!.code),
+    enabled: !!selectedCategory,
+    staleTime: 300_000,
+    retry: false,
+  });
+
+  const isEssaySubject = (name: string) => /essay/i.test(name);
+  const dbSubjects = rawSubjects.filter((s) => !isEssaySubject(s.name));
+
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [selectedSubjectName, setSelectedSubjectName] = useState("All Subjects");
 
@@ -110,26 +141,6 @@ const Practice = () => {
   const [essayLoading, setEssayLoading] = useState(false);
   const [essayEvaluating, setEssayEvaluating] = useState(false);
 
-  const subjectsCacheRef = useRef<Record<string, Subject[]>>({});
-  const fetchedRef = useRef(false);
-
-  const isEssaySubject = (name: string) => /essay/i.test(name);
-
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    apiClient.listUSATCategories().then((cats) => {
-      setCategories(cats);
-      Promise.all(
-        cats.map((cat) =>
-          apiClient.listUSATCategorySubjects(cat.code).then((subs) => {
-            subjectsCacheRef.current[cat.code] = subs;
-          }).catch(() => {})
-        )
-      );
-    }).catch(() => {});
-  }, []);
-
   useEffect(() => {
     if (!apiClient.isAuthenticated()) return;
     apiClient.getPracticeStatus().then((status) => {
@@ -139,25 +150,6 @@ const Practice = () => {
       if (!status.is_pro) setMcqCount(10);
     }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!selectedCategory) { setDbSubjects([]); return; }
-    const cached = subjectsCacheRef.current[selectedCategory.code];
-    if (cached) {
-      setDbSubjects(cached.filter((s) => !isEssaySubject(s.name)));
-      return;
-    }
-    setLoadingSubjects(true);
-    setSelectedSubjectId(null);
-    setSelectedSubjectName("All Subjects");
-    apiClient.listUSATCategorySubjects(selectedCategory.code)
-      .then((subs) => {
-        subjectsCacheRef.current[selectedCategory.code] = subs;
-        setDbSubjects(subs.filter((s) => !isEssaySubject(s.name)));
-      })
-      .catch(() => setDbSubjects([]))
-      .finally(() => setLoadingSubjects(false));
-  }, [selectedCategory]);
 
   const startQuiz = async () => {
     if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
