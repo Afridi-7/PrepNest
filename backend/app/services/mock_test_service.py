@@ -46,8 +46,10 @@ SCIENCE_SUBJECTS: dict[str, list[tuple[str, int]]] = {
     "USAT-E":   [("Physics", 10), ("Chemistry", 10), ("Mathematics", 10)],
     "USAT-M":   [("Physics", 8),  ("Chemistry", 8),  ("Biology", 14)],
     "USAT-CS":  [("Physics", 8),  ("Computer Science", 14), ("Mathematics", 8)],
-    "USAT-A":   [("Islamiat/Ethics", 10), ("Pakistan Studies", 10), ("General Knowledge", 10)],
-    "USAT-GS":  [("Mathematics", 10), ("Statistics", 10), ("Economics", 10)],
+    # DB stores "Islamic Studies" (not "Islamiat/Ethics") and splits are subject-level
+    "USAT-A":   [("Islamic Studies", 10), ("Pakistan Studies", 10), ("General Knowledge", 10)],
+    # DB stores combined "Statistics / Economics"; Mathematics 15 + combined 15 = 30
+    "USAT-GS":  [("Mathematics", 15), ("Statistics / Economics", 15)],
     "USAT-COM": [("Accounting", 10), ("Commerce", 10), ("Economics", 10)],
 }
 
@@ -233,13 +235,42 @@ async def _fetch_mcqs_for_subjects(
     used_ids: set[int],
     served_ids: set[int],
 ) -> list[MCQ]:
-    """Return MCQs split across subjects per their explicit quotas."""
+    """Return MCQs split across subjects per their explicit quotas.
+
+    Smart top-up: if any subject's pool is too small, the deficit is filled
+    from whichever other subjects in the blueprint still have available MCQs,
+    so the overall section count is met where the data allows.
+    """
     collected: list[MCQ] = []
     total_target = sum(c for _, c in subject_quotas)
+    shortfall = 0
+
     for name, n in subject_quotas:
-        collected.extend(
-            await _fetch_mcqs_for_subject(db, exam_type, name, n, used_ids, served_ids)
-        )
+        picked = await _fetch_mcqs_for_subject(db, exam_type, name, n, used_ids, served_ids)
+        collected.extend(picked)
+        deficit = n - len(picked)
+        if deficit > 0:
+            shortfall += deficit
+            logger.warning(
+                "Subject pool under-stocked: exam_type=%s subject=%r needed=%d got=%d",
+                exam_type, name, n, len(picked),
+            )
+
+    # Top-up: draw extra MCQs from any subject that still has remaining capacity.
+    if shortfall > 0:
+        for name, _ in subject_quotas:
+            if shortfall <= 0:
+                break
+            extra_pool = await _load_subject_pool(db, exam_type, name)
+            extra = _pick_fresh(extra_pool, shortfall, used_ids, served_ids)
+            if extra:
+                collected.extend(extra)
+                shortfall -= len(extra)
+                logger.info(
+                    "Top-up: pulled %d extra MCQs from %r for %s to cover shortfall",
+                    len(extra), name, exam_type,
+                )
+
     random.shuffle(collected)
     return collected[:total_target]
 

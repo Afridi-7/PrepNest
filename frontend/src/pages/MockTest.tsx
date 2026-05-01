@@ -352,8 +352,8 @@ const MockTestPage = () => {
                           "USAT-E":   [["Physics", 10], ["Chemistry", 10], ["Mathematics", 10]],
                           "USAT-M":   [["Physics", 8], ["Chemistry", 8], ["Biology", 14]],
                           "USAT-CS":  [["Physics", 8], ["Computer Science", 14], ["Mathematics", 8]],
-                          "USAT-A":   [["Islamiat/Ethics", 10], ["Pakistan Studies", 10], ["General Knowledge", 10]],
-                          "USAT-GS":  [["Mathematics", 10], ["Statistics", 10], ["Economics", 10]],
+                          "USAT-A":   [["Islamic Studies", 10], ["Pakistan Studies", 10], ["General Knowledge", 10]],
+                          "USAT-GS":  [["Mathematics", 15], ["Statistics / Economics", 15]],
                           "USAT-COM": [["Accounting", 10], ["Commerce", 10], ["Economics", 10]],
                         };
                         const verbal: Array<[string, number]> = [["Analogy", 6], ["Synonym/Antonym", 6], ["Sentence Completion", 8]];
