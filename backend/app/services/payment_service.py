@@ -228,19 +228,44 @@ class SafepayClient:
     # ── Webhook signature verification ────────────────────────────────────
 
     def verify_webhook_signature(self, raw_body: bytes, signature_header: str | None) -> bool:
-        """Verify HMAC-SHA256 signature on the raw webhook body.
+        """Verify the ``X-SFPY-SIGNATURE`` HMAC on the raw webhook body.
 
-        Safepay sends the signature as a hex digest in either
-        ``x-sfpy-signature`` or ``x-sfpy-merchant-signature``. We accept
-        either header. Comparison is constant-time.
+        Safepay's official PHP SDK signs webhooks with **HMAC-SHA512** —
+        see https://github.com/getsafepay/sfpy-php/blob/main/lib/WebhookSignature.php
+        We accept the signature in either ``x-sfpy-signature`` or
+        ``x-sfpy-merchant-signature`` (some older deliveries used the
+        latter) and tolerate an optional ``sha512=`` prefix. As a
+        belt-and-braces measure we also check SHA-256 in case Safepay
+        ever rotates the algorithm — both comparisons are constant-time.
         """
         secret = (self.settings.safepay_webhook_secret or "").encode()
         if not secret or not signature_header:
             return False
-        expected = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
-        # Strip any algorithm prefix like "sha256=" if Safepay adds one.
         provided = signature_header.split("=", 1)[-1].strip().lower()
-        return hmac.compare_digest(expected, provided)
+        for algo in ("sha512", "sha256"):
+            expected = hmac.new(secret, raw_body, algo).hexdigest()
+            if hmac.compare_digest(expected, provided):
+                return True
+        # One last attempt: some webhook samples sign the JSON-decoded /
+        # re-encoded body without slashes-escaped (Laravel example uses
+        # ``json_encode($request->input(), JSON_UNESCAPED_SLASHES)``).
+        # Try that shape too so we don't 403 on integrations that
+        # accidentally re-encode the payload.
+        try:
+            import json
+
+            reencoded = json.dumps(
+                json.loads(raw_body.decode("utf-8")),
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+            for algo in ("sha512", "sha256"):
+                expected = hmac.new(secret, reencoded, algo).hexdigest()
+                if hmac.compare_digest(expected, provided):
+                    return True
+        except Exception:
+            pass
+        return False
 
 
 # Module-level singleton so routers can ``from .. import safepay``.

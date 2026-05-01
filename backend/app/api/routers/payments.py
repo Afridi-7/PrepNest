@@ -297,6 +297,23 @@ async def safepay_webhook(
     if not safepay_client.verify_webhook_signature(raw, signature):
         # Constant-time check failed. 403 (not 401) â€” auth is correctly absent;
         # what failed is integrity verification.
+        # Log a fingerprint of the secret + signature shape so we can tell
+        # whether the secret is wrong, the algorithm is wrong, or the
+        # header isn't being sent at all. The actual values stay private.
+        s = get_settings()
+        secret = s.safepay_webhook_secret or ""
+        sig = signature or ""
+        logger.error(
+            "Safepay webhook signature mismatch: header_present=%s sig_len=%d "
+            "sig_prefix=%r secret_set=%s secret_len=%d secret_prefix=%r body_len=%d",
+            bool(signature),
+            len(sig),
+            sig[:8],
+            bool(secret),
+            len(secret),
+            secret[:4],
+            len(raw),
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature.")
 
     try:
