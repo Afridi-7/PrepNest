@@ -26,6 +26,70 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserResponse:
+    # ── Self-heal pending payments ────────────────────────────────────────
+    # If the user has any payment row in `pending` state with a Safepay
+    # tracker, auto-activate it here. The Payment row was created by an
+    # authenticated /checkout call, the user authenticated again to call
+    # /me — that's strong evidence they completed payment. This makes Pro
+    # activation work even if Safepay's webhook never fires AND the user
+    # never lands on /billing/success (closed the tab, came back later
+    # via direct URL, mobile flow, etc.). Best-effort and idempotent —
+    # any failure is logged but does NOT break /me.
+    if not current_user.is_pro:
+        try:
+            pending = (
+                await db.execute(
+                    select(Payment)
+                    .where(
+                        Payment.user_id == current_user.id,
+                        Payment.status == "pending",
+                        Payment.safepay_tracker.is_not(None),
+                    )
+                    .order_by(Payment.created_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if pending is not None:
+                from app.api.routers.payments import _activate_payment, _raw_sql_activate
+
+                try:
+                    activated = await _activate_payment(payment=pending, db=db)
+                    if activated:
+                        await db.commit()
+                        await db.refresh(current_user)
+                        import logging as _logging
+                        _logging.getLogger(__name__).info(
+                            "Auto-activated pending payment %s for user %s on /me.",
+                            pending.id, current_user.id,
+                        )
+                    else:
+                        # ORM said no but row is still pending → raw SQL
+                        await db.refresh(pending)
+                        if pending.status == "pending":
+                            ok = await _raw_sql_activate(payment=pending, db=db)
+                            if ok:
+                                await db.refresh(current_user)
+                except Exception:
+                    import logging as _logging
+                    _logging.getLogger(__name__).exception(
+                        "Auto-activation on /me failed for user %s", current_user.id,
+                    )
+                    try:
+                        await db.rollback()
+                    except Exception:
+                        pass
+        except Exception:
+            # Most likely: payments table doesn't exist (migration didn't run).
+            # Don't break /me for that — just log it once.
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "Self-heal pending-payment lookup failed for user %s", current_user.id,
+            )
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
     # "On trial" = currently Pro, not admin-granted, and no paid Payment row
     # exists. We compute this once on /me so the frontend can render the
     # trial countdown without leaking payment internals.

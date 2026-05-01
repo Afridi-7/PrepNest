@@ -23,8 +23,10 @@ import { ME_QUERY_KEY } from "@/hooks/use-current-user";
 const POLL_ATTEMPTS = 8;
 const POLL_INTERVAL_MS = 1500;
 // How long to show the "Welcome to Pro!" celebration before
-// auto-redirecting the user back into the app.
-const AUTO_REDIRECT_MS = 2500;
+// auto-redirecting the user back into the app. Kept short on purpose —
+// the user already saw Safepay's success screen, so this is just a
+// visual confirmation that Pro is unlocked.
+const AUTO_REDIRECT_MS = 1200;
 
 export default function BillingSuccess() {
   const [search] = useSearchParams();
@@ -65,6 +67,7 @@ export default function BillingSuccess() {
       attempt += 1;
       try {
         // No id in the URL → just refresh /me and trust whatever it says.
+        // /me self-heals on the backend so this alone is enough.
         if (!paymentId && !tracker) {
           const me = await apiClient.getCurrentUser();
           if (me.is_pro) {
@@ -75,10 +78,26 @@ export default function BillingSuccess() {
           return;
         }
 
-        // Call confirmPayment on the very FIRST attempt — don't wait.
-        // The confirm endpoint trusts that Safepay only redirects buyers
-        // to success_url after a captured payment, so this is the fastest
-        // path to activating Pro without any Safepay API round-trips.
+        // Fast path — try force-activate IMMEDIATELY on the very first
+        // tick. It's the raw-SQL endpoint that bypasses every ORM and
+        // webhook concern. If a Payment row exists for this user (which
+        // it does, because /checkout created one), this activates Pro
+        // in a single round-trip.
+        if (!forceActivateAttempted) {
+          forceActivateAttempted = true;
+          try {
+            const f = await apiClient.forceActivatePro();
+            if (cancelled) return;
+            if (f.activated || f.reason === "already_paid") {
+              await markPaid();
+              return;
+            }
+          } catch {
+            // fall through to confirm + polling
+          }
+        }
+
+        // Secondary path — call confirmPayment with the specific payment id.
         if (!confirmAttempted && paymentId) {
           confirmAttempted = true;
           try {
@@ -89,8 +108,7 @@ export default function BillingSuccess() {
               return;
             }
           } catch {
-            // Confirm failed (network/server error). Fall through to
-            // status polling as a safety net.
+            // fall through to status polling
           }
         }
 
@@ -104,24 +122,6 @@ export default function BillingSuccess() {
         }
 
         if (attempt >= POLL_ATTEMPTS) {
-          // Last-resort safety net: try the raw-SQL force-activate
-          // endpoint once before declaring "pending". This bypasses
-          // every ORM and webhook concern and is idempotent — if the
-          // payment isn't actually paid, it returns activated=false
-          // and we land on the manual-button screen as before.
-          if (!forceActivateAttempted) {
-            forceActivateAttempted = true;
-            try {
-              const f = await apiClient.forceActivatePro();
-              if (cancelled) return;
-              if (f.activated || f.reason === "already_paid") {
-                await markPaid();
-                return;
-              }
-            } catch {
-              // fall through to pending state
-            }
-          }
           setState("pending");
           return;
         }
