@@ -31,6 +31,8 @@ const QueryRoom = lazy(() => import("./pages/QueryRoom.tsx"));
 const Pricing = lazy(() => import("./pages/Pricing.tsx"));
 const BillingSuccess = lazy(() => import("./pages/BillingSuccess.tsx"));
 const BillingCancel = lazy(() => import("./pages/BillingCancel.tsx"));
+const RefundPolicy = lazy(() => import("./pages/RefundPolicy.tsx"));
+const OwnershipStatement = lazy(() => import("./pages/OwnershipStatement.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -84,6 +86,8 @@ const App = () => (
             <Route path="/contact" element={<Navigate to="/about" replace />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/refund" element={<RefundPolicy />} />
+            <Route path="/ownership" element={<OwnershipStatement />} />
             <Route path="/admin" element={<RequireAuth><AdminContent /></RequireAuth>} />
             <Route path="/help" element={<Docs />} />
             <Route path="/docs" element={<Docs />} />

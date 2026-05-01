@@ -125,6 +125,8 @@ const Footer = ({ withSocial = false }: Props) => {
               <li><FooterLink to="/about">About Us</FooterLink></li>
               <li><FooterLink to="/privacy">Privacy Policy</FooterLink></li>
               <li><FooterLink to="/terms">Terms of Service</FooterLink></li>
+              <li><FooterLink to="/refund">Refund Policy</FooterLink></li>
+              <li><FooterLink to="/ownership">Ownership Statement</FooterLink></li>
             </ul>
           </div>
         </div>
