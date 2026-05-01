@@ -289,24 +289,25 @@ async def confirm_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found.")
 
     if payment.status == "pending":
-        # Path 1: try Safepay API confirmation.
-        activated = await _try_activate_via_safepay_api(payment=payment, db=db)
-        # Path 2: trust the success-page redirect. Safepay does not
-        # redirect to ``success_url`` for failed/cancelled payments —
-        # those go to ``cancel_url``. So a logged-in owner hitting
-        # ``/billing/success`` with their own payment_id is a strong
-        # signal of completion. Idempotency + ownership check keeps it
-        # safe.
-        if not activated:
-            activated = await _activate_payment(payment=payment, db=db)
-            if activated:
-                await db.commit()
-                await db.refresh(payment)
-                logger.info(
-                    "Payment %s activated via success-page confirm "
-                    "(no webhook, no Safepay API hit).",
-                    payment.id,
-                )
+        # Trust the success-page redirect directly. Safepay only redirects
+        # the buyer to ``success_url`` after a captured payment — failed /
+        # cancelled flows go to ``cancel_url``. An authenticated owner
+        # landing here is therefore strong evidence that the payment
+        # completed. Skipping the Safepay API probe (which probes 5
+        # candidate paths, each up to 10 s) keeps this endpoint fast and
+        # reliable. Activation is idempotent (returns False if already paid).
+        activated = await _activate_payment(payment=payment, db=db)
+        if activated:
+            await db.commit()
+            await db.refresh(payment)
+            logger.info("Payment %s activated via success-page confirm.", payment.id)
+        else:
+            logger.warning(
+                "Payment %s confirm: _activate_payment returned False "
+                "(status=%s, plan=%s, user=%s). No change made.",
+                payment.id, payment.status, payment.plan_code, payment.user_id,
+            )
+        # Refresh so the response reflects the committed state.
         await db.refresh(current_user)
 
     return CheckoutVerifyResponse(

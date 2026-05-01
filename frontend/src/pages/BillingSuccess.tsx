@@ -42,46 +42,58 @@ export default function BillingSuccess() {
     let cancelled = false;
     let attempt = 0;
     let confirmAttempted = false;
+
+    const markPaid = async () => {
+      // Force an immediate refetch so the dashboard receives fresh user data
+      // (is_pro=true) before the auto-redirect fires. invalidateQueries is
+      // fire-and-forget; refetchQueries awaits the network call.
+      await queryClient.refetchQueries({ queryKey: ME_QUERY_KEY });
+      if (!cancelled) setState("paid");
+    };
+
     const tick = async () => {
       if (cancelled) return;
       attempt += 1;
       try {
         // No id in the URL → just refresh /me and trust whatever it says.
         if (!paymentId && !tracker) {
-          await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
           const me = await apiClient.getCurrentUser();
-          if (!cancelled) setState(me.is_pro ? "paid" : "pending");
+          if (me.is_pro) {
+            await markPaid();
+          } else if (!cancelled) {
+            setState("pending");
+          }
           return;
         }
-        const v = paymentId
-          ? await apiClient.getPaymentStatus(paymentId)
-          : await apiClient.verifyCheckout(tracker);
-        if (cancelled) return;
-        if (v.status === "paid" || v.is_pro) {
-          await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
-          setState("paid");
-          return;
-        }
-        // Webhook hasn't activated us yet. After ~3 seconds of polling
-        // (Safepay webhook should have arrived by now if it's working),
-        // fall back to the user-driven confirm endpoint, which trusts
-        // the success-page redirect since Safepay only redirects here
-        // for completed payments. This is the path that actually
-        // unblocks Pro when Safepay's webhook is broken/delayed.
-        if (!confirmAttempted && paymentId && attempt >= 2) {
+
+        // Call confirmPayment on the very FIRST attempt — don't wait.
+        // The confirm endpoint trusts that Safepay only redirects buyers
+        // to success_url after a captured payment, so this is the fastest
+        // path to activating Pro without any Safepay API round-trips.
+        if (!confirmAttempted && paymentId) {
           confirmAttempted = true;
           try {
             const c = await apiClient.confirmPayment(paymentId);
             if (cancelled) return;
             if (c.status === "paid" || c.is_pro) {
-              await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
-              setState("paid");
+              await markPaid();
               return;
             }
           } catch {
-            // fall through to keep polling
+            // Confirm failed (network/server error). Fall through to
+            // status polling as a safety net.
           }
         }
+
+        const v = paymentId
+          ? await apiClient.getPaymentStatus(paymentId)
+          : await apiClient.verifyCheckout(tracker);
+        if (cancelled) return;
+        if (v.status === "paid" || v.is_pro) {
+          await markPaid();
+          return;
+        }
+
         if (attempt >= POLL_ATTEMPTS) {
           setState("pending");
           return;
@@ -93,6 +105,7 @@ export default function BillingSuccess() {
         else setTimeout(tick, POLL_INTERVAL_MS);
       }
     };
+
     tick();
     return () => {
       cancelled = true;
@@ -176,11 +189,32 @@ export default function BillingSuccess() {
                 Payment is processing
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Safepay is finalising your transaction. This usually takes only a few
-                seconds — refresh in a moment to see your Pro access activate.
+                Safepay is finalising your transaction. If your payment was successful,
+                click <strong>Activate Pro Access</strong> below to unlock your subscription immediately.
               </p>
               <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                <Button onClick={() => window.location.reload()} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+                {paymentId && (
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                    onClick={async () => {
+                      setState("checking");
+                      try {
+                        const c = await apiClient.confirmPayment(paymentId);
+                        if (c.status === "paid" || c.is_pro) {
+                          await queryClient.refetchQueries({ queryKey: ME_QUERY_KEY });
+                          setState("paid");
+                        } else {
+                          setState("pending");
+                        }
+                      } catch {
+                        setState("pending");
+                      }
+                    }}
+                  >
+                    Activate Pro Access
+                  </Button>
+                )}
+                <Button onClick={() => window.location.reload()} variant="outline">
                   Refresh status
                 </Button>
                 <Button asChild variant="outline">
