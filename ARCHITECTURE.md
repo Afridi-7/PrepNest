@@ -130,14 +130,15 @@ External Services:  OpenAI API  │  Safepay  │  Resend (email)  │  Google O
 | ASGI Server | Uvicorn + standard extras | Proxy-header aware |
 | ORM | SQLAlchemy 2.0 (async) | Declarative mapped columns |
 | Raw DB Pool | asyncpg 0.30 | Used for performance-critical raw queries |
-| Primary Database | PostgreSQL 15 | |
+| Primary Database | PostgreSQL 17 (Supabase, TLS) | pgvector 0.8.0 extension enabled |
 | Dev Database | SQLite + aiosqlite | Fallback when PG not configured |
-| Cache / Rate Limit | Redis (redis-py async) | In-memory fallback when Redis is down |
-| LLM Provider | OpenAI (gpt-4.1-mini / gpt-4o-mini) | Async client |
+| Cache / Rate Limit | Redis 8 — Upstash (TLS `rediss://`) | In-memory fallback when Redis is down |
+| Schema migrations | Alembic 1.13 | Run `alembic upgrade head` before starting |
+| LLM Provider | OpenAI (gpt-4.1-mini / gpt-4o-mini fallback) | Async client, 45 s timeout |
 | Embeddings | text-embedding-3-small (OpenAI) | dim=1536, stored as float32 |
-| Vector Search | FAISS (faiss-cpu) | IndexFlatIP, disk-persisted |
+| Vector Search | pgvector (primary) + FAISS (faiss-cpu, fallback) | Cosine IVFFlat index |
 | Auth | JWT HS256 (python-jose) + bcrypt + Google OAuth | |
-| Background Tasks | Celery 5.5 | Worker not yet extensively used |
+| Background Tasks | Celery 5.5 | Queues: celery, email, ingestion (Upstash broker) |
 | File Storage | Supabase Storage (prod) / local disk (dev) | |
 | Email | Resend API | SMTP fallback |
 | Payments | Safepay (HMAC-SHA256 webhook verification) | PKR |
@@ -169,10 +170,11 @@ External Services:  OpenAI API  │  Safepay  │  Resend (email)  │  Google O
 `backend/main.py` → `backend/app/main.py`
 
 On startup the application:
-1. Initialises the asyncpg connection pool (`init_pg_pool`)
-2. Connects to Redis (`cache_service.connect`)
-3. Runs SQLAlchemy `create_all` to apply schema migrations
-4. Seeds default content if the database is empty
+1. Calls `init_sentry()` — lazy Sentry SDK initialisation if `SENTRY_DSN` is set
+2. Initialises the asyncpg connection pool (`init_pg_pool`)
+3. Connects to Redis (`cache_service.connect`) — Upstash TLS in production
+4. Schema is managed by **Alembic** (`alembic upgrade head` run as pre-deploy command); `create_all` is no longer called at runtime
+5. Seeds default content if the database is empty
 
 On shutdown it drains both the PG pool and the Redis connection.
 
@@ -196,6 +198,7 @@ All routes are mounted under `/api/v1`. The router tree:
 ├── /payments      → checkout, webhook, subscription status
 ├── /dashboard     → aggregated stats for the logged-in user
 ├── /admin/content → admin CRUD for all content types
+├── /admin/analytics → AI token usage breakdown (admin only)
 ├── /site          → public site settings (social links, etc.)
 └── /health        → health-check (used by Render)
 ```
@@ -693,95 +696,73 @@ services:
 
 | Area | Observation |
 |---|---|
-| Stateless API | No in-process state per request; can run multiple replicas behind a load balancer |
-| Async throughout | No thread-per-request bottleneck; handles high concurrency on a single process |
-| Redis-backed rate limits | Counters shared across all replicas; no double-counting |
+| Stateless API | No in-process state per request; multiple replicas safe |
+| Async throughout | No thread-per-request bottleneck |
+| Upstash Redis cache | Counters and caches shared across all replicas over TLS |
+| pgvector via Supabase | Distributed vector index; all replicas query the same data |
 | Streaming AI responses | SSE avoids long-held connections accumulating in a thread pool |
 | DB connection pooling | asyncpg pool is process-shared; size auto-adjusts to hardware |
-| Frontend CDN | Static assets are globally distributed; no server load for asset delivery |
+| Celery background workers | File ingestion and email are fully async; request returns immediately |
+| AI concurrency caps | Per-user (2 slots) + global (50 slots) limits prevent OpenAI cost spikes |
+| Frontend CDN | Static assets globally distributed via Vercel |
 
-### What Has Scaling Limits
+### Remaining Scaling Limits
 
 | Area | Current State | Concern |
 |---|---|---|
-| FAISS vector store | Local disk, single-process | Not shared across replicas; queries on replica 2 won't see documents indexed by replica 1 |
-| File uploads → local disk | `file_storage_mode=local` in dev | Already uses Supabase in prod (fine), but local mode is not replica-safe |
-| Celery workers | Installed but underused | Background jobs currently run inside request lifecycle (blocking request for caller) |
-| Single database | No read replicas | All reads and writes hit the same Postgres instance |
-| SQLite dev fallback | Not production-safe | Fine for dev, but should never reach production |
-| Session-level in-memory cache | Falls back to dict when Redis is down | Multiple replicas will have divergent caches in degraded mode |
+| FAISS fallback | Local disk, single-process | Used only when pgvector unavailable; not replica-safe in that fallback path |
+| File uploads → local disk | `file_storage_mode=local` in dev | Uses Supabase in prod (replica-safe), but local mode is not |
+| Single Postgres instance | No read replicas | All reads and writes hit the same Supabase Postgres instance |
+| SQLite dev fallback | Not production-safe | Fine for local dev only |
 
 ---
 
 ## 12. Known Gaps & Improvement Recommendations
 
-These are observations based on the current codebase. They are ordered by rough impact.
+Items resolved in the 2026 overhaul are marked **[DONE]**.
 
-### High Priority
+### Resolved
 
-**1. FAISS is not distributed**  
-The vector store lives on local disk. In a multi-replica deployment, each replica has its own index. Uploaded documents indexed on replica A are invisible to replica B.  
-→ **Fix:** Use a managed vector database (Pinecone, Weaviate, pgvector extension on Postgres) that all replicas share over the network.
+**[DONE] 1. FAISS is not distributed** — replaced by pgvector on Supabase as primary vector store; FAISS kept only as local fallback.
 
-**2. No database migrations tool**  
-Schema is applied with SQLAlchemy `create_all` on startup. This is create-only — it cannot handle ALTER TABLE, column renames, or data migrations as the schema evolves.  
-→ **Fix:** Add Alembic for versioned migrations. One-time setup; pays off on the first schema change.
+**[DONE] 2. No database migrations tool** — Alembic added (`backend/alembic/`). Run `alembic upgrade head` before starting the server.
+
+**[DONE] 4. Celery not wired for heavy tasks** — document ingestion, email sending, and file indexing now run via Celery tasks on three dedicated queues (celery, email, ingestion) against Upstash Redis.
+
+**[DONE] 9. No pagination on list endpoints** — `Page[T]` envelope + cursor pagination added; `GET /conversations/page` implemented.
+
+**[DONE] 11. Observability is minimal** — Sentry SDK integrated (backend + optional frontend). Structured request-id logs already present.
+
+**[DONE] 13. Frontend has no error boundary** — `ErrorBoundary` component wraps all Suspense boundaries; skeleton loaders per page.
+
+### Remaining
 
 **3. No refresh tokens**  
-JWTs expire after 24 hours and there is no refresh mechanism. Users are silently logged out mid-session.  
-→ **Fix:** Implement a short-lived access token (15 min) + long-lived refresh token (7–30 days, stored in an `httpOnly` cookie or secure storage). Refresh endpoint issues new access token without re-login.
-
-**4. Celery is installed but not wired for heavy tasks**  
-Document ingestion into FAISS, email sending, and vector store updates currently happen inside the request lifecycle. Under load this increases response latency and can time out.  
-→ **Fix:** Move document ingestion, email sending, and index updates to Celery tasks. Add a Celery worker service to `render.yaml` and `docker-compose.yml`.
-
-### Medium Priority
+JWTs expire after 24 hours and there is no silent refresh mechanism.  
+→ Add a short-lived access token + long-lived refresh token in an `httpOnly` cookie.
 
 **5. No read-replica support**  
-All database traffic hits a single Postgres instance.  
-→ **Fix:** Add a read-replica and route `SELECT` queries to it. SQLAlchemy supports this via engine-level routing.
+All DB traffic hits a single Supabase Postgres instance.  
+→ Route SELECT queries to a read replica via SQLAlchemy engine routing.
 
-**6. Password reset token stored as a hash but not as a separate table**  
-If a user requests multiple resets rapidly, the old token is overwritten and becomes invalid immediately. The new token overwriting the old one is the right behaviour, but there is no audit trail.  
-→ **Fix:** This is mostly acceptable. Consider a dedicated `password_reset_requests` table if audit logging is required.
+**6. Admin panel has no audit log**  
+Admin content changes leave no record.  
+→ Add an `audit_log` table.
 
 **7. `preferences` column is a free-form JSON blob**  
-User preferences are stored as untyped JSON. As the feature grows this becomes hard to validate and query.  
-→ **Fix:** Define a typed Pydantic schema for `preferences` and validate on write. Use PostgreSQL JSONB with check constraints if querying by preference key is needed.
+→ Define a typed Pydantic schema for preferences; validate on write.
 
-**8. Admin panel has no audit log**  
-Admin content changes (creating MCQs, deleting topics, editing materials) leave no record.  
-→ **Fix:** Add an `audit_log` table: `(id, admin_id, action, resource_type, resource_id, diff_json, created_at)`.
+**8. E2E CI/CD pipeline missing**  
+Playwright + Vitest test suites exist but no GitHub Actions workflow.  
+→ Add lint → unit → integration → build workflow on every PR.
 
-**9. No pagination on some list endpoints**  
-Some endpoints return all rows from a table (all MCQs for a topic, all past papers). As content grows this will cause slow queries and large payloads.  
-→ **Fix:** Add `limit` + `offset` (or cursor-based) pagination to all list endpoints.
+**9. API versioning**  
+`/api/v1` prefix exists but no deprecation path.  
+→ Acceptable for now; add `/v2` when breaking changes are needed.
 
-**10. E2E tests exist but CI/CD pipeline not visible**  
-Playwright and Vitest test suites exist. No `github-actions` or equivalent workflow file was found in the repo.  
-→ **Fix:** Add a GitHub Actions workflow: lint → unit tests → integration tests → build on every PR.
-
-### Lower Priority / Nice-to-Have
-
-**11. Observability is minimal**  
-Logging uses Python's `logging` module. No structured JSON logs, no distributed tracing, no metrics endpoint.  
-→ **Fix:** Structured logs (JSON format for log aggregators), OpenTelemetry tracing, a `/metrics` endpoint (Prometheus format via `prometheus-fastapi-instrumentator`).
-
-**12. API versioning is `/v1` but not enforced by routing**  
-`/api/v1` prefix exists, but there is no version negotiation or deprecation path.  
-→ **Fix:** Acceptable for now. When breaking changes are needed, add a `/v2` router and deprecate `/v1` with a sunset date header.
-
-**13. Frontend has no error boundary**  
-A JS error in one page component can crash the entire app.  
-→ **Fix:** Wrap route-level components in React `ErrorBoundary` components with fallback UI.
-
-**14. Dark mode flicker on first load**  
-`next-themes` injects the theme class after hydration. Users on dark mode may see a brief white flash.  
-→ **Fix:** Inject a small inline script in `index.html` that reads `localStorage` and sets the class before React mounts.
-
-**15. No WebSocket for real-time features**  
-Query Room uses polling or manual refresh. Collaboration features would need WebSockets.  
-→ **Fix:** FastAPI natively supports WebSockets. For the Query Room, Server-Sent Events (already used in chat) could provide live answer notifications.
+**10. No WebSocket for Query Room**  
+Query Room uses polling. Live answer notifications would require SSE or WebSocket.  
+→ SSE (already used for chat) could serve live Q&A notifications.
 
 ---
 
