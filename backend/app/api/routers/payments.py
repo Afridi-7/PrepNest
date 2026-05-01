@@ -317,43 +317,60 @@ async def safepay_webhook(
             import hmac as _hmac
             import hashlib as _hashlib
 
-            secret_bytes = secret.encode()
-            try:
-                secret_hex_bytes = bytes.fromhex(secret) if secret else b""
-            except ValueError:
-                secret_hex_bytes = b""
-            ours_str_512 = _hmac.new(secret_bytes, raw, _hashlib.sha512).hexdigest()
-            ours_hex_512 = (
-                _hmac.new(secret_hex_bytes, raw, _hashlib.sha512).hexdigest()
-                if secret_hex_bytes
-                else "n/a"
-            )
-            # Hash of the secret itself, so we can prove byte-equality
-            # with the dashboard value WITHOUT logging the secret. Run
-            # locally:  python -c "import hashlib; print(hashlib.sha256(b'<paste>').hexdigest()[:16])"
-            # and compare to the secret_sha256 we log.
-            secret_sha256 = _hashlib.sha256(secret_bytes).hexdigest()[:16]
-        except Exception:
-            ours_str_512 = ours_hex_512 = secret_sha256 = "err"
+            def _try_all(label: str, secret_str: str) -> str:
+                if not secret_str:
+                    return f"{label}=unset"
+                results = []
+                for sec_label, sec_bytes in (
+                    ("str", secret_str.encode()),
+                    (
+                        "hex",
+                        bytes.fromhex(secret_str)
+                        if len(secret_str) % 2 == 0
+                        and all(c in "0123456789abcdefABCDEF" for c in secret_str)
+                        else b"",
+                    ),
+                ):
+                    if not sec_bytes:
+                        continue
+                    for body_label, body_bytes in (
+                        ("raw", raw),
+                        ("strip", raw.strip()),
+                        ("rstrip", raw.rstrip()),
+                    ):
+                        for algo in ("sha512", "sha256"):
+                            d = _hmac.new(sec_bytes, body_bytes, algo).hexdigest()
+                            mark = "*" if d == sig.lower() else ""
+                            results.append(
+                                f"{sec_label}/{body_label}/{algo}={d[:8]}{mark}"
+                            )
+                return f"{label}[{secret_str[:4]}..({len(secret_str)})] " + " ".join(results)
+
+            diag_webhook = _try_all("webhook", secret)
+            diag_api_secret = _try_all("api_secret", s.safepay_secret_key or "")
+            diag_api_key = _try_all("api_key", s.safepay_api_key or "")
+            secret_sha256 = _hashlib.sha256(secret.encode()).hexdigest()[:16]
+        except Exception as e:
+            diag_webhook = diag_api_secret = diag_api_key = f"err:{e!r}"
+            secret_sha256 = "err"
         logger.error(
-            "Safepay webhook signature mismatch: header_present=%s sig_len=%d "
-            "sig_prefix=%r secret_set=%s secret_len=%d secret_prefix=%r "
-            "secret_sha256=%r body_len=%d body_sha256_prefix=%r "
-            "body_first40=%r body_last40=%r ours_str512_prefix=%r "
-            "ours_hex512_prefix=%r",
+            "Safepay webhook signature mismatch:\n"
+            "  header_present=%s sig_len=%d sig_full=%r\n"
+            "  body_len=%d body_sha256_prefix=%r\n"
+            "  body_first40=%r body_last40=%r\n"
+            "  secret_sha256=%r\n"
+            "  %s\n  %s\n  %s",
             bool(signature),
             len(sig),
-            sig[:16],
-            bool(secret),
-            len(secret),
-            secret[:4],
-            secret_sha256,
+            sig,
             len(raw),
             hashlib.sha256(raw).hexdigest()[:16],
             raw[:40],
             raw[-40:],
-            ours_str_512[:16],
-            ours_hex_512[:16],
+            secret_sha256,
+            diag_webhook,
+            diag_api_secret,
+            diag_api_key,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature.")
     if skip_verify:

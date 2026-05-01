@@ -239,18 +239,32 @@ class SafepayClient:
         ever rotates the algorithm — both comparisons are constant-time.
         """
         raw_secret = (self.settings.safepay_webhook_secret or "").strip()
-        if not raw_secret or not signature_header:
+        if not signature_header:
             return False
         provided = signature_header.split("=", 1)[-1].strip().lower()
-        # Try secret as a string of bytes (PHP SDK style) AND as the
-        # hex-decoded raw bytes. 64-char hex secrets are ambiguous —
-        # different SDKs interpret them differently.
-        secret_variants: list[bytes] = [raw_secret.encode()]
-        try:
-            if len(raw_secret) % 2 == 0:
-                secret_variants.append(bytes.fromhex(raw_secret))
-        except ValueError:
-            pass
+
+        # Collect every credential the merchant has — Safepay's docs are
+        # sparse and merchants frequently mix up "webhook signing secret"
+        # with "API secret" in their dashboard. Try each.
+        candidate_secrets: list[str] = []
+        for s in (
+            raw_secret,
+            (self.settings.safepay_secret_key or "").strip(),
+            (self.settings.safepay_api_key or "").strip(),
+        ):
+            if s and s not in candidate_secrets:
+                candidate_secrets.append(s)
+        if not candidate_secrets:
+            return False
+
+        secret_variants: list[bytes] = []
+        for s in candidate_secrets:
+            secret_variants.append(s.encode())
+            try:
+                if len(s) % 2 == 0 and all(c in "0123456789abcdefABCDEF" for c in s):
+                    secret_variants.append(bytes.fromhex(s))
+            except ValueError:
+                pass
 
         # Build every plausible payload variant. Safepay's sender,
         # Render's proxy, or any intermediate layer can mutate the body
