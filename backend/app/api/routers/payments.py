@@ -328,12 +328,18 @@ async def safepay_webhook(
                 if secret_hex_bytes
                 else "n/a"
             )
+            # Hash of the secret itself, so we can prove byte-equality
+            # with the dashboard value WITHOUT logging the secret. Run
+            # locally:  python -c "import hashlib; print(hashlib.sha256(b'<paste>').hexdigest()[:16])"
+            # and compare to the secret_sha256 we log.
+            secret_sha256 = _hashlib.sha256(secret_bytes).hexdigest()[:16]
         except Exception:
-            ours_str_512 = ours_hex_512 = "err"
+            ours_str_512 = ours_hex_512 = secret_sha256 = "err"
         logger.error(
             "Safepay webhook signature mismatch: header_present=%s sig_len=%d "
             "sig_prefix=%r secret_set=%s secret_len=%d secret_prefix=%r "
-            "body_len=%d body_sha256_prefix=%r ours_str512_prefix=%r "
+            "secret_sha256=%r body_len=%d body_sha256_prefix=%r "
+            "body_first40=%r body_last40=%r ours_str512_prefix=%r "
             "ours_hex512_prefix=%r",
             bool(signature),
             len(sig),
@@ -341,10 +347,13 @@ async def safepay_webhook(
             bool(secret),
             len(secret),
             secret[:4],
+            secret_sha256,
             len(raw),
             hashlib.sha256(raw).hexdigest()[:16],
+            raw[:40],
+            raw[-40:],
             ours_str_512[:16],
-            ours_hex512[:16],
+            ours_hex_512[:16],
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature.")
     if skip_verify:
