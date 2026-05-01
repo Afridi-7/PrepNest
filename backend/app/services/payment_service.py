@@ -251,31 +251,50 @@ class SafepayClient:
                 secret_variants.append(bytes.fromhex(raw_secret))
         except ValueError:
             pass
-        for secret in secret_variants:
-            for algo in ("sha512", "sha256"):
-                expected = hmac.new(secret, raw_body, algo).hexdigest()
-                if hmac.compare_digest(expected, provided):
-                    return True
-        # One last attempt: some webhook samples sign the JSON-decoded /
-        # re-encoded body without slashes-escaped (Laravel example uses
-        # ``json_encode($request->input(), JSON_UNESCAPED_SLASHES)``).
-        # Try that shape too so we don't 403 on integrations that
-        # accidentally re-encode the payload.
+
+        # Build every plausible payload variant. Safepay's sender,
+        # Render's proxy, or any intermediate layer can mutate the body
+        # in subtle ways (trailing newline, whitespace, BOM, JSON
+        # re-encoding). We enumerate them all and accept any match.
+        payload_variants: list[bytes] = [raw_body]
+        # Strip trailing whitespace/newlines (the most common cause)
+        stripped = raw_body.rstrip()
+        if stripped != raw_body:
+            payload_variants.append(stripped)
+        # Strip leading whitespace too
+        fully_stripped = raw_body.strip()
+        if fully_stripped not in payload_variants:
+            payload_variants.append(fully_stripped)
+        # Strip a UTF-8 BOM if present
+        if raw_body.startswith(b"\xef\xbb\xbf"):
+            payload_variants.append(raw_body[3:])
+        # JSON re-encoded variants (compact, with-spaces, slash-escaped,
+        # slash-unescaped) — covers PHP json_encode default vs
+        # JSON_UNESCAPED_SLASHES vs JS JSON.stringify
         try:
             import json
 
-            reencoded = json.dumps(
-                json.loads(raw_body.decode("utf-8")),
-                separators=(",", ":"),
-                ensure_ascii=False,
-            ).encode("utf-8")
-            for secret in secret_variants:
-                for algo in ("sha512", "sha256"):
-                    expected = hmac.new(secret, reencoded, algo).hexdigest()
-                    if hmac.compare_digest(expected, provided):
-                        return True
+            decoded = json.loads(raw_body.decode("utf-8"))
+            payload_variants.extend(
+                v.encode("utf-8")
+                for v in (
+                    json.dumps(decoded, separators=(",", ":"), ensure_ascii=False),
+                    json.dumps(decoded, separators=(",", ":"), ensure_ascii=True),
+                    json.dumps(decoded, separators=(", ", ": "), ensure_ascii=False),
+                    json.dumps(decoded),  # default sep `, ` `: `
+                    # PHP json_encode default escapes forward slashes
+                    json.dumps(decoded, separators=(",", ":")).replace("/", r"\/"),
+                )
+            )
         except Exception:
             pass
+
+        for secret in secret_variants:
+            for payload in payload_variants:
+                for algo in ("sha512", "sha256"):
+                    expected = hmac.new(secret, payload, algo).hexdigest()
+                    if hmac.compare_digest(expected, provided):
+                        return True
         return False
 
 
