@@ -740,12 +740,16 @@ async def view_user_note_pdf(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    # If stored as a Supabase/external URL, redirect to it
+    # If stored as a Supabase/external URL, redirect through the backend proxy
+    # so Cloudflare's iframe blocking is bypassed (same mechanism as past papers).
     if note.file_path.startswith("http://") or note.file_path.startswith("https://"):
-        return RedirectResponse(
-            url=note.file_path,
-            headers={"Referrer-Policy": "no-referrer"},
+        from urllib.parse import quote as _url_quote
+        proxy_path = (
+            f"{settings.api_prefix}/files/proxy"
+            f"?url={_url_quote(note.file_path, safe='')}"
+            f"&token={_url_quote(token, safe='')}"
         )
+        return RedirectResponse(url=proxy_path, status_code=307)
 
     # Resolve absolute path from stored relative path
     relative = note.file_path.lstrip("/")

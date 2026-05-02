@@ -58,8 +58,10 @@ _engine_kwargs: dict[str, object] = {
 }
 if not database_url.startswith("sqlite"):
     _engine_kwargs.update({
-        "pool_size": 10,
-        "max_overflow": 10,
+        # Supabase free tier: 15 connections total.
+        # asyncpg pool takes another 5, so cap SQLAlchemy at 5 idle + 5 overflow.
+        "pool_size": 5,
+        "max_overflow": 5,
         "pool_recycle": 1800,
         "pool_timeout": 30,
     })

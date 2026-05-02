@@ -1,5 +1,3 @@
-import os
-
 import asyncpg
 from sqlalchemy.engine import make_url
 
@@ -7,12 +5,15 @@ from app.core.config import get_settings
 
 _pool: asyncpg.Pool | None = None
 
-# Scale pool to available CPU cores, with sensible floor/ceiling.
-_MIN_POOL = max(2, os.cpu_count() or 2)
-_MAX_POOL = max(20, min(50, (os.cpu_count() or 2) * 5))
+# Supabase free tier caps total connections at 15.
+# SQLAlchemy (session.py) holds up to 10 (5 pool + 5 overflow).
+# Leave 5 for asyncpg, starting with 2 idle and growing on demand.
+_MIN_POOL = 2
+_MAX_POOL = 5
 
 
-def _build_pool_dsn(database_url: str) -> str | None:
+def _build_pool_dsn(database_url: str) -> tuple[str, bool] | None:
+    """Return (dsn, needs_ssl) or None if the URL is not a postgres URL."""
     url = make_url(database_url)
     if not url.drivername.startswith("postgres"):
         return None
@@ -21,18 +22,27 @@ def _build_pool_dsn(database_url: str) -> str | None:
     if "+" in url.drivername or url.drivername == "postgres":
         url = url.set(drivername="postgresql")
 
-    return url.render_as_string(hide_password=True)
+    # Strip the sslmode query param — asyncpg handles SSL via its own `ssl`
+    # argument, not the URL. Leaving `?sslmode=require` in the DSN causes
+    # asyncpg to raise "invalid option: sslmode".
+    query = {k: v for k, v in (url.query or {}).items() if k != "sslmode"}
+    needs_ssl = url.query.get("sslmode", "disable") not in ("disable", "allow") if url.query else False
+    url = url.set(query=query)
+
+    return url.render_as_string(hide_password=False), needs_ssl
 
 
 async def init_pg_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         settings = get_settings()
-        dsn = _build_pool_dsn(settings.database_url)
+        result = _build_pool_dsn(settings.database_url)
 
-        if dsn:
+        if result:
+            dsn, needs_ssl = result
             _pool = await asyncpg.create_pool(
                 dsn=dsn,
+                ssl="require" if needs_ssl else None,
                 min_size=_MIN_POOL,
                 max_size=_MAX_POOL,
             )

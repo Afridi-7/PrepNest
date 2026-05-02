@@ -442,7 +442,9 @@ const USATSubjectChapters = () => {
     }
     try {
       const directUrl = await apiClient.getUserNoteDirectUrl(noteId);
-      setUserNotePdfUrl(directUrl);
+      // Route through the backend proxy to avoid Cloudflare blocking raw
+      // Supabase Storage URLs inside iframes (same fix as past papers).
+      setUserNotePdfUrl(resolveLink(directUrl) ?? directUrl);
     } catch {
       const token = apiClient.getToken?.();
       const url = apiClient.getUserNoteViewUrl(noteId);
