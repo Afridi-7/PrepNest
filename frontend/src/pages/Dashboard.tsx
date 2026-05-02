@@ -209,6 +209,15 @@ const Dashboard = () => {
   const [claimingLevel, setClaimingLevel] = useState<number | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
+  // getDashboardStats already returns an embedded rewards snapshot. Use it as
+  // the initial value the moment stats arrive so the streak, level, and reward
+  // cards render immediately — without waiting for the separate syncStreak POST.
+  useEffect(() => {
+    if (stats?.rewards && rewards === null) {
+      setRewards(stats.rewards);
+    }
+  }, [stats?.rewards]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Server is authoritative for streak count once sync-streak has run.
   // Falls back to the locally-tracked value during first render.
   const displayedStreak = rewards?.streak_current ?? streakData.current;
@@ -219,13 +228,23 @@ const Dashboard = () => {
 
   // Push the locally-tracked streak up so the server can include streak XP
   // in its level computation (rewards are validated server-side).
+  // Throttled to once per hour: the server already has the authoritative date
+  // so re-syncing every mount just adds latency and DB writes for no benefit.
   useEffect(() => {
     let cancelled = false;
-    apiClient.syncStreak(streakData.current, streakData.best)
-      .then(r => { if (!cancelled) setRewards(r); })
-      .catch(() => { if (!cancelled) refreshRewards(); });
+    const THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+    const throttleKey = `streak_sync_ts_${streakUserKey}`;
+    const lastSync = Number(localStorage.getItem(throttleKey) ?? 0);
+    const shouldSync = Date.now() - lastSync > THROTTLE_MS;
+
+    if (shouldSync) {
+      localStorage.setItem(throttleKey, String(Date.now()));
+      apiClient.syncStreak(streakData.current, streakData.best)
+        .then(r => { if (!cancelled) setRewards(r); })
+        .catch(() => { if (!cancelled) refreshRewards(); });
+    }
     return () => { cancelled = true; };
-  }, [streakData.current, streakData.best, refreshRewards]);
+  }, [streakData.current, streakData.best, streakUserKey, refreshRewards]);
 
   const claimReward = useCallback(async (level: number) => {
     setClaimingLevel(level);

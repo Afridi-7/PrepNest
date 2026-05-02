@@ -82,6 +82,11 @@ const RequireAuth = ({ children }: { children: ReactElement }) => {
 // competes with the page the user is currently interacting with.
 const usePrefetchRoutes = () => {
   useEffect(() => {
+    // Poke the backend immediately so Render's free-tier container wakes up
+    // while the user is on the landing/auth page. By the time they reach
+    // the dashboard the cold-start delay is already absorbed.
+    void apiClient.getHealth();
+
     const prefetch = () => {
       void import("./pages/Dashboard.tsx");
       void import("./pages/Practice.tsx");

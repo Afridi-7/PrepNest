@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, Sparkles, Moon, Sun, Shield, Gift } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
@@ -18,6 +19,32 @@ const navLinks = [
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Pre-fire the primary API call for a page the moment the user hovers its
+  // nav link. By the time they click and the component mounts, React Query
+  // already has the data in cache — the page renders instantly with no spinner.
+  const prefetchForPath = useCallback((path: string) => {
+    if (!apiClient.isAuthenticated()) return;
+    if (path === "/dashboard") {
+      void queryClient.prefetchQuery({
+        queryKey: ["dashboard-stats"],
+        queryFn: () => apiClient.getDashboardStats(),
+        staleTime: 45_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: ["leaderboard"],
+        queryFn: () => apiClient.getLeaderboard(),
+        staleTime: 60_000,
+      });
+    } else if (path === "/practice" || path === "/usat") {
+      void queryClient.prefetchQuery({
+        queryKey: ["usat-categories"],
+        queryFn: () => apiClient.listUSATCategories(),
+        staleTime: 300_000,
+      });
+    }
+  }, [queryClient]);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -92,6 +119,7 @@ const Navbar = () => {
               <button
                 key={link.path}
                 onClick={() => handleNav(link.path)}
+                onMouseEnter={() => prefetchForPath(link.path)}
                 className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                   isActive
                     ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-300/40 dark:shadow-blue-950/60"

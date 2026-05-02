@@ -286,7 +286,7 @@ class MockTest(Base):
     answers_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # user answers
     result_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # evaluation result
     status: Mapped[str] = mapped_column(String(32), default="in_progress")  # in_progress, submitted, evaluated
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -301,7 +301,7 @@ class PracticeResult(Base):
     correct_answers: Mapped[int] = mapped_column(Integer)
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     subject_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
 class Acknowledgment(Base):

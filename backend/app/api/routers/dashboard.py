@@ -367,78 +367,96 @@ async def get_leaderboard(
     # ── Authed user's rank (if any) ────────────────────────────────────────
     # Computed in O(1) via a single COUNT(*) WHERE score > my_score, instead
     # of fetching the full ranked set and scanning it in Python.
+    # Cached per-user with the same 60 s TTL as the global board so repeated
+    # dashboard visits don't re-run 5 DB queries every time.
     my_rank: int | None = None
     my_entry: LeaderboardEntry | None = None
     if current_user is not None:
-        # A dedicated, simpler scoring query for the current user. Reusing
-        # _build_top_query's subquery machinery here would need materializing
-        # the full ranked set; a direct aggregation is clearer and correct.
-        mock_user_score = (
-            select(func.coalesce(func.sum(mcq_score_expr), 0))
-            .where(
-                MockTest.status == "evaluated",
-                MockTest.user_id == current_user.id,
-                MockTest.created_at >= period_start,
-                MockTest.created_at < period_end,
-            )
-            .scalar_subquery()
-        )
-        practice_user_score = (
-            select(func.coalesce(func.sum(PracticeResult.correct_answers), 0))
-            .where(
-                PracticeResult.user_id == current_user.id,
-                PracticeResult.created_at >= period_start,
-                PracticeResult.created_at < period_end,
-            )
-            .scalar_subquery()
-        )
-        mock_user_sessions = (
-            select(func.count(MockTest.id))
-            .where(
-                MockTest.status == "evaluated",
-                MockTest.user_id == current_user.id,
-                MockTest.created_at >= period_start,
-                MockTest.created_at < period_end,
-            )
-            .scalar_subquery()
-        )
-        practice_user_sessions = (
-            select(func.count(PracticeResult.id))
-            .where(
-                PracticeResult.user_id == current_user.id,
-                PracticeResult.created_at >= period_start,
-                PracticeResult.created_at < period_end,
-            )
-            .scalar_subquery()
-        )
-        my_score_row = (
-            await db.execute(
-                select(
-                    (mock_user_score + practice_user_score).label("score"),
-                    (mock_user_sessions + practice_user_sessions).label("sessions"),
+        user_rank_key = f"dashboard:leaderboard:user:{current_user.id}:{period_key}"
+        cached_rank = await cache_service.get_json(user_rank_key)
+        if cached_rank is not None:
+            my_rank = cached_rank.get("my_rank")
+            my_entry_dict = cached_rank.get("my_entry")
+            my_entry = LeaderboardEntry(**my_entry_dict) if my_entry_dict else None
+        else:
+            # A dedicated, simpler scoring query for the current user. Reusing
+            # _build_top_query's subquery machinery here would need materializing
+            # the full ranked set; a direct aggregation is clearer and correct.
+            mock_user_score = (
+                select(func.coalesce(func.sum(mcq_score_expr), 0))
+                .where(
+                    MockTest.status == "evaluated",
+                    MockTest.user_id == current_user.id,
+                    MockTest.created_at >= period_start,
+                    MockTest.created_at < period_end,
                 )
+                .scalar_subquery()
             )
-        ).one()
-        my_score = int(my_score_row.score or 0)
-        my_sessions = int(my_score_row.sessions or 0)
-
-        if my_score > 0:
-            # Count users with strictly higher score → rank = that count + 1.
-            ahead_subq = _build_top_query(period_start, period_end, 10_000).subquery()
-            ahead_count = (
+            practice_user_score = (
+                select(func.coalesce(func.sum(PracticeResult.correct_answers), 0))
+                .where(
+                    PracticeResult.user_id == current_user.id,
+                    PracticeResult.created_at >= period_start,
+                    PracticeResult.created_at < period_end,
+                )
+                .scalar_subquery()
+            )
+            mock_user_sessions = (
+                select(func.count(MockTest.id))
+                .where(
+                    MockTest.status == "evaluated",
+                    MockTest.user_id == current_user.id,
+                    MockTest.created_at >= period_start,
+                    MockTest.created_at < period_end,
+                )
+                .scalar_subquery()
+            )
+            practice_user_sessions = (
+                select(func.count(PracticeResult.id))
+                .where(
+                    PracticeResult.user_id == current_user.id,
+                    PracticeResult.created_at >= period_start,
+                    PracticeResult.created_at < period_end,
+                )
+                .scalar_subquery()
+            )
+            my_score_row = (
                 await db.execute(
-                    select(func.count()).select_from(ahead_subq).where(
-                        ahead_subq.c.mcqs_solved > my_score
+                    select(
+                        (mock_user_score + practice_user_score).label("score"),
+                        (mock_user_sessions + practice_user_sessions).label("sessions"),
                     )
                 )
-            ).scalar_one()
-            my_rank = int(ahead_count) + 1
-            my_entry = LeaderboardEntry(
-                rank=my_rank,
-                user_id=str(current_user.id),
-                user_name=(current_user.full_name or current_user.email.split("@")[0]),
-                mcqs_solved=my_score,
-                tests_taken=my_sessions,
+            ).one()
+            my_score = int(my_score_row.score or 0)
+            my_sessions = int(my_score_row.sessions or 0)
+
+            if my_score > 0:
+                # Count users with strictly higher score → rank = that count + 1.
+                ahead_subq = _build_top_query(period_start, period_end, 10_000).subquery()
+                ahead_count = (
+                    await db.execute(
+                        select(func.count()).select_from(ahead_subq).where(
+                            ahead_subq.c.mcqs_solved > my_score
+                        )
+                    )
+                ).scalar_one()
+                my_rank = int(ahead_count) + 1
+                my_entry = LeaderboardEntry(
+                    rank=my_rank,
+                    user_id=str(current_user.id),
+                    user_name=(current_user.full_name or current_user.email.split("@")[0]),
+                    mcqs_solved=my_score,
+                    tests_taken=my_sessions,
+                )
+
+            await cache_service.set_json(
+                user_rank_key,
+                {
+                    "my_rank": my_rank,
+                    "my_entry": my_entry.model_dump(mode="json") if my_entry else None,
+                },
+                ttl_seconds=60,
             )
 
     return LeaderboardResponse(
