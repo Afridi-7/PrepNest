@@ -231,6 +231,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
             # Allow PDF iframes from same origin to keep PDF viewer working.
             response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        elif request.url.path.startswith(f"{settings.api_prefix}/files/proxy"):
+            # The PDF proxy streams raw file bytes so the in-app iframe viewer
+            # can display them without hitting Cloudflare's iframe blocks.
+            # The response MUST be embeddable by the same-origin SPA, so we
+            # override the default DENY that was set above.
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+            response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+            # Don't apply frame-ancestors 'none' — the SPA iframe must embed this.
+            # (No Content-Security-Policy set here; PDF bytes don't need one.)
         else:
             # Defence-in-depth CSP for API JSON responses. Browsers don't
             # render JSON, but if someone opens an API URL directly we want
