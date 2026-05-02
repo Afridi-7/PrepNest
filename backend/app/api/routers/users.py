@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date as _date
 import math
 
 from app.api.deps import get_current_admin, get_current_user
@@ -330,13 +330,39 @@ async def sync_streak(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> RewardsResponse:
-    """Persist the client-tracked streak so it can drive server-side XP."""
+    """Persist the client-tracked streak. Server is authoritative once
+    ``streak_last_active`` is established — streak increments by 1 for each
+    consecutive calendar day (UTC), resets to 1 if a day is missed."""
     repo = UserRepository(db)
     prefs = current_user.preferences or {}
+
+    today_str = _date.today().isoformat()          # YYYY-MM-DD UTC
+    yesterday_str = (_date.today() - timedelta(days=1)).isoformat()
+    last_active = prefs.get("streak_last_active")
+    prev_streak = int(prefs.get("streak_current") or 0)
     prev_best = int(prefs.get("streak_best") or 0)
+
+    if last_active is None:
+        # First sync ever — seed from client value (migration for existing users)
+        new_streak = max(1, int(body.current))
+    elif last_active == today_str:
+        # Already counted today — no change
+        new_streak = prev_streak
+    elif last_active == yesterday_str:
+        # Consecutive day: increment server value; also accept the client's
+        # higher value to handle streak-saver recovery (client fills the gap
+        # locally then re-syncs with the recovered count).
+        new_streak = max(prev_streak + 1, int(body.current))
+    else:
+        # One or more days were missed — reset streak
+        new_streak = 1
+
+    new_best = max(prev_best, new_streak, int(body.best))
+
     user = await repo.merge_preferences(current_user, {
-        "streak_current": int(body.current),
-        "streak_best": max(prev_best, int(body.best), int(body.current)),
+        "streak_current": new_streak,
+        "streak_best": new_best,
+        "streak_last_active": today_str,
     })
     xp, level = await _compute_user_xp(db, user)
     return _build_rewards_response(user, xp=xp, level=level)
@@ -388,16 +414,24 @@ async def use_streak_saver(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> RewardsResponse:
-    """Consume one streak-saver token. Frontend calls this when a missed-day
-    would otherwise reset the streak. Server is the source of truth."""
+    """Consume one streak-saver token. Sets streak_last_active to yesterday so
+    the subsequent sync-streak call (triggered by the frontend after filling the
+    gap) correctly accepts the recovered streak count via the max(prev+1, client)
+    path instead of resetting."""
     prefs = current_user.preferences or {}
     remaining = int(prefs.get("streak_savers") or 0)
     if remaining <= 0:
         raise HTTPException(status_code=400, detail="No streak savers available")
+
+    yesterday_str = (_date.today() - timedelta(days=1)).isoformat()
+
     repo = UserRepository(db)
     user = await repo.merge_preferences(current_user, {
         "streak_savers": remaining - 1,
         "streak_saver_used_at": datetime.now(timezone.utc).isoformat(),
+        # Roll back last_active to yesterday so the next sync-streak treats it
+        # as a consecutive-day call and takes max(prev+1, client_recovered).
+        "streak_last_active": yesterday_str,
     })
     xp, level = await _compute_user_xp(db, user)
     return _build_rewards_response(user, xp=xp, level=level)

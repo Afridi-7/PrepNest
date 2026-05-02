@@ -209,6 +209,10 @@ const Dashboard = () => {
   const [claimingLevel, setClaimingLevel] = useState<number | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
 
+  // Server is authoritative for streak count once sync-streak has run.
+  // Falls back to the locally-tracked value during first render.
+  const displayedStreak = rewards?.streak_current ?? streakData.current;
+
   const refreshRewards = useCallback(async () => {
     try { const r = await apiClient.getMyRewards(); setRewards(r); } catch { /* */ }
   }, []);
@@ -327,10 +331,10 @@ const Dashboard = () => {
     if (userAccuracy >= 80) {
       tips.push({ title: "You're Crushing It!", desc: `${userAccuracy}% accuracy — try harder mock tests to challenge yourself.`, icon: Award, to: "/mock-test" });
     }
-    if (streakData.current === 0) {
+    if (displayedStreak === 0) {
       tips.push({ title: "Build a Streak", desc: "Start a daily habit — even 10 MCQs a day makes a difference.", icon: Flame, to: "/practice" });
-    } else if (streakData.current >= 3) {
-      tips.push({ title: `${streakData.current}-Day Streak! 🔥`, desc: "Amazing consistency! Keep going to unlock your full potential.", icon: Flame });
+    } else if (displayedStreak >= 3) {
+      tips.push({ title: `${displayedStreak}-Day Streak! 🔥`, desc: "Amazing consistency! Keep going to unlock your full potential.", icon: Flame });
     }
     const weakSubjects = subjectAttempted.filter((s) => s.attempted > 0 && s.correct / s.attempted < 0.5);
     if (weakSubjects.length > 0) {
@@ -345,7 +349,7 @@ const Dashboard = () => {
       tips.push({ title: "Ask AI Tutor", desc: "Get instant explanations for any topic or concept.", icon: Brain, to: "/ai-tutor" });
     }
     return tips.slice(0, 3);
-  }, [userAccuracy, userTestsTaken, userMcqsAttempted, streakData.current, subjectAttempted, uniqueSubjects]);
+  }, [userAccuracy, userTestsTaken, userMcqsAttempted, displayedStreak, subjectAttempted, uniqueSubjects]);
 
   const greetingByTime = (() => {
     const h = new Date().getHours();
@@ -624,9 +628,9 @@ const Dashboard = () => {
                                   <div className="text-xs font-black text-violet-700">+{xpFromSessions}</div>
                                   <div className="text-[10px] font-semibold text-slate-500 leading-tight">{userTestsTaken} sessions<br/><span className="text-slate-400">×50</span></div>
                                 </div>
-                                <div title={`${streakData.current}-day streak × 20 XP`}>
+                                <div title={`${displayedStreak}-day streak × 20 XP`}>
                                   <div className="text-xs font-black text-amber-700">+{xpFromStreak}</div>
-                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{streakData.current}-day streak<br/><span className="text-slate-400">×20</span></div>
+                                  <div className="text-[10px] font-semibold text-slate-500 leading-tight">{displayedStreak}-day streak<br/><span className="text-slate-400">×20</span></div>
                                 </div>
                               </div>
                             </div>
@@ -1066,13 +1070,13 @@ const Dashboard = () => {
                   </div>
 
                   <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-5xl font-black" style={{ color: "#ea580c" }}>{streakData.current}</span>
+                    <span className="text-5xl font-black" style={{ color: "#ea580c" }}>{displayedStreak}</span>
                     <span className="text-sm font-semibold text-slate-500 ml-1">
-                      day{streakData.current !== 1 ? "s" : ""}
+                      day{displayedStreak !== 1 ? "s" : ""}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400 mb-3">
-                    {streakData.current > 0
+                    {displayedStreak > 0
                       ? "🚀 Keep your streak alive! Miss a day and it resets."
                       : "Start solving MCQs to build your streak!"}
                   </p>

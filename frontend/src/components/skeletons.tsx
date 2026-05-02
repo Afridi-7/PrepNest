@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { motion } from "framer-motion";
 
 const SkeletonBlock = ({ className = "" }: { className?: string }) => (
   <div className={`animate-pulse rounded-md bg-muted/60 ${className}`} aria-hidden />
@@ -68,6 +69,47 @@ export const MockTestSkeleton = () => (
       {[0, 1, 2, 3].map((i) => (
         <SkeletonBlock key={i} className="h-20" />
       ))}
+    </div>
+  </div>
+);
+
+/**
+ * Full-page loading skeleton shown by the global Suspense boundary while a
+ * lazy route chunk is being downloaded. Renders a Navbar-shaped header and
+ * shimmer content blocks so the page never goes fully blank.
+ *
+ * An animated blue progress bar at the very top gives users immediate
+ * feedback that something is happening — the same pattern used by GitHub,
+ * YouTube, and Notion.
+ */
+export const PageLoadingSkeleton = () => (
+  <div className="min-h-screen bg-background">
+    {/* Thin progress bar sweeping across the top */}
+    <motion.div
+      className="fixed top-0 left-0 right-0 z-[60] h-0.5 origin-left bg-gradient-to-r from-blue-500 to-cyan-400"
+      initial={{ scaleX: 0 }}
+      animate={{ scaleX: 0.85 }}
+      transition={{ duration: 1.8, ease: [0.25, 1, 0.5, 1] }}
+    />
+
+    {/* Navbar ghost */}
+    <div className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg dark:border-slate-800/60 dark:bg-slate-950/80">
+      <div className="container mx-auto flex h-full items-center justify-between px-4">
+        <div className="flex items-center gap-2.5">
+          <SkeletonBlock className="h-10 w-10 rounded-xl" />
+          <div className="flex flex-col gap-1.5">
+            <SkeletonBlock className="h-3.5 w-20" />
+            <SkeletonBlock className="h-2 w-14" />
+          </div>
+        </div>
+        <SkeletonBlock className="hidden h-8 w-64 rounded-2xl md:block" />
+        <SkeletonBlock className="h-8 w-20 rounded-lg" />
+      </div>
+    </div>
+
+    {/* Page body */}
+    <div className="pt-16">
+      <DashboardSkeleton />
     </div>
   </div>
 );

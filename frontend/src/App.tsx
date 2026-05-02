@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { apiClient } from "./services/api";
 import TrialBanner from "./components/TrialBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PageLoadingSkeleton } from "@/components/skeletons";
 
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -73,7 +74,38 @@ const RequireAuth = ({ children }: { children: ReactElement }) => {
   return children;
 };
 
-const App = () => (
+// Prefetch the JS chunks for the most-visited pages while the browser is
+// idle (after the current page has fully loaded). By the time the user
+// clicks a nav link the chunk is already in the browser cache, so the
+// Suspense boundary resolves instantly — no spinner, no blank screen.
+// requestIdleCallback fires only when the main thread is free so it never
+// competes with the page the user is currently interacting with.
+const usePrefetchRoutes = () => {
+  useEffect(() => {
+    const prefetch = () => {
+      void import("./pages/Dashboard.tsx");
+      void import("./pages/Practice.tsx");
+      void import("./pages/AITutor.tsx");
+      void import("./pages/MockTest.tsx");
+      void import("./pages/USAT.tsx");
+      void import("./pages/QueryRoom.tsx");
+      void import("./pages/Pricing.tsx");
+    };
+    type RIC = (cb: () => void, opts?: { timeout: number }) => number;
+    type CIC = (id: number) => void;
+    const w = window as typeof window & { requestIdleCallback?: RIC; cancelIdleCallback?: CIC };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(prefetch, { timeout: 2000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(prefetch, 1000);
+    return () => clearTimeout(t);
+  }, []);
+};
+
+const App = () => {
+  usePrefetchRoutes();
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <TooltipProvider>
@@ -82,7 +114,7 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
           <TrialBanner />
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" /></div>}>
+          <Suspense fallback={<PageLoadingSkeleton />}>
           <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -121,5 +153,8 @@ const App = () => (
     </ThemeProvider>
   </QueryClientProvider>
 );
+
+);
+};
 
 export default App;
