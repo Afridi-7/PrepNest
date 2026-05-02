@@ -2,7 +2,7 @@ import csv
 import io
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from collections import defaultdict
 
 from sqlalchemy import delete, select
@@ -557,10 +557,23 @@ async def delete_material(
 @router.get("/mcqs", response_model=list[MCQRead])
 async def list_mcqs(
     topic_id: int,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     _: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db_session),
 ) -> list[MCQRead]:
-    result = await db.execute(select(MCQ).where(MCQ.topic_id == topic_id).order_by(MCQ.created_at))
+    """Paginated list of MCQs for a topic.
+
+    Defaults to 100 items per request (was previously unbounded, which made
+    the admin UI hang on large topics — some have 2k+ MCQs).
+    """
+    result = await db.execute(
+        select(MCQ)
+        .where(MCQ.topic_id == topic_id)
+        .order_by(MCQ.created_at)
+        .limit(limit)
+        .offset(offset)
+    )
     return [MCQRead.model_validate(m) for m in result.scalars().all()]
 
 

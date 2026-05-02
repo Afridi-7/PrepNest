@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock, ArrowRight, ArrowLeft, Play, Target, BookOpen, AlertCircle,
@@ -62,7 +63,15 @@ const MockTestPage = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("config");
 
-  const [categories, setCategories] = useState<USATCategory[]>([]);
+  // Cached USAT categories — shares cache with Navbar hover-prefetch and the
+  // Practice page so navigating between them is instant (no re-fetch).
+  const { data: categories = [] } = useQuery({
+    queryKey: ["usat-categories"],
+    queryFn: () => apiClient.listUSATCategories(),
+    staleTime: 30 * 60_000, // 30 min — categories almost never change
+    gcTime: 60 * 60_000,
+    retry: false,
+  });
   const [selectedCategory, setSelectedCategory] = useState<USATCategory | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -79,21 +88,27 @@ const MockTestPage = () => {
 
   const fetchedRef = useRef(false);
   const TIME_LIMIT_MINUTES = 120;
-  const [isPro, setIsPro] = useState(true);
+
+  // Pro status cached for 2 min so navigating MockTest ↔ Practice doesn't
+  // re-hit the API on every mount.
+  const { data: isPro = true } = useQuery({
+    queryKey: ["is-pro"],
+    queryFn: () => apiClient.checkIsPro(),
+    staleTime: 2 * 60_000,
+    gcTime: 5 * 60_000,
+    enabled: apiClient.isAuthenticated(),
+    retry: false,
+  });
 
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    apiClient.listUSATCategories().then(setCategories).catch(() => {});
-    apiClient.checkIsPro().then(setIsPro).catch(() => setIsPro(false));
     const cat = searchParams.get("category");
-    if (cat) {
-      apiClient.listUSATCategories().then((cats) => {
-        const found = cats.find((c) => c.code === cat.toUpperCase());
-        if (found) setSelectedCategory(found);
-      });
+    if (cat && categories.length > 0) {
+      const found = categories.find((c) => c.code === cat.toUpperCase());
+      if (found) setSelectedCategory(found);
     }
-  }, [searchParams]);
+  }, [searchParams, categories]);
 
   const buildFlatItems = (sections: MockTestSection[]): FlatItem[] => {
     const items: FlatItem[] = [];

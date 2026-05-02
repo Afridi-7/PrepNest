@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, User, Loader2, Copy, Check, AlertCircle, Menu, X, Upload,
@@ -169,6 +169,7 @@ function parseSSEChunk(
   onToken: (t: string) => void,
   onDone: (meta: Record<string, unknown>) => void,
   onError?: (msg: string) => void,
+  onStatus?: (phase: string, meta: Record<string, unknown>) => void,
 ) {
   const text = new TextDecoder().decode(chunk);
   for (const line of text.split("\n")) {
@@ -180,6 +181,7 @@ function parseSSEChunk(
       if (parsed.type === "token") onToken(parsed.value);
       else if (parsed.type === "done") onDone(parsed);
       else if (parsed.type === "error" && onError) onError(parsed.message);
+      else if (parsed.type === "status" && onStatus) onStatus(parsed.phase, parsed);
     } catch { /* skip malformed */ }
   }
 }
@@ -213,6 +215,130 @@ const AiAvatar = ({ size = 32 }: { size?: number }) => (
   </div>
 );
 
+/* ══════════════════════════ MEMOIZED MESSAGE BUBBLE ══════════════════════════ */
+
+interface MessageBubbleProps {
+  msg: Message;
+  index: number;
+  isCopied: boolean;
+  onCopy: (text: string, index: number) => void;
+}
+
+/**
+ * Single chat bubble. Memoized so streaming token updates only re-render the
+ * currently-streaming message — every other (immutable) message bubble in the
+ * list is skipped. Without this, every single token flush re-runs
+ * renderMarkdown for every prior message in the conversation, which is what
+ * caused the AI Tutor to feel sluggish on long conversations.
+ */
+const MessageBubble = memo(
+  ({ msg, index, isCopied, onCopy }: MessageBubbleProps) => {
+    // Memoize the parsed markdown so it's only recomputed when content
+    // actually changes (i.e. while this specific message is streaming).
+    const renderedContent = useMemo(
+      () => (msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content),
+      [msg.role, msg.content],
+    );
+    const showCursor = msg.streaming && msg.role === "assistant";
+    const showLoadingDots = msg.role === "assistant" && msg.streaming && !msg.content;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ type: "spring", stiffness: 150, damping: 18 }}
+        className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+      >
+        {msg.role === "assistant" && <AiAvatar size={28} />}
+
+        <div className="flex flex-col gap-1 max-w-[88%] sm:max-w-[80%]">
+          <div className={`rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
+            msg.role === "user"
+              ? "bg-gradient-to-br from-violet-600 to-blue-600 text-white rounded-br-sm shadow-sm"
+              : "bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/80 dark:border-slate-700/80"
+          }`}>
+            {showLoadingDots ? (
+              <div className="flex items-center gap-1 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            ) : (
+              <>
+                {renderedContent}
+                {showCursor && (
+                  <span className="inline-block w-[3px] h-4 ml-0.5 rounded-sm bg-violet-500 animate-pulse align-middle" />
+                )}
+              </>
+            )}
+          </div>
+
+          {msg.attachments && msg.attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1 px-0.5">
+              {msg.attachments.map((att, j) => (
+                <div key={j} className="flex items-center gap-1 px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 rounded text-[10px] text-violet-600 dark:text-violet-300 border border-violet-200/60 dark:border-violet-700/60">
+                  <Paperclip className="h-2.5 w-2.5" />{att.name}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {msg.role === "assistant" && !msg.streaming && msg.content && (msg.usedAgents?.length || msg.references?.length) && (
+            <div className="space-y-1 px-0.5">
+              {msg.usedAgents && msg.usedAgents.length > 0 && (
+                <div className="flex flex-wrap gap-1 items-center">
+                  {msg.usedAgents.map((a, j) => {
+                    const info = getAgentInfo(a);
+                    return (
+                      <span key={j} className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-semibold text-white bg-gradient-to-r ${info.color}`}>
+                        <info.icon className="h-2 w-2" />{info.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              {msg.references && msg.references.length > 0 && (
+                <div className="space-y-0.5">
+                  {msg.references.slice(0, 3).map((ref, j) => (
+                    <div key={j} className="text-[10px] text-slate-400 flex items-start gap-1">
+                      <span className="text-violet-400">•</span>
+                      {typeof ref === "string" ? ref : (ref.url ? <a href={ref.url} target="_blank" rel="noopener noreferrer" className="hover:text-violet-500 underline decoration-dotted">{ref.title}</a> : ref.title)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {msg.role === "assistant" && msg.content && !msg.streaming && (
+            <button onClick={() => onCopy(msg.content, index)}
+              className="w-fit flex items-center gap-1 text-[10px] text-slate-400 hover:text-violet-500 transition-colors px-1 py-0.5 rounded">
+              {isCopied ? <><Check className="h-2.5 w-2.5 text-emerald-500" />Copied</> : <><Copy className="h-2.5 w-2.5" />Copy</>}
+            </button>
+          )}
+        </div>
+
+        {msg.role === "user" && (
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 mt-0.5">
+            <User className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+          </div>
+        )}
+      </motion.div>
+    );
+  },
+  // Custom equality: skip re-render unless this specific message's
+  // content/streaming/copied state changed. Object identity check on `msg` is
+  // the fast path; a streaming message gets a new object every flush so it
+  // re-renders, while every other bubble is correctly skipped.
+  (prev, next) =>
+    prev.msg === next.msg &&
+    prev.isCopied === next.isCopied &&
+    prev.index === next.index &&
+    prev.onCopy === next.onCopy,
+);
+MessageBubble.displayName = "MessageBubble";
+
 /* ══════════════════════════ MAIN COMPONENT ══════════════════════════ */
 
 const AITutor = () => {
@@ -222,6 +348,9 @@ const AITutor = () => {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // "" = idle/unset, "preparing" | "generating" — drives the status hint
+  // while the SSE stream is being set up server-side.
+  const [streamPhase, setStreamPhase] = useState<"" | "preparing" | "generating">("");
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -341,11 +470,13 @@ const AITutor = () => {
     } catch { toast({ title: "Error", description: "Could not load conversation", variant: "destructive" }); }
   };
 
-  const copyToClipboard = (text: string, idx: number) => {
+  // useCallback so the memoized MessageBubble's onCopy reference stays stable
+  // across re-renders — otherwise every bubble would re-render on every flush.
+  const copyToClipboard = useCallback((text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(idx);
     setTimeout(() => setCopiedIndex(null), 2000);
-  };
+  }, []);
 
   /* ── Send Message (always uses chatStream) ── */
   const sendMessage = async (text: string) => {
@@ -363,6 +494,7 @@ const AITutor = () => {
     setAttachments([]);
     setError(null);
     setLoading(true);
+    setStreamPhase("preparing");
 
     const assistantIdx = messages.length + 1;
     setMessages(prev => [...prev, { role: "assistant", content: "", streaming: true, timestamp: Date.now() }]);
@@ -407,6 +539,10 @@ const AITutor = () => {
               if (meta.conversation_id) setConversationId(meta.conversation_id as string);
             },
             (errMsg) => { streamError = errMsg; },
+            (phase, meta) => {
+              setStreamPhase(phase as "preparing" | "generating");
+              if (meta.conversation_id) setConversationId(meta.conversation_id as string);
+            },
           );
         }
         if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
@@ -445,6 +581,7 @@ const AITutor = () => {
       toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
+      setStreamPhase("");
       scrollToBottom("auto");
     }
   };
@@ -552,91 +689,26 @@ const AITutor = () => {
             <div className="mx-auto max-w-2xl px-3 sm:px-4 py-4 space-y-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((msg, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 150, damping: 18 }}
-                    className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {msg.role === "assistant" && <AiAvatar size={28} />}
-
-                    <div className="flex flex-col gap-1 max-w-[88%] sm:max-w-[80%]">
-                      <div className={`rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-gradient-to-br from-violet-600 to-blue-600 text-white rounded-br-sm shadow-sm"
-                          : "bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-200/80 dark:border-slate-700/80"
-                      }`}>
-                        {msg.role === "assistant" && msg.streaming && !msg.content ? (
-                          <div className="flex items-center gap-1 py-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        ) : (
-                          <>
-                            {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
-                            {msg.streaming && msg.role === "assistant" && (
-                              <span className="inline-block w-[3px] h-4 ml-0.5 rounded-sm bg-violet-500 animate-pulse align-middle" />
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-1 px-0.5">
-                          {msg.attachments.map((att, j) => (
-                            <div key={j} className="flex items-center gap-1 px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 rounded text-[10px] text-violet-600 dark:text-violet-300 border border-violet-200/60 dark:border-violet-700/60">
-                              <Paperclip className="h-2.5 w-2.5" />{att.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {msg.role === "assistant" && !msg.streaming && msg.content && (msg.usedAgents?.length || msg.references?.length) && (
-                        <div className="space-y-1 px-0.5">
-                          {msg.usedAgents && msg.usedAgents.length > 0 && (
-                            <div className="flex flex-wrap gap-1 items-center">
-                              {msg.usedAgents.map((a, j) => {
-                                const info = getAgentInfo(a);
-                                return (
-                                  <span key={j} className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-semibold text-white bg-gradient-to-r ${info.color}`}>
-                                    <info.icon className="h-2 w-2" />{info.label}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {msg.references && msg.references.length > 0 && (
-                            <div className="space-y-0.5">
-                              {msg.references.slice(0, 3).map((ref, j) => (
-                                <div key={j} className="text-[10px] text-slate-400 flex items-start gap-1">
-                                  <span className="text-violet-400">\u2022</span>
-                                  {typeof ref === "string" ? ref : (ref.url ? <a href={ref.url} target="_blank" rel="noopener noreferrer" className="hover:text-violet-500 underline decoration-dotted">{ref.title}</a> : ref.title)}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {msg.role === "assistant" && msg.content && !msg.streaming && (
-                        <button onClick={() => copyToClipboard(msg.content, i)}
-                          className="w-fit flex items-center gap-1 text-[10px] text-slate-400 hover:text-violet-500 transition-colors px-1 py-0.5 rounded">
-                          {copiedIndex === i ? <><Check className="h-2.5 w-2.5 text-emerald-500" />Copied</> : <><Copy className="h-2.5 w-2.5" />Copy</>}
-                        </button>
-                      )}
-                    </div>
-
-                    {msg.role === "user" && (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 mt-0.5">
-                        <User className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                      </div>
-                    )}
-                  </motion.div>
+                  <MessageBubble
+                    key={msg.timestamp ?? i}
+                    msg={msg}
+                    index={i}
+                    isCopied={copiedIndex === i}
+                    onCopy={copyToClipboard}
+                  />
                 ))}
               </AnimatePresence>
+
+              {/* Status hint shown while we wait for the first token. The
+                  streaming bubble already renders bouncing dots; this adds a
+                  short label so users know we're actually working. */}
+              {loading && streamPhase && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
+                <div className="flex justify-start pl-10 -mt-2">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">
+                    {streamPhase === "preparing" ? "Preparing answer\u2026" : "Generating answer\u2026"}
+                  </span>
+                </div>
+              )}
 
               {loading && messages.length > 0 && messages[messages.length - 1]?.role !== "assistant" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5">

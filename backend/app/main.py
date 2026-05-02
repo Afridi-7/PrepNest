@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 import fastapi
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -16,7 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
 from app.api.routers import admin_analytics, admin_content, ai_learning, auth, chat, conversations, dashboard, files, mock_tests, payments, query_room, site, usat, users
-from app.api.deps import rate_limit
+from app.api.deps import get_current_admin, rate_limit
 from app.core.config import get_settings
 from app.core.errors import AppError as _AppError
 from app.core.logging import configure_logging, request_id_ctx, get_request_id
@@ -399,6 +399,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             duration_ms = (time.perf_counter() - start) * 1000.0
+            # Surface timing to clients so devtools/Network tab can show real
+            # server latency separate from network time.
+            try:
+                if response is not None:  # type: ignore[name-defined]
+                    response.headers["X-Response-Time-Ms"] = f"{duration_ms:.0f}"
+            except Exception:
+                pass
             path = request.url.path
             if not any(path.startswith(p) for p in self._SKIP_LOG_PREFIXES):
                 log = logging.getLogger("app.access")
@@ -682,6 +689,54 @@ async def database_healthcheck() -> dict:
         "status": "ok",
         "database": database_url,
     }
+
+
+@app.get("/health/performance")
+async def performance_healthcheck(
+    _: User = Depends(get_current_admin),
+) -> dict:
+    """Admin-only diagnostic that measures end-to-end latency for each
+    critical dependency. Useful for sanity-checking whether perceived
+    slowness is at the DB, Redis, or upstream layer.
+    """
+    results: dict[str, dict] = {}
+
+    db_start = time.perf_counter()
+    try:
+        async with SessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        results["database"] = {
+            "ok": True,
+            "latency_ms": round((time.perf_counter() - db_start) * 1000, 1),
+        }
+    except Exception as exc:  # noqa: BLE001
+        results["database"] = {"ok": False, "error": str(exc)[:200]}
+
+    redis_client = getattr(cache_service, "_redis", None)
+    if redis_client is not None:
+        r_start = time.perf_counter()
+        try:
+            await redis_client.ping()
+            results["redis"] = {
+                "ok": True,
+                "latency_ms": round((time.perf_counter() - r_start) * 1000, 1),
+            }
+        except Exception as exc:  # noqa: BLE001
+            results["redis"] = {"ok": False, "error": str(exc)[:200]}
+    else:
+        results["redis"] = {"ok": True, "backend": "in-memory-fallback"}
+
+    # pgvector check — cheap pg_extension lookup
+    try:
+        async with SessionLocal() as session:
+            row = (await session.execute(
+                text("SELECT 1 FROM pg_extension WHERE extname = 'vector' LIMIT 1")
+            )).first()
+        results["pgvector"] = {"ok": row is not None}
+    except Exception as exc:  # noqa: BLE001
+        results["pgvector"] = {"ok": False, "error": str(exc)[:200]}
+
+    return {"status": "ok", "checks": results}
 
 
 @app.get("/")

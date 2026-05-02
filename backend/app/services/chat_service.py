@@ -88,6 +88,11 @@ class ChatService:
             initial_title=message[:80],
         )
 
+        # Emit an immediate status hint so the UI can show "Preparing answer…"
+        # while we build agent context. This work normally takes <500 ms but
+        # feels longer under cold-start conditions on Render Starter.
+        yield f"data: {json.dumps({'type': 'status', 'phase': 'preparing', 'conversation_id': conversation_id})}\n\n"
+
         await self.message_repo.create(conversation_id=conversation_id, role="user", content=message)
 
         user = await self.user_repo.get_by_id(user_id)
@@ -111,8 +116,16 @@ class ChatService:
             return
 
         collected = []
+        first_token_sent = False
         try:
             async for token in token_stream:
+                if not first_token_sent:
+                    # Emit a single "generating" status the moment the model
+                    # actually starts producing output. The frontend uses this
+                    # to swap the "Preparing answer…" hint for a typing cursor
+                    # the instant tokens are flowing.
+                    yield f"data: {json.dumps({'type': 'status', 'phase': 'generating'})}\n\n"
+                    first_token_sent = True
                 collected.append(token)
                 yield f"data: {json.dumps({'type': 'token', 'value': token})}\n\n"
         except Exception as exc:

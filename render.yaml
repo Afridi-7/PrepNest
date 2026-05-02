@@ -43,3 +43,42 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Optional Celery worker (commented out — uncomment + redeploy to enable).
+#
+# Without this, file ingestion and outbound email run inline on the web
+# request, which slows uploads and signup. With this worker running, both
+# offload to a background queue and the API returns immediately.
+#
+# Adds ~$7/month for a separate Render Starter worker. Also requires setting
+# ENABLE_CELERY_INGESTION=true on the web service so the API enqueues tasks
+# instead of running them inline.
+#
+# - type: worker
+#   name: prepnest-celery-worker
+#   env: python
+#   rootDir: backend
+#   buildCommand: pip install --upgrade pip ; pip install -r requirements.txt
+#   startCommand: celery -A app.features.ai_tutor.workers.celery_app worker --loglevel=info -Q ingestion,email --concurrency=2
+#   autoDeploy: true
+#   envVars:
+#     - key: PYTHON_VERSION
+#       value: 3.13.5
+#     - key: APP_ENV
+#       value: production
+#     - key: DATABASE_URL
+#       sync: false
+#     - key: REDIS_URL
+#       sync: false
+#     - key: OPENAI_API_KEY
+#       sync: false
+#     - key: SUPABASE_URL
+#       sync: false
+#     - key: SUPABASE_SERVICE_KEY
+#       sync: false
+#     - key: RESEND_API_KEY
+#       sync: false
+#     - key: RESEND_FROM_EMAIL
+#       sync: false
+# ─────────────────────────────────────────────────────────────────────────────
