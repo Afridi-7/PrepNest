@@ -113,6 +113,33 @@ async def get_subject_bulk_data(
 ) -> SubjectBulkData:
     """Return subject + chapters + papers + tips + resources + user-notes in ONE request."""
     normalized_category = _validate_category(category)
+
+    # ── Cache layer ──────────────────────────────────────────────────────
+    # The "static" portion (subject + chapters + tips + resources) and the
+    # "papers" portion are cached separately because past papers are gated
+    # by Pro status. user-notes are also per-user-but-shared-by-subject
+    # (admin-uploaded community notes), so we cache them with the static
+    # block. Without this every navigation to a subject page ran 5 SQL
+    # queries — the dominant source of "ages to load" complaints.
+    static_key = f"usat:bulk:{normalized_category}:{slug}:static"
+    papers_key = f"usat:bulk:{normalized_category}:{slug}:papers"
+
+    user_is_pro = current_user is not None and is_user_pro(current_user)
+
+    cached_static = await cache_service.get_json(static_key)
+    cached_papers = (
+        await cache_service.get_json(papers_key) if user_is_pro else None
+    )
+    if cached_static is not None and (not user_is_pro or cached_papers is not None):
+        return SubjectBulkData(
+            subject=SubjectRead(**cached_static["subject"]),
+            chapters=[TopicRead(**t) for t in cached_static["chapters"]],
+            papers=[PastPaperRead(**p) for p in (cached_papers or [])] if user_is_pro else [],
+            tips=[TipRead(**t) for t in cached_static["tips"]],
+            resources=[SubjectResourceRead(**r) for r in cached_static["resources"]],
+            user_notes=[UserNoteRead(**n) for n in cached_static["user_notes"]],
+        )
+
     result = await db.execute(
         select(Subject)
         .where(Subject.exam_type.ilike(normalized_category))
@@ -131,17 +158,53 @@ async def get_subject_bulk_data(
         db.execute(select(UserNote).where(UserNote.subject_id == sid).order_by(UserNote.created_at.desc())),
     )
 
-    # Only pro users (or admins) can see past papers
-    user_is_pro = current_user is not None and is_user_pro(current_user)
+    subject_payload = SubjectRead.model_validate(matched)
+    chapters_payload = [TopicRead.model_validate(t) for t in chapters_q.scalars().all()]
+    papers_payload = [PastPaperRead.model_validate(p) for p in papers_q.scalars().all()]
+    tips_payload = [TipRead.model_validate(t) for t in tips_q.scalars().all()]
+    resources_payload = [SubjectResourceRead.model_validate(r) for r in resources_q.scalars().all()]
+    notes_payload = [UserNoteRead.model_validate(n) for n in notes_q.scalars().all()]
+
+    # Persist to cache (5 min TTL — content is admin-managed and updates are
+    # invalidated explicitly on writes via _invalidate_subject_bulk_cache).
+    await cache_service.set_json(
+        static_key,
+        {
+            "subject": subject_payload.model_dump(mode="json"),
+            "chapters": [c.model_dump(mode="json") for c in chapters_payload],
+            "tips": [t.model_dump(mode="json") for t in tips_payload],
+            "resources": [r.model_dump(mode="json") for r in resources_payload],
+            "user_notes": [n.model_dump(mode="json") for n in notes_payload],
+        },
+        ttl_seconds=_BULK_CACHE_TTL,
+    )
+    await cache_service.set_json(
+        papers_key,
+        [p.model_dump(mode="json") for p in papers_payload],
+        ttl_seconds=_BULK_CACHE_TTL,
+    )
 
     return SubjectBulkData(
-        subject=SubjectRead.model_validate(matched),
-        chapters=[TopicRead.model_validate(t) for t in chapters_q.scalars().all()],
-        papers=[PastPaperRead.model_validate(p) for p in papers_q.scalars().all()] if user_is_pro else [],
-        tips=[TipRead.model_validate(t) for t in tips_q.scalars().all()],
-        resources=[SubjectResourceRead.model_validate(r) for r in resources_q.scalars().all()],
-        user_notes=[UserNoteRead.model_validate(n) for n in notes_q.scalars().all()],
+        subject=subject_payload,
+        chapters=chapters_payload,
+        papers=papers_payload if user_is_pro else [],
+        tips=tips_payload,
+        resources=resources_payload,
+        user_notes=notes_payload,
     )
+
+
+_BULK_CACHE_TTL = 300  # 5 min
+
+
+async def _invalidate_subject_bulk_cache(category: str, slug: str) -> None:
+    """Drop the cached bulk payload after a write (chapter/tip/paper/etc)."""
+    try:
+        await cache_service.delete(f"usat:bulk:{category}:{slug}:static")
+        await cache_service.delete(f"usat:bulk:{category}:{slug}:papers")
+    except Exception:
+        # Cache invalidation must never break a write path.
+        pass
 
 
 _CATEGORY_SUBJECTS_TTL = 300  # 5 min — rarely changes

@@ -93,8 +93,11 @@ const usePrefetchRoutes = () => {
       void import("./pages/AITutor.tsx");
       void import("./pages/MockTest.tsx");
       void import("./pages/USAT.tsx");
+      void import("./pages/USATSubjects.tsx");
+      void import("./pages/USATSubjectChapters.tsx");
       void import("./pages/QueryRoom.tsx");
       void import("./pages/Pricing.tsx");
+      void import("./pages/Contact.tsx");
     };
     type RIC = (cb: () => void, opts?: { timeout: number }) => number;
     type CIC = (id: number) => void;

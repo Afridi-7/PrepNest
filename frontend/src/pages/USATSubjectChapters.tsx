@@ -8,15 +8,57 @@ import {
 import Navbar from "@/components/Navbar";
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 import ContentProtection from "@/components/ContentProtection";
-import { apiClient, MCQ, PastPaper, Subject, SubjectResource, Tip, Topic, UserNote, API_ORIGIN } from "@/services/api";
+import { apiClient, MCQ, PastPaper, Subject, SubjectResource, Tip, Topic, UserNote, API_ORIGIN, API_BASE_URL } from "@/services/api";
 
 const slugify = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+/* ── Module-level cache ─────────────────────────────────────────────────
+ * Keeps the bulk payload alive across navigations so going Dashboard →
+ * Subject → back → Subject re-renders instantly from memory rather than
+ * re-fetching. Entries expire after 5 min (matches backend Redis TTL) so
+ * admins still see updates within a few minutes.
+ */
+type BulkPayload = {
+  subject: Subject;
+  chapters: Topic[];
+  papers: PastPaper[];
+  tips: Tip[];
+  resources: SubjectResource[];
+  user_notes: UserNote[];
+};
+const _BULK_TTL_MS = 5 * 60_000;
+const _bulkCache = new Map<string, { data: BulkPayload; expiresAt: number }>();
+const _bulkCacheGet = (key: string): BulkPayload | null => {
+  const hit = _bulkCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) { _bulkCache.delete(key); return null; }
+  return hit.data;
+};
+const _bulkCacheSet = (key: string, data: BulkPayload) =>
+  _bulkCache.set(key, { data, expiresAt: Date.now() + _BULK_TTL_MS });
+export const invalidateSubjectBulkCache = (category?: string, subject?: string) => {
+  if (category && subject) _bulkCache.delete(`${category}|${subject}`);
+  else _bulkCache.clear();
+};
+
 const resolveLink = (value: string): string | null => {
   const trimmed = (value || "").trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    // Supabase Storage public URLs sometimes get blocked by Cloudflare's
+    // bot/WAF rules when loaded directly in an iframe (the user sees
+    // "This content is blocked. Contact the site owner to fix the issue.").
+    // Routing through our backend proxy avoids the issue entirely — the
+    // backend fetches with the service-role key and streams the file back
+    // from the same origin as the rest of the app.
+    if (trimmed.includes("/storage/v1/object/")) {
+      const token = apiClient.getToken();
+      if (!token) return trimmed; // fall back to direct URL if not logged in
+      return `${API_BASE_URL}/files/proxy?url=${encodeURIComponent(trimmed)}&token=${encodeURIComponent(token)}`;
+    }
+    return trimmed;
+  }
   if (trimmed.startsWith("/uploads/")) return `${API_ORIGIN}${trimmed}`;
   return null;
 };
@@ -217,10 +259,27 @@ const USATSubjectChapters = () => {
     const key = `${category}|${subject}`;
     if (lastFetchKey.current === key) return;
     lastFetchKey.current = key;
+    if (!category || !subject) return;
+
+    // ── Instant render from module cache when available ──
+    // Eliminates the full-page skeleton on revisit. We still revalidate
+    // in the background so any admin edits show up within the TTL window.
+    const cached = _bulkCacheGet(key);
+    if (cached) {
+      setSubjectInfo(cached.subject);
+      setChapters(cached.chapters);
+      setSubjectPapers(cached.papers);
+      setSubjectTips(cached.tips);
+      setSubjectResources(cached.resources);
+      setUserNotes(cached.user_notes);
+      setLoading(false);
+      return; // backend Redis cache (5 min TTL) handles freshness on next nav
+    }
+
+    setLoading(true);
     (async () => {
-      if (!category || !subject) return;
-      setLoading(true);
       const bulk = await apiClient.getSubjectBulkData(category, subject);
+      _bulkCacheSet(key, bulk);
       setSubjectInfo(bulk.subject);
       setChapters(bulk.chapters);
       setSubjectPapers(bulk.papers);

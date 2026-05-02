@@ -12,6 +12,14 @@ import SocialLinks from "@/components/SocialLinks";
 import { apiClient, API_ORIGIN, type ContactInfo as ContactInfoType, type ContactInfoUpdate, type Acknowledgment } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
+/* ── Module-level cache ──
+ * Contact info + acknowledgments rarely change. Keeping them in memory
+ * across navigations means clicking Contact in the navbar paints the page
+ * instantly on revisit instead of waiting for two API roundtrips.
+ */
+const _CONTACT_TTL_MS = 5 * 60_000;
+let _contactCache: { info: ContactInfoType; acks: Acknowledgment[]; expiresAt: number } | null = null;
+
 /* -- Skeleton ----------------------------------------------------------- */
 const Skeleton = ({ className = "" }: { className?: string }) => (
   <div className={`animate-pulse rounded-xl bg-blue-100/60 ${className}`} />
@@ -106,14 +114,40 @@ const Contact = () => {
   const ackFileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const fetchData = () => {
+    // Serve cached info+acks instantly if fresh — eliminates the skeleton
+    // spinner on revisits. Admin/Pro flag still revalidates because the
+    // apiClient now caches /users/me itself (30 s TTL).
+    if (_contactCache && _contactCache.expiresAt > Date.now()) {
+      setInfo(_contactCache.info);
+      setDraft(_contactCache.info);
+      setAcks(_contactCache.acks);
+      setLoading(false);
+      apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
+      return;
+    }
     setLoading(true);
     setError(false);
-    apiClient.getContactInfo()
-      .then((data) => { setInfo(data); setDraft(data); })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      apiClient.getContactInfo(),
+      apiClient.getAcknowledgments(),
+    ]).then(([infoRes, acksRes]) => {
+      if (infoRes.status === "fulfilled") {
+        setInfo(infoRes.value);
+        setDraft(infoRes.value);
+      } else {
+        setError(true);
+      }
+      const acksList = acksRes.status === "fulfilled" ? acksRes.value : [];
+      setAcks(acksList);
+      if (infoRes.status === "fulfilled") {
+        _contactCache = {
+          info: infoRes.value,
+          acks: acksList,
+          expiresAt: Date.now() + _CONTACT_TTL_MS,
+        };
+      }
+    }).finally(() => setLoading(false));
     apiClient.checkIsAdmin().then(setIsAdmin).catch(() => {});
-    apiClient.getAcknowledgments().then(setAcks).catch(() => {});
   };
 
   useEffect(() => {

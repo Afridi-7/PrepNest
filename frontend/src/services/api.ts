@@ -75,6 +75,7 @@ const normalizeApiBaseUrl = (rawValue?: string): string => {
 };
 
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL);
+export { API_BASE_URL };
 export const API_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL, typeof window !== "undefined" ? window.location.origin : undefined).origin;
@@ -590,6 +591,12 @@ export class ApiError extends Error {
 class ApiClient {
   private token: string | null = null;
   private _adminCache: boolean | null = null;
+  // /users/me is called by checkIsAdmin, checkIsPro, the Dashboard, and
+  // every protected page on mount. Caching the result for ~30 s in memory
+  // turns those repeat calls into zero-latency lookups (the network round
+  // trip dominated perceived navigation lag for Contact / USAT pages).
+  private _meCache: { profile: UserProfile; expiresAt: number } | null = null;
+  private static readonly _ME_TTL_MS = 30_000;
   // Shared in-flight GET registry so multiple components asking for the same
   // resource at once collapse into a single network round-trip.
   private static _inflight: Map<string, Promise<unknown>> = new Map();
@@ -898,8 +905,16 @@ class ApiClient {
     });
   }
 
-  async getCurrentUser(): Promise<UserProfile> {
-    return this.request<UserProfile>("/users/me");
+  async getCurrentUser(forceRefresh = false): Promise<UserProfile> {
+    const now = Date.now();
+    if (!forceRefresh && this._meCache && this._meCache.expiresAt > now) {
+      return this._meCache.profile;
+    }
+    const profile = await this.request<UserProfile>("/users/me");
+    this._meCache = { profile, expiresAt: now + ApiClient._ME_TTL_MS };
+    // Keep the legacy boolean cache in sync so checkIsAdmin remains O(1).
+    this._adminCache = profile.is_admin;
+    return profile;
   }
 
   // ── Admin: User Management ──────────────────────────────────────────────
