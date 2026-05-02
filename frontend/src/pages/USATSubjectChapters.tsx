@@ -58,37 +58,105 @@ const resolveLink = (value: string): string | null => {
 };
 
 /**
- * Resolve a file URL to one the PDF iframe can load directly.
+ * Download a PDF and return a same-origin blob: URL that the iframe can embed.
  *
- * Supabase Storage objects → short-lived signed URL (~50 ms backend call);
- * the iframe loads the PDF straight from Supabase CDN, no file data passes
- * through our backend.
+ * Why blob and not a direct URL?
+ *   - Supabase Storage CDN sets `X-Frame-Options` headers that block iframe
+ *     embedding from any other domain ("refused to connect").
+ *   - A blob: URL is same-origin to the page, so the iframe loads instantly
+ *     with no X-Frame-Options / CSP restrictions.
  *
- * Local /uploads/ paths → direct same-origin URL (served by backend).
+ * Speed strategy:
+ *   1. Backend returns a short-lived signed URL (small JSON, ~50ms).
+ *   2. Browser fetches the PDF *directly* from Supabase CDN (Access-Control-
+ *      Allow-Origin: * is set on signed URLs, so CORS is fine).
+ *   3. Progress callback updates a UI bar so users see "Downloading… 47%"
+ *      instead of a frozen spinner.
+ *
+ * Fallback: if the direct CDN fetch fails (network/CORS), the request is
+ * retried through the backend proxy which streams the bytes back via Render.
  */
-const resolvePdfUrl = async (fileUrl: string): Promise<string> => {
+const downloadPdfAsBlob = async (
+  fileUrl: string,
+  onProgress?: (pct: number) => void,
+): Promise<string> => {
   const token = apiClient.getToken();
   if (!token) throw new Error("Not authenticated");
 
-  if (fileUrl.includes("/storage/v1/object/")) {
-    // Ask backend for a time-limited signed URL (small JSON, no file bytes)
-    const res = await fetch(
-      `${API_BASE_URL}/files/signed-url?url=${encodeURIComponent(fileUrl)}&token=${encodeURIComponent(token)}`
-    );
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Could not get download URL (${res.status}): ${body.slice(0, 200)}`);
-    }
-    const { signed_url } = (await res.json()) as { signed_url: string };
-    // The iframe loads directly from Supabase CDN — no CORS, no backend hop
-    return signed_url;
-  }
-
+  // Local /uploads/ files are already same-origin — no blob needed
   if (fileUrl.startsWith("/uploads/")) {
     return `${API_ORIGIN}${fileUrl}`;
   }
 
-  return fileUrl;
+  const isSupabase = fileUrl.includes("/storage/v1/object/");
+
+  // Build the list of URLs to try, in order of preference
+  const candidates: string[] = [];
+  if (isSupabase) {
+    try {
+      const sigRes = await fetch(
+        `${API_BASE_URL}/files/signed-url?url=${encodeURIComponent(fileUrl)}&token=${encodeURIComponent(token)}`,
+      );
+      if (sigRes.ok) {
+        const { signed_url } = (await sigRes.json()) as { signed_url: string };
+        candidates.push(signed_url);
+      }
+    } catch {
+      // ignore — we'll fall back to the proxy below
+    }
+    // Always include the proxy as a fallback
+    candidates.push(
+      `${API_BASE_URL}/files/proxy?url=${encodeURIComponent(fileUrl)}&token=${encodeURIComponent(token)}`,
+    );
+  } else {
+    candidates.push(fileUrl);
+  }
+
+  let lastErr: Error | null = null;
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        lastErr = new Error(`HTTP ${res.status}`);
+        continue;
+      }
+      const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (ct.includes("text/html")) {
+        lastErr = new Error("Storage returned an HTML page (likely a WAF block)");
+        continue;
+      }
+
+      // Stream with progress tracking when the body reader is available
+      if (res.body && onProgress) {
+        const total = Number(res.headers.get("content-length") || 0);
+        const reader = res.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        // Read until done — surface a percentage when total is known
+        // and a "received bytes" indicator otherwise.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total > 0) {
+            onProgress(Math.min(99, Math.round((received / total) * 100)));
+          }
+        }
+        onProgress(100);
+        const blob = new Blob(chunks as BlobPart[], { type: ct || "application/pdf" });
+        return URL.createObjectURL(blob);
+      }
+
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastErr ?? new Error("Could not load PDF");
 };
 
 const readYear = (title: string): string => {
@@ -267,9 +335,14 @@ const USATSubjectChapters = () => {
   const csvRef = useRef<HTMLInputElement>(null);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [userNotePdfLoading, setUserNotePdfLoading] = useState(false);
+  const [userNoteProgress, setUserNoteProgress] = useState(0);
   const [userNotePdfError, setUserNotePdfError] = useState<string | null>(null);
+  // Blob URLs are heavy — revoke when modals close to free memory.
+  const pdfBlobUrlRef = useRef<string | null>(null);
+  const noteBlobUrlRef = useRef<string | null>(null);
   const [subjectResources, setSubjectResources] = useState<SubjectResource[]>([]);
   const [showAddSubjRes, setShowAddSubjRes] = useState(false);
   const [subjResTitle, setSubjResTitle] = useState("");
@@ -474,10 +547,21 @@ const USATSubjectChapters = () => {
     }
     try {
       setUserNotePdfLoading(true);
+      setUserNoteProgress(0);
       setUserNotePdfError(null);
+      if (noteBlobUrlRef.current) {
+        URL.revokeObjectURL(noteBlobUrlRef.current);
+        noteBlobUrlRef.current = null;
+      }
+      // Open modal immediately so the progress bar is visible during download
+      setUserNotePdfUrl("__loading__");
       const directUrl = await apiClient.getUserNoteDirectUrl(noteId);
-      const url = await resolvePdfUrl(directUrl);
-      setUserNotePdfUrl(url);
+      const blobUrl = await downloadPdfAsBlob(
+        directUrl,
+        (pct) => setUserNoteProgress(pct),
+      );
+      noteBlobUrlRef.current = blobUrl;
+      setUserNotePdfUrl(blobUrl);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setUserNotePdfError(msg);
@@ -885,9 +969,20 @@ const USATSubjectChapters = () => {
                                     onClick={async () => {
                                       try {
                                         setPdfLoading(true);
+                                        setPdfProgress(0);
                                         setPdfError(null);
-                                        const url = await resolvePdfUrl(paper.file_path);
-                                        setPdfViewerUrl(url);
+                                        if (pdfBlobUrlRef.current) {
+                                          URL.revokeObjectURL(pdfBlobUrlRef.current);
+                                          pdfBlobUrlRef.current = null;
+                                        }
+                                        // Open the modal immediately so the progress bar is visible
+                                        setPdfViewerUrl("__loading__");
+                                        const blobUrl = await downloadPdfAsBlob(
+                                          paper.file_path,
+                                          (pct) => setPdfProgress(pct),
+                                        );
+                                        pdfBlobUrlRef.current = blobUrl;
+                                        setPdfViewerUrl(blobUrl);
                                       } catch (err: unknown) {
                                         const msg = err instanceof Error ? err.message : "Unknown error";
                                         setPdfError(msg);
@@ -1011,13 +1106,29 @@ const USATSubjectChapters = () => {
         {pdfViewerUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => { setPdfViewerUrl(null); setPdfError(null); }}>
+            onClick={() => {
+              setPdfViewerUrl(null);
+              setPdfError(null);
+              setPdfProgress(0);
+              if (pdfBlobUrlRef.current) {
+                URL.revokeObjectURL(pdfBlobUrlRef.current);
+                pdfBlobUrlRef.current = null;
+              }
+            }}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl will-change-transform"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3">
                 <h3 className="text-sm font-bold text-slate-800">PDF Viewer</h3>
-                <button type="button" onClick={() => { setPdfViewerUrl(null); setPdfError(null); }}
+                <button type="button" onClick={() => {
+                  setPdfViewerUrl(null);
+                  setPdfError(null);
+                  setPdfProgress(0);
+                  if (pdfBlobUrlRef.current) {
+                    URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    pdfBlobUrlRef.current = null;
+                  }
+                }}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-rose-100 hover:text-rose-600">
                   <X className="h-4 w-4" />
                 </button>
@@ -1026,6 +1137,22 @@ const USATSubjectChapters = () => {
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
                   <p className="text-sm font-semibold text-rose-600">Could not load PDF</p>
                   <p className="text-xs text-slate-500 max-w-sm">{pdfError}</p>
+                </div>
+              ) : pdfLoading || pdfViewerUrl === "__loading__" ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                  <p className="text-sm font-bold text-slate-700">
+                    {pdfProgress > 0 ? "Downloading PDF…" : "Connecting…"}
+                  </p>
+                  <div className="w-64 max-w-full">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-200"
+                        style={{ width: `${pdfProgress}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] font-semibold text-slate-500">{pdfProgress}%</p>
+                  </div>
                 </div>
               ) : (
                 <iframe src={`${pdfViewerUrl}#toolbar=0&navpanes=0`} className="flex-1 w-full" title="PDF Viewer" />
@@ -1040,23 +1167,53 @@ const USATSubjectChapters = () => {
         {userNotePdfUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => { setUserNotePdfUrl(null); setUserNotePdfError(null); }}>
+            onClick={() => {
+              setUserNotePdfUrl(null);
+              setUserNotePdfError(null);
+              setUserNoteProgress(0);
+              if (noteBlobUrlRef.current) {
+                URL.revokeObjectURL(noteBlobUrlRef.current);
+                noteBlobUrlRef.current = null;
+              }
+            }}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl will-change-transform"
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-50 px-5 py-3">
                 <h3 className="text-sm font-bold text-blue-800">My Note — View Only</h3>
-                <button type="button" onClick={() => { setUserNotePdfUrl(null); setUserNotePdfError(null); }}
+                <button type="button" onClick={() => {
+                  setUserNotePdfUrl(null);
+                  setUserNotePdfError(null);
+                  setUserNoteProgress(0);
+                  if (noteBlobUrlRef.current) {
+                    URL.revokeObjectURL(noteBlobUrlRef.current);
+                    noteBlobUrlRef.current = null;
+                  }
+                }}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-500 transition hover:bg-rose-100 hover:text-rose-600">
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              {userNotePdfLoading ? (
-                <div className="flex-1 flex items-center justify-center text-sm text-slate-400">Loading PDF…</div>
-              ) : userNotePdfError ? (
+              {userNotePdfError ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
                   <p className="text-sm font-semibold text-rose-600">Could not load note PDF</p>
                   <p className="text-xs text-slate-500 max-w-sm">{userNotePdfError}</p>
+                </div>
+              ) : userNotePdfLoading || userNotePdfUrl === "__loading__" ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  <p className="text-sm font-bold text-slate-700">
+                    {userNoteProgress > 0 ? "Downloading note…" : "Connecting…"}
+                  </p>
+                  <div className="w-64 max-w-full">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-200"
+                        style={{ width: `${userNoteProgress}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] font-semibold text-slate-500">{userNoteProgress}%</p>
+                  </div>
                 </div>
               ) : (
                 <iframe src={`${userNotePdfUrl}#toolbar=0&navpanes=0`} className="flex-1 w-full" title="User Note PDF Viewer" />
