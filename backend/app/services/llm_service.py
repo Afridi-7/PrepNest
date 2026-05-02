@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 _OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
 _OPENAI_FALLBACK_MODEL = os.getenv("OPENAI_FALLBACK_MODEL", "gpt-4o-mini")
 
+# Concurrency cap: limits simultaneous in-flight OpenAI requests across all
+# users on this instance.  Lazily created on first use so the semaphore is
+# always bound to the running event loop (avoids DeprecationWarning on 3.10+
+# and RuntimeError on 3.12 if the module is imported before the loop starts).
+_llm_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _llm_semaphore
+    if _llm_semaphore is None:
+        _llm_semaphore = asyncio.Semaphore(get_settings().llm_max_concurrent)
+    return _llm_semaphore
+
 
 class LLMService:
     def __init__(self) -> None:
@@ -40,28 +53,29 @@ class LLMService:
 
         chosen = model or self.settings.openai_model
         started = time.perf_counter()
-        try:
-            response = await self.client.chat.completions.create(
-                model=chosen,
-                messages=messages,
-                temperature=temperature,
-            )
-        except Exception as exc:
-            logger.warning("Primary model %s failed (%s); attempting fallback %s",
-                           chosen, exc, _OPENAI_FALLBACK_MODEL)
-            if chosen == _OPENAI_FALLBACK_MODEL:
-                await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
-                raise
+        async with _get_semaphore():
             try:
                 response = await self.client.chat.completions.create(
-                    model=_OPENAI_FALLBACK_MODEL,
+                    model=chosen,
                     messages=messages,
                     temperature=temperature,
                 )
-                chosen = _OPENAI_FALLBACK_MODEL
-            except Exception:
-                await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
-                raise
+            except Exception as exc:
+                logger.warning("Primary model %s failed (%s); attempting fallback %s",
+                               chosen, exc, _OPENAI_FALLBACK_MODEL)
+                if chosen == _OPENAI_FALLBACK_MODEL:
+                    await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
+                    raise
+                try:
+                    response = await self.client.chat.completions.create(
+                        model=_OPENAI_FALLBACK_MODEL,
+                        messages=messages,
+                        temperature=temperature,
+                    )
+                    chosen = _OPENAI_FALLBACK_MODEL
+                except Exception:
+                    await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
+                    raise
 
         prompt_tokens = getattr(getattr(response, "usage", None), "prompt_tokens", 0) or 0
         completion_tokens = getattr(getattr(response, "usage", None), "completion_tokens", 0) or 0
@@ -93,40 +107,44 @@ class LLMService:
         chosen = model or self.settings.openai_model
         started = time.perf_counter()
         approx_completion = 0
-        try:
-            stream = await self.client.chat.completions.create(
-                model=chosen,
-                messages=messages,
-                temperature=temperature,
-                stream=True,
-            )
-            async for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
-                if delta:
-                    approx_completion += max(1, len(delta) // 4)
-                    yield delta
-        except asyncio.CancelledError:
-            await self._record_usage_safe(user_id, conversation_id, chosen, started, status="cancelled")
-            raise
-        except Exception as exc:
-            logger.warning("Streaming model %s failed (%s); falling back to %s",
-                           chosen, exc, _OPENAI_FALLBACK_MODEL)
-            await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
-            if chosen == _OPENAI_FALLBACK_MODEL:
+        # Acquire the concurrency slot before opening the stream.  We hold it
+        # for the entire streaming duration so the cap applies to active
+        # streams, not just the connection phase.
+        async with _get_semaphore():
+            try:
+                stream = await self.client.chat.completions.create(
+                    model=chosen,
+                    messages=messages,
+                    temperature=temperature,
+                    stream=True,
+                )
+                async for chunk in stream:
+                    delta = chunk.choices[0].delta.content or ""
+                    if delta:
+                        approx_completion += max(1, len(delta) // 4)
+                        yield delta
+            except asyncio.CancelledError:
+                await self._record_usage_safe(user_id, conversation_id, chosen, started, status="cancelled")
                 raise
-            stream = await self.client.chat.completions.create(
-                model=_OPENAI_FALLBACK_MODEL,
-                messages=messages,
-                temperature=temperature,
-                stream=True,
-            )
-            chosen = _OPENAI_FALLBACK_MODEL
-            started = time.perf_counter()
-            async for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
-                if delta:
-                    approx_completion += max(1, len(delta) // 4)
-                    yield delta
+            except Exception as exc:
+                logger.warning("Streaming model %s failed (%s); falling back to %s",
+                               chosen, exc, _OPENAI_FALLBACK_MODEL)
+                await self._record_usage_safe(user_id, conversation_id, chosen, started, status="error")
+                if chosen == _OPENAI_FALLBACK_MODEL:
+                    raise
+                stream = await self.client.chat.completions.create(
+                    model=_OPENAI_FALLBACK_MODEL,
+                    messages=messages,
+                    temperature=temperature,
+                    stream=True,
+                )
+                chosen = _OPENAI_FALLBACK_MODEL
+                started = time.perf_counter()
+                async for chunk in stream:
+                    delta = chunk.choices[0].delta.content or ""
+                    if delta:
+                        approx_completion += max(1, len(delta) // 4)
+                        yield delta
 
         # Tokens for streamed responses aren't reported until the chunked
         # body finishes; we record an approximate completion-token count

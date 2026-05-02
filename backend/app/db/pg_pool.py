@@ -36,6 +36,30 @@ async def init_pg_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         settings = get_settings()
+
+        # Prefer the Supavisor (PgBouncer transaction-mode) pooler URL when
+        # configured.  Supavisor lets thousands of app connections share a
+        # small number of real Postgres connections, so it scales far beyond
+        # Supabase's 15-connection direct limit.  Set SUPABASE_POOLER_URL in
+        # the environment to enable; it is the "Transaction mode" URL from
+        # Supabase → Settings → Database → Connection Pooling.
+        #
+        # IMPORTANT: PgBouncer transaction mode does NOT support prepared
+        # statements, so statement_cache_size must be 0.
+        pooler_url = settings.supabase_pooler_url
+        if pooler_url:
+            result = _build_pool_dsn(pooler_url)
+            if result:
+                dsn, needs_ssl = result
+                _pool = await asyncpg.create_pool(
+                    dsn=dsn,
+                    ssl="require" if needs_ssl else None,
+                    min_size=_MIN_POOL,
+                    max_size=_MAX_POOL,
+                    statement_cache_size=0,  # required for PgBouncer/Supavisor
+                )
+                return _pool
+
         result = _build_pool_dsn(settings.database_url)
 
         if result:

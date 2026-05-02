@@ -770,7 +770,9 @@ const Practice = () => {
                     <div className="flex-1 min-w-0">
                       <h3 className="practice-heading text-base font-extrabold text-slate-800">Full Mock Test</h3>
                       <p className="mt-1 text-sm text-slate-500 leading-relaxed">
-                        75 MCQs + 2 Essays — timed, AI-evaluated, with detailed feedback.
+                        {examMode === "hat"
+                          ? "100 MCQs — English/Verbal 30%, Analytical 30%, Quantitative 40% — timed, instant score."
+                          : "75 MCQs + 2 Essays — timed, AI-evaluated, with detailed feedback."}
                       </p>
                       {!isPro ? (
                         <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
@@ -778,9 +780,9 @@ const Practice = () => {
                         </div>
                       ) : (
                         <button
-                          onClick={() => navigate(`/mock-test${selectedCategory ? `?category=${selectedCategory.code}` : ""}`)}
+                          onClick={() => navigate(examMode === "hat" ? "/mock-test?category=HAT" : `/mock-test${selectedCategory ? `?category=${selectedCategory.code}` : ""}`)}
                           className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-                          style={{ background: "linear-gradient(135deg, #0284c7, #2563eb)", boxShadow: "0 4px 14px rgba(2,132,199,0.35)" }}
+                          style={{ background: examMode === "hat" ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "linear-gradient(135deg, #0284c7, #2563eb)", boxShadow: examMode === "hat" ? "0 4px 14px rgba(124,58,237,0.35)" : "0 4px 14px rgba(2,132,199,0.35)" }}
                         >
                           <Play className="h-4 w-4" /> Take Mock Test
                         </button>
@@ -789,8 +791,8 @@ const Practice = () => {
                   </div>
                 </motion.div>
 
-                {/* Essay Practice Card */}
-                <motion.div
+                {/* Essay Practice Card — hidden in HAT mode (no essays) */}
+                {examMode !== "hat" && <motion.div
                   initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
                   className="g-card card-lift rounded-3xl p-6"
                 >
@@ -859,7 +861,7 @@ const Practice = () => {
                       )}
                     </>
                   )}
-                </motion.div>
+                </motion.div>}
               </div>
             </motion.div>
           )}

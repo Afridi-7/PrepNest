@@ -1685,17 +1685,23 @@ const AdminContent = () => {
                   Correct answer must be A-D.
                 </p>
                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={csvExamType} onChange={(e) => setCsvExamType(e.target.value)} required>
-                  <option value="ALL">All Categories (USAT-E, M, CS, GS, A, COM) — adds subject/chapter to every type</option>
+                  <option value="ALL">All USAT Categories (USAT-E, M, CS, GS, A, COM) — adds subject/chapter to every type</option>
                   <option value="USAT-E">USAT-E (Pre-Engineering)</option>
                   <option value="USAT-M">USAT-M (Pre-Medical)</option>
                   <option value="USAT-CS">USAT-CS (Computer Science)</option>
                   <option value="USAT-GS">USAT-GS (General Science)</option>
                   <option value="USAT-A">USAT-A (Arts and Humanities)</option>
                   <option value="USAT-COM">USAT-COM (Commerce)</option>
+                  <option value="HAT">HAT (Higher Aptitude Test)</option>
                 </select>
                 {csvExamType === "ALL" && (
                   <p className="text-xs rounded-lg bg-cyan-50 border border-cyan-200 px-3 py-2 text-cyan-700">
-                    <strong>All Categories mode:</strong> Each MCQ row will be inserted under <em>every</em> exam type. Use this for shared subjects like Verbal Reasoning or English that appear across all USAT variants.
+                    <strong>All Categories mode:</strong> Each MCQ row will be inserted under <em>every</em> USAT exam type. Use this for shared subjects like Verbal Reasoning or English that appear across all USAT variants.
+                  </p>
+                )}
+                {csvExamType === "HAT" && (
+                  <p className="text-xs rounded-lg bg-violet-50 border border-violet-200 px-3 py-2 text-violet-700">
+                    <strong>HAT mode:</strong> MCQs will be uploaded exclusively for HAT. Use subjects exactly as: <em>English / Verbal Reasoning</em>, <em>Analytical Reasoning</em>, or <em>Quantitative Reasoning</em>.
                   </p>
                 )}
                 <input className="w-full border rounded-lg px-3 py-2 text-sm" type="file" accept=".csv,text/csv" onChange={(e) => setCsvFile((e.target.files && e.target.files[0]) || null)} required />

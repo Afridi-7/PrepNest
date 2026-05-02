@@ -1171,7 +1171,7 @@ async def delete_paper(
 
 MCQ_CSV_REQUIRED_COLUMNS = {"question", "option1", "option2", "option3", "option4", "correct_answer", "subject", "chapter"}
 MCQ_CSV_VALID_ANSWERS = {"A", "B", "C", "D"}
-ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM"]
+ALL_USAT_EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM", "HAT"]
 
 # Maps numeric answer values to letter answers (1→A, 2→B, 3→C, 4→D)
 _NUMERIC_ANSWER_MAP: dict[str, str] = {"1": "A", "2": "B", "3": "C", "4": "D"}

@@ -58,6 +58,13 @@ interface FlatItem {
   id: number;
 }
 
+/** Virtual category for HAT — not in the USAT categories list */
+const HAT_VIRTUAL: USATCategory = {
+  code: "HAT",
+  title: "HAT — Higher Aptitude Test",
+  description: "100 MCQs across 3 aptitude sections. No essays.",
+};
+
 const MockTestPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -104,7 +111,12 @@ const MockTestPage = () => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     const cat = searchParams.get("category");
-    if (cat && categories.length > 0) {
+    if (!cat) return;
+    if (cat.toUpperCase() === "HAT") {
+      setSelectedCategory(HAT_VIRTUAL);
+      return;
+    }
+    if (categories.length > 0) {
       const found = categories.find((c) => c.code === cat.toUpperCase());
       if (found) setSelectedCategory(found);
     }
@@ -187,6 +199,8 @@ const MockTestPage = () => {
     return (essayAnswers[String(item.id)] || "").trim().length > 0;
   }).length;
 
+  const isHATMode = selectedCategory?.code === "HAT" || searchParams.get("category")?.toUpperCase() === "HAT";
+
   const restart = () => {
     setPhase("config");
     setMockTest(null);
@@ -224,9 +238,19 @@ const MockTestPage = () => {
             {phase === "config" && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
 
+                {/* Back button */}
+                <button
+                  onClick={() => navigate(-1)}
+                  className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+
                 {/* Hero Banner */}
                 <div className="relative mb-8 overflow-hidden rounded-3xl p-8 shadow-2xl"
-                  style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0ea5e9 100%)" }}>
+                  style={{ background: isHATMode
+                    ? "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%)"
+                    : "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0ea5e9 100%)" }}>
                   {/* Decorative circles */}
                   <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10 translate-x-16 -translate-y-16"
                     style={{ background: "radial-gradient(circle, white, transparent)" }} />
@@ -235,24 +259,34 @@ const MockTestPage = () => {
 
                   <div className="relative z-10">
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-4 py-1.5 text-xs font-bold text-white/90 backdrop-blur-sm mb-4">
-                      <FileText className="h-3.5 w-3.5" /> Full Mock Examination
+                      <FileText className="h-3.5 w-3.5" /> {isHATMode ? "HAT Full Examination" : "Full Mock Examination"}
                     </span>
                     <h1 className="text-5xl font-black tracking-tight text-white mb-2"
                       style={{ textShadow: "0 2px 20px rgba(0,0,0,0.2)" }}>
-                      Mock Exam
+                      {isHATMode ? "HAT Mock Exam" : "Mock Exam"}
                     </h1>
                     <p className="text-base text-indigo-100 font-medium">
-                      75 MCQs + 2 Essays · 120 minutes · AI-evaluated with detailed feedback
+                      {isHATMode
+                        ? "100 MCQs · 3 Aptitude Sections · 120 minutes · Instant scoring"
+                        : "75 MCQs + 2 Essays · 120 minutes · AI-evaluated with detailed feedback"}
                     </p>
 
                     {/* Stats row */}
                     <div className="mt-6 flex flex-wrap gap-4">
-                      {[
-                        { label: "Questions", value: "77" },
-                        { label: "Duration", value: "120 min" },
-                        { label: "Sections", value: "5" },
-                        { label: "AI Feedback", value: "Instant" },
-                      ].map(({ label, value }) => (
+                      {(isHATMode
+                        ? [
+                            { label: "Questions", value: "100" },
+                            { label: "Duration",  value: "120 min" },
+                            { label: "Sections",  value: "3" },
+                            { label: "Scoring",   value: "Instant" },
+                          ]
+                        : [
+                            { label: "Questions", value: "77" },
+                            { label: "Duration",  value: "120 min" },
+                            { label: "Sections",  value: "5" },
+                            { label: "AI Feedback", value: "Instant" },
+                          ]
+                      ).map(({ label, value }) => (
                         <div key={label} className="rounded-2xl bg-white/15 backdrop-blur-sm px-4 py-2.5 border border-white/20">
                           <div className="text-xl font-black text-white">{value}</div>
                           <div className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider">{label}</div>
@@ -265,7 +299,22 @@ const MockTestPage = () => {
                 {/* Config Card */}
                 <div className="rounded-3xl border border-white/80 bg-white p-6 sm:p-8 shadow-xl shadow-indigo-100/40 space-y-7">
 
-                  {/* Category Selector */}
+                  {/* Category Selector — hidden in HAT mode (category is fixed) */}
+                  {isHATMode ? (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-4 rounded-2xl border-2 border-violet-200 px-5 py-4"
+                      style={{ background: "linear-gradient(135deg, #f5f3ff, #fdf4ff)" }}>
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm"
+                        style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}>
+                        <FileText className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-black text-violet-900">HAT — Higher Aptitude Test</div>
+                        <div className="text-xs text-violet-600 mt-0.5">3 aptitude sections · 100 MCQs · No essays</div>
+                      </div>
+                      <span className="ml-auto rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">Selected</span>
+                    </motion.div>
+                  ) : (
                   <div>
                     <label className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3 block">
                       Select Category
@@ -311,6 +360,7 @@ const MockTestPage = () => {
                       </AnimatePresence>
                     </div>
                   </div>
+                  )}
 
                   {/* Test Info Strip */}
                   {selectedCategory && (

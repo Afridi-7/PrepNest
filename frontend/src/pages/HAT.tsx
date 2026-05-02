@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BookOpen, ChevronRight, Clock3, Layers, Loader2, Sparkles, Target } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { apiClient, Subject } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
 
 /* HAT Section breakdown — from official HAT specs */
 const HAT_SECTIONS = [
@@ -36,18 +36,53 @@ const HAT_SECTIONS = [
   },
 ];
 
-/* Per-subject accent colours */
+/* Per-subject accent colours — keyed by lowercase keywords in subject name */
 const SUBJECT_STYLES: Record<string, {
-  gradient: string; border: string; code: string; bar: string; hover: string; iconBg: string;
+  gradient: string; border: string; code: string; bar: string; hover: string;
 }> = {
+  verbal: {
+    gradient: "from-violet-100 to-purple-200 dark:from-violet-500/20 dark:to-purple-500/10",
+    border: "border-violet-300 dark:border-violet-500/20",
+    code: "bg-violet-200 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200",
+    bar: "from-violet-500 to-purple-600",
+    hover: "hover:border-violet-400 hover:shadow-violet-200/60 dark:hover:border-violet-500/40",
+  },
+  english: {
+    gradient: "from-violet-100 to-purple-200 dark:from-violet-500/20 dark:to-purple-500/10",
+    border: "border-violet-300 dark:border-violet-500/20",
+    code: "bg-violet-200 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200",
+    bar: "from-violet-500 to-purple-600",
+    hover: "hover:border-violet-400 hover:shadow-violet-200/60 dark:hover:border-violet-500/40",
+  },
+  analytical: {
+    gradient: "from-fuchsia-100 to-pink-200 dark:from-fuchsia-500/20 dark:to-pink-500/10",
+    border: "border-fuchsia-300 dark:border-fuchsia-500/20",
+    code: "bg-fuchsia-200 text-fuchsia-800 dark:bg-fuchsia-500/20 dark:text-fuchsia-200",
+    bar: "from-fuchsia-500 to-pink-600",
+    hover: "hover:border-fuchsia-400 hover:shadow-fuchsia-200/60 dark:hover:border-fuchsia-500/40",
+  },
+  quantitative: {
+    gradient: "from-indigo-100 to-blue-200 dark:from-indigo-500/20 dark:to-blue-500/10",
+    border: "border-indigo-300 dark:border-indigo-500/20",
+    code: "bg-indigo-200 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200",
+    bar: "from-indigo-500 to-blue-600",
+    hover: "hover:border-indigo-400 hover:shadow-indigo-200/60 dark:hover:border-indigo-500/40",
+  },
   default: {
     gradient: "from-violet-100 to-purple-200 dark:from-violet-500/20 dark:to-purple-500/10",
     border: "border-violet-300 dark:border-violet-500/20",
     code: "bg-violet-200 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200",
     bar: "from-violet-500 to-purple-600",
-    hover: "hover:border-violet-400 hover:shadow-violet-200/60 dark:hover:border-violet-500/40 dark:hover:shadow-violet-950/20",
-    iconBg: "bg-violet-500",
+    hover: "hover:border-violet-400 hover:shadow-violet-200/60 dark:hover:border-violet-500/40",
   },
+};
+
+const getSubjectStyle = (name: string) => {
+  const lower = name.toLowerCase();
+  if (lower.includes("quantitative")) return SUBJECT_STYLES.quantitative;
+  if (lower.includes("analytical"))   return SUBJECT_STYLES.analytical;
+  if (lower.includes("english") || lower.includes("verbal")) return SUBJECT_STYLES.english;
+  return SUBJECT_STYLES.default;
 };
 
 const slugify = (value: string) =>
@@ -55,20 +90,16 @@ const slugify = (value: string) =>
 
 const HAT = () => {
   const navigate = useNavigate();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(false);
-  const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    setLoading(true);
-    apiClient
-      .listUSATCategorySubjects("HAT")
-      .then(setSubjects)
-      .catch(() => setSubjects([]))
-      .finally(() => setLoading(false));
-  }, []);
+  // Cached — identical query key is shared if this component is mounted
+  // multiple times; data is instantly available on back-navigation.
+  const { data: subjects = [], isLoading: loading } = useQuery<Subject[]>({
+    queryKey: ["hat-subjects"],
+    queryFn: () => apiClient.listUSATCategorySubjects("HAT"),
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+    retry: false,
+  });
 
   return (
     <>
@@ -179,45 +210,44 @@ const HAT = () => {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {subjects.map((subject, idx) => {
-                  const style = SUBJECT_STYLES.default;
+                  const style = getSubjectStyle(subject.name);
                   const slug = subject.slug ?? slugify(subject.name);
                   return (
                     <motion.button
                       key={subject.id}
-                      onClick={() => navigate(`/hat/${encodeURIComponent(slug)}`)}
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.05 + idx * 0.04, duration: 0.35, ease: "easeOut" }}
-                      className={`group relative flex flex-col items-start gap-3 overflow-hidden rounded-2xl border bg-gradient-to-br p-5 text-left shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${style.gradient} ${style.border} ${style.hover}`}
+                      transition={{ delay: idx * 0.06, duration: 0.42, ease: "easeOut" }}
+                      whileHover={{ y: -4, boxShadow: "0 16px 48px -12px rgba(0,0,0,0.12), 0 6px 16px -4px rgba(0,0,0,0.06)", transition: { duration: 0 } }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => navigate(`/hat/${encodeURIComponent(slug)}`)}
+                      className={`group relative overflow-hidden rounded-2xl border-2 bg-gradient-to-br p-5 text-left shadow-lg transition-shadow duration-300 ${style.gradient} ${style.border} ${style.hover} hover:shadow-xl`}
                     >
-                      {/* Top-right icon */}
-                      <div className={`absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl shadow-sm ${style.iconBg}`}>
-                        <BookOpen className="h-5 w-5 text-white" />
+                      {/* Top gradient bar */}
+                      <div className={`absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r ${style.bar}`} />
+
+                      <div className="flex items-start justify-between">
+                        <span className={`rounded-lg px-2.5 py-1 text-xs font-black ${style.code}`}>
+                          HAT
+                        </span>
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white/70 transition-transform duration-200 group-hover:translate-x-0.5 dark:border-slate-700 dark:bg-slate-900/70">
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-500 dark:text-slate-300" />
+                        </span>
                       </div>
 
-                      {/* Subject code badge */}
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${style.code}`}>
-                        {subject.exam_type ?? "HAT"}
-                      </span>
+                      <h3 className="mt-3 text-lg font-extrabold leading-snug text-slate-900 dark:text-slate-100">
+                        {subject.name}
+                      </h3>
+                      {subject.description && (
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                          {subject.description}
+                        </p>
+                      )}
 
-                      <div className="pr-12">
-                        <h3 className="text-base font-extrabold text-slate-800 leading-snug dark:text-slate-100">
-                          {subject.name}
-                        </h3>
-                        {subject.description && (
-                          <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400 line-clamp-2">
-                            {subject.description}
-                          </p>
-                        )}
+                      <div className="mt-4 flex items-center gap-1 text-xs font-bold text-slate-500 transition-all duration-200 group-hover:gap-2 group-hover:text-slate-700 dark:text-slate-300 dark:group-hover:text-slate-100">
+                        Open Chapters
+                        <ChevronRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
                       </div>
-
-                      {/* Progress bar accent */}
-                      <div className={`h-1 w-full rounded-full bg-gradient-to-r ${style.bar} opacity-70`} />
-
-                      {/* CTA */}
-                      <span className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:gap-2 transition-all">
-                        Open Chapters <ChevronRight className="h-3.5 w-3.5" />
-                      </span>
                     </motion.button>
                   );
                 })}

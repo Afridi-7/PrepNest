@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
+import katex from "katex";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, User, Loader2, Copy, Check, AlertCircle, Menu, X, Upload,
@@ -67,6 +68,31 @@ function renderMarkdown(content: string) {
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // Block math: $$...$$  (possibly spanning multiple lines)
+    if (line.trimStart().startsWith("$$")) {
+      const rest = line.trimStart().slice(2);
+      // Single-line: $$expr$$
+      if (rest.endsWith("$$") && rest.length > 2) {
+        const expr = rest.slice(0, -2);
+        const html = katex.renderToString(expr, { throwOnError: false, displayMode: true });
+        elements.push(<div key={elements.length} className="my-3 overflow-x-auto text-center" dangerouslySetInnerHTML={{ __html: html }} />);
+        i++; continue;
+      }
+      // Multi-line: collect until closing $$
+      const mathLines: string[] = [];
+      if (rest.trim()) mathLines.push(rest);
+      i++;
+      while (i < lines.length && !lines[i].trimStart().startsWith("$$")) {
+        mathLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing $$
+      const expr = mathLines.join("\n");
+      const html = katex.renderToString(expr, { throwOnError: false, displayMode: true });
+      elements.push(<div key={elements.length} className="my-3 overflow-x-auto text-center" dangerouslySetInnerHTML={{ __html: html }} />);
+      continue;
+    }
 
     if (line.trimStart().startsWith("``" + "`")) {
       const lang = line.trimStart().slice(3).trim();
@@ -143,13 +169,18 @@ function renderMarkdown(content: string) {
 
 function inlineMarkdown(text: string): (string | JSX.Element)[] {
   const parts: (string | JSX.Element)[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  // Match inline math $...$ first, then bold, code, italic
+  const regex = /(\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
   let last = 0;
   let match;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index));
     const m = match[0];
-    if (m.startsWith("**")) {
+    if (m.startsWith("$") && m.endsWith("$")) {
+      const expr = m.slice(1, -1);
+      const html = katex.renderToString(expr, { throwOnError: false, displayMode: false });
+      parts.push(<span key={`math-${match.index}`} dangerouslySetInnerHTML={{ __html: html }} />);
+    } else if (m.startsWith("**")) {
       parts.push(<strong key={`b-${match.index}`} className="font-semibold text-slate-900 dark:text-white">{m.slice(2, -2)}</strong>);
     } else if (m.startsWith("`")) {
       parts.push(<code key={`c-${match.index}`} className="px-1 py-0.5 rounded bg-violet-50 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[12px] font-mono border border-violet-200/60 dark:border-violet-700/60">{m.slice(1, -1)}</code>);

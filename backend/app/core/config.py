@@ -115,6 +115,21 @@ class Settings(BaseSettings):
     # `safepay_env` selects sandbox vs production endpoints. The webhook
     # secret is a separate shared secret used to verify HMAC-SHA256
     # signatures on incoming webhook payloads.
+    # ── LLM concurrency cap ─────────────────────────────────────────────────
+    # Maximum number of simultaneous in-flight OpenAI API calls across ALL
+    # requests on this instance. Prevents thundering-herd token bursts and
+    # keeps cost predictable. Callers block and queue rather than piling up.
+    # Raise this on a beefier tier; lower it to protect a tight API quota.
+    llm_max_concurrent: int = 10
+
+    # ── Supabase Supavisor (PgBouncer transaction-mode pooler) ───────────────
+    # Set SUPABASE_POOLER_URL to the Supavisor connection string from the
+    # Supabase dashboard (Settings → Database → Connection Pooling).
+    # When set, asyncpg uses this URL instead of the direct DATABASE_URL,
+    # which allows thousands of concurrent app connections without exhausting
+    # Postgres's max_connections limit.
+    supabase_pooler_url: str = ""
+
     safepay_api_key: str = ""
     safepay_secret_key: str = ""
     safepay_webhook_secret: str = ""
