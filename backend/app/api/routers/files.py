@@ -264,6 +264,48 @@ async def proxy_diagnose(
     return result
 
 
+@router.get("/signed-url")
+async def get_signed_url(
+    url: str = Query(..., description="Public Supabase URL or bucket-relative path"),
+    token: str | None = Query(None, description="Auth token (alternative to Authorization header)"),
+    _rl=Depends(rate_limit(60, "files_signed_url")),
+) -> dict:
+    """Return a short-lived signed URL for a Supabase Storage object.
+
+    The signed URL lets the browser download the file **directly** from
+    Supabase CDN, bypassing this backend entirely.  This avoids routing the
+    entire PDF through Render (bandwidth & latency bottleneck) and is
+    significantly faster — especially for large PDFs and for the user-notes
+    flow that would otherwise make two sequential backend round-trips.
+
+    Auth: Bearer token in Authorization header OR ``?token=`` query param.
+    """
+    from app.core.security import decode_access_token
+    from app.services.supabase_storage import async_generate_signed_url
+
+    user_id: str | None = None
+    if token:
+        user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=503, detail="Storage backend not configured")
+
+    bucket = settings.supabase_storage_bucket
+    object_path = _path_from_supabase_url(url, bucket, settings.supabase_url)
+    if not object_path:
+        raise HTTPException(status_code=400, detail="URL is not a recognized storage object")
+
+    try:
+        signed_url = await async_generate_signed_url(object_path, expires_in=300)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not generate signed URL: {exc}")
+
+    return {"signed_url": signed_url, "expires_in": 300}
+
+
 @router.get("/{file_id}", response_model=FileAssetResponse)
 async def get_file(
     file_id: str,

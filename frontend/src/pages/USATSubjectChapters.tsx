@@ -66,17 +66,40 @@ const fetchPdfAsBlob = async (fileUrl: string): Promise<string> => {
   const token = apiClient.getToken();
   if (!token) throw new Error("Not authenticated");
 
-  // Choose the right fetch URL based on the file's origin.
-  // Supabase Storage URLs → go through the backend proxy which fetches the
-  //   file with the service-role key (bypasses Cloudflare WAF bot-detection).
-  // /uploads/ local paths → fetch directly from the API origin.
-  let fetchUrl: string;
   if (fileUrl.includes("/storage/v1/object/")) {
-    fetchUrl = `${API_BASE_URL}/files/proxy?url=${encodeURIComponent(fileUrl)}&token=${encodeURIComponent(token)}`;
-  } else if (fileUrl.startsWith("/uploads/")) {
+    // Fast path: ask the backend for a short-lived signed URL (tiny JSON response,
+    // ~50 ms), then let the browser fetch the PDF *directly* from Supabase CDN.
+    // This avoids routing the entire file through the Render backend, which was
+    // the main bottleneck (double-hop bandwidth + free-tier limits).
+    const signedRes = await fetch(
+      `${API_BASE_URL}/files/signed-url?url=${encodeURIComponent(fileUrl)}&token=${encodeURIComponent(token)}`
+    );
+    if (!signedRes.ok) {
+      const body = await signedRes.text().catch(() => "");
+      throw new Error(`Failed to get download URL (${signedRes.status}): ${body.slice(0, 200)}`);
+    }
+    const { signed_url } = (await signedRes.json()) as { signed_url: string };
+
+    // Direct CDN fetch — no Render hop, served from Supabase edge
+    const pdfRes = await fetch(signed_url);
+    if (!pdfRes.ok) {
+      throw new Error(`PDF download failed (${pdfRes.status}). Try opening in a new tab.`);
+    }
+    const ct = pdfRes.headers.get("content-type") ?? "";
+    if (ct.toLowerCase().includes("text/html")) {
+      throw new Error(
+        "Storage returned an HTML page instead of the PDF. Try opening in a new tab."
+      );
+    }
+    const blob = await pdfRes.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  // Non-Supabase paths (/uploads/ local files or external URLs)
+  let fetchUrl: string;
+  if (fileUrl.startsWith("/uploads/")) {
     fetchUrl = `${API_ORIGIN}${fileUrl}`;
   } else {
-    // External URL — try fetching it directly (may fail due to CORS).
     fetchUrl = fileUrl;
   }
 
@@ -87,20 +110,14 @@ const fetchPdfAsBlob = async (fileUrl: string): Promise<string> => {
     const body = await res.text().catch(() => "");
     throw new Error(`Failed to load PDF (${res.status}): ${body.slice(0, 200)}`);
   }
-
-  // Guard against Cloudflare WAF "This content is blocked" pages served as
-  // HTTP 200 with Content-Type: text/html. Without this check the frontend
-  // would silently create a blob URL from the HTML and the iframe would
-  // display the Cloudflare block page instead of the PDF.
   const ct = res.headers.get("content-type") ?? "application/octet-stream";
   if (ct.toLowerCase().includes("text/html")) {
     throw new Error(
       "The storage service returned an HTML page instead of the file. " +
-      "This usually means Cloudflare or the storage backend is blocking the request. " +
+      "This usually means the storage backend is blocking the request. " +
       "Try opening in a new tab."
     );
   }
-
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 };

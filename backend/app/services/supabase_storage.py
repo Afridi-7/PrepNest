@@ -198,3 +198,51 @@ def make_key(prefix: str, filename: str) -> str:
     # Collapse repeated underscores
     stem = _re.sub(r"_+", "_", stem).strip("_")
     return f"{prefix}/{uuid.uuid4()}_{stem}{suffix}"
+
+
+# ---------------------------------------------------------------------------
+# Signed URL generation
+# ---------------------------------------------------------------------------
+
+
+async def async_generate_signed_url(object_path: str, expires_in: int = 300) -> str:
+    """Generate a time-limited signed download URL for a storage object.
+
+    The signed URL is valid for *expires_in* seconds (default 5 minutes) and
+    lets the browser download directly from Supabase CDN without routing the
+    file through this backend — much faster and cheaper on bandwidth.
+
+    Args:
+        object_path: Path within the bucket (e.g. "papers/1/abc_file.pdf").
+        expires_in:  Validity window in seconds.
+
+    Returns:
+        Fully-qualified signed URL (https://…/storage/v1/object/sign/…?token=…).
+    """
+    if not _is_supabase_configured():
+        raise RuntimeError("Supabase Storage is not configured.")
+    settings = _settings()
+    bucket = settings.supabase_storage_bucket
+    sign_endpoint = f"{_storage_api()}/object/sign/{bucket}/{object_path}"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            sign_endpoint,
+            headers={**_auth_headers(), "Content-Type": "application/json"},
+            json={"expiresIn": expires_in},
+        )
+
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(
+            f"Signed URL generation failed ({resp.status_code}): {resp.text[:200]}"
+        )
+
+    data = resp.json()
+    signed_path: str = data.get("signedURL") or data.get("signedUrl") or ""
+    if not signed_path:
+        raise RuntimeError(f"Supabase did not return a signed URL. Response: {data}")
+
+    # Supabase returns a relative path — make it a full URL.
+    if signed_path.startswith("/"):
+        return f"{settings.supabase_url.rstrip('/')}{signed_path}"
+    return signed_path
