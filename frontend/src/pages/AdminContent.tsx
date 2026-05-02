@@ -12,7 +12,7 @@ import { apiClient, Material, MCQ, MCQSearchResult, Note, Resource, Subject, Top
 
 type Tab = "content" | "mcqs" | "upload" | "users" | "tools" | "site";
 interface MCQStat { exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number; }
-const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM"];
+const EXAM_TYPES = ["USAT-E", "USAT-M", "USAT-CS", "USAT-GS", "USAT-A", "USAT-COM", "HAT"];
 
 const AdminContent = () => {
   const { toast } = useToast();

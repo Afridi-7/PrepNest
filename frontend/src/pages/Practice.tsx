@@ -12,6 +12,12 @@ import { apiClient, MCQ, type Subject, type USATCategory } from "@/services/api"
 import AuthRequiredDialog from "@/components/AuthRequiredDialog";
 import ContentProtection from "@/components/ContentProtection";
 
+const HAT_CATEGORY: USATCategory = {
+  code: "HAT",
+  title: "HAT Exam",
+  description: "English/Verbal Reasoning, Analytical Reasoning, Quantitative Reasoning",
+};
+
 /* ── Map DB MCQ → quiz-friendly shape ── */
 interface QuizQuestion {
   id: number;
@@ -68,6 +74,8 @@ const Practice = () => {
   const [phase, setPhase] = useState<"config" | "quiz" | "result" | "essay" | "essay-result">("config");
   const queryClient = useQueryClient();
 
+  const [examMode, setExamMode] = useState<"usat" | "hat">("usat");
+
   const { data: categories = [] } = useQuery({
     queryKey: ["usat-categories"],
     queryFn: () => apiClient.listUSATCategories(),
@@ -101,6 +109,17 @@ const Practice = () => {
 
   const isEssaySubject = (name: string) => /essay/i.test(name);
   const dbSubjects = rawSubjects.filter((s) => !isEssaySubject(s.name));
+
+  const { data: hatRawSubjects = [], isLoading: loadingHATSubjects } = useQuery({
+    queryKey: ["usat-subjects", "HAT"],
+    queryFn: () => apiClient.listUSATCategorySubjects("HAT"),
+    enabled: examMode === "hat",
+    staleTime: 300_000,
+    retry: false,
+  });
+  const hatSubjects = hatRawSubjects.filter((s) => !isEssaySubject(s.name));
+  const activeSubjects = examMode === "hat" ? hatSubjects : dbSubjects;
+  const loadingActiveSubjects = examMode === "hat" ? loadingHATSubjects : loadingSubjects;
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [selectedSubjectName, setSelectedSubjectName] = useState("All Subjects");
@@ -153,17 +172,18 @@ const Practice = () => {
 
   const startQuiz = async () => {
     if (!apiClient.isAuthenticated()) { setAuthDialogOpen(true); return; }
-    if (!selectedCategory) return;
+    if (!selectedCategory && examMode !== "hat") return;
+    const catCode = examMode === "hat" ? "HAT" : selectedCategory!.code;
     setFetchingMCQs(true);
     try {
       let tagged: { mcq: MCQ; subjectName: string }[] = [];
       if (selectedSubjectId) {
-        const subjectName = dbSubjects.find((s) => s.id === selectedSubjectId)?.name ?? "Unknown";
+        const subjectName = activeSubjects.find((s) => s.id === selectedSubjectId)?.name ?? "Unknown";
         const mcqs = await apiClient.listSubjectPracticeMCQs(selectedSubjectId, mcqCount);
         tagged = mcqs.map((mcq) => ({ mcq, subjectName }));
       } else {
-        const subjectIds = dbSubjects.map((s) => s.id);
-        const mcqs = await apiClient.listCategoryPracticeMCQs(selectedCategory.code, mcqCount, subjectIds);
+        const subjectIds = activeSubjects.map((s) => s.id);
+        const mcqs = await apiClient.listCategoryPracticeMCQs(catCode, mcqCount, subjectIds);
         tagged = mcqs.map((mcq) => ({ mcq, subjectName: mcq.subject_name || "Unknown" }));
       }
       for (let i = tagged.length - 1; i > 0; i--) {
@@ -198,7 +218,7 @@ const Practice = () => {
       apiClient.submitPracticeResult({
         total_questions: attempted,
         correct_answers: s,
-        category: selectedCategory?.code,
+        category: examMode === "hat" ? "HAT" : selectedCategory?.code,
         subject_name: selectedSubjectName === "All Subjects" ? undefined : selectedSubjectName,
       }).then(() => {
         if (!isPro) {
@@ -477,8 +497,37 @@ const Practice = () => {
               {/* ── Config Card ── */}
               <div className="g-card rounded-3xl p-6 sm:p-8 space-y-8">
 
-                {/* Category */}
+                {/* Exam Mode Toggle */}
                 <div>
+                  <p className="section-label mb-3">Exam</p>
+                  <div className="inline-flex gap-1 rounded-xl border border-slate-200 bg-slate-100/60 p-1 dark:border-slate-700 dark:bg-slate-800/60">
+                    {(["usat", "hat"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          setExamMode(mode);
+                          setSelectedCategory(null);
+                          setSelectedSubjectId(null);
+                          setSelectedSubjectName("All Subjects");
+                        }}
+                        className={`rounded-lg px-5 py-2 text-sm font-bold transition-all duration-200 ${
+                          examMode === mode
+                            ? mode === "hat"
+                              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow"
+                              : "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow"
+                            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        {mode.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Category (USAT only) */}
+                {examMode === "usat" && (
+                  <div>
                   <p className="section-label mb-3">Category</p>
                   <div className="relative sm:max-w-md">
                     <button type="button" onClick={() => setCategoryOpen(!categoryOpen)}
@@ -535,35 +584,38 @@ const Practice = () => {
                       )}
                     </AnimatePresence>
                   </div>
-                </div>
+                  </div>
+                )} {/* end examMode === "usat" */}
 
-                {/* Subject Pills */}
-                {selectedCategory && (
+                {/* Subject Pills — shown for USAT (when category selected) or always for HAT */}
+                {(examMode === "hat" || selectedCategory) && (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                     <p className="section-label mb-3">Subject</p>
-                    {loadingSubjects ? (
+                    {loadingActiveSubjects ? (
                       <div className="flex items-center gap-2 text-sm text-slate-400">
                         <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
                         <span>Loading subjects…</span>
                       </div>
-                    ) : dbSubjects.length === 0 ? (
-                      <p className="text-sm text-slate-400">No subjects found for this category.</p>
+                    ) : activeSubjects.length === 0 ? (
+                      <p className="text-sm text-slate-400">No subjects found.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {["All Subjects", ...dbSubjects.map((s) => s.name)].map((s) => {
+                        {["All Subjects", ...activeSubjects.map((s) => s.name)].map((s) => {
                           const isAll = s === "All Subjects";
-                          const isActive = isAll ? selectedSubjectId === null : dbSubjects.find((ds) => ds.name === s)?.id === selectedSubjectId;
+                          const isActive = isAll ? selectedSubjectId === null : activeSubjects.find((ds) => ds.name === s)?.id === selectedSubjectId;
                           return (
                             <motion.button
                               key={s}
                               whileTap={{ scale: 0.96 }}
                               onClick={() => {
                                 if (isAll) { setSelectedSubjectId(null); setSelectedSubjectName("All Subjects"); }
-                                else { const found = dbSubjects.find((ds) => ds.name === s); setSelectedSubjectId(found?.id ?? null); setSelectedSubjectName(s); }
+                                else { const found = activeSubjects.find((ds) => ds.name === s); setSelectedSubjectId(found?.id ?? null); setSelectedSubjectName(s); }
                               }}
                               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
                                 isActive
-                                  ? "chip-active"
+                                  ? examMode === "hat"
+                                    ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white border-violet-600 shadow"
+                                    : "chip-active"
                                   : "bg-white/70 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                               }`}
                             >
@@ -676,16 +728,20 @@ const Practice = () => {
 
                 {/* Start Button */}
                 <motion.button
-                  whileTap={!fetchingMCQs && selectedCategory && !dailyLimitReached ? { scale: 0.98 } : {}}
+                  whileTap={!fetchingMCQs && (selectedCategory || examMode === "hat") && !dailyLimitReached ? { scale: 0.98 } : {}}
                   onClick={startQuiz}
-                  disabled={fetchingMCQs || !selectedCategory || dailyLimitReached}
+                  disabled={fetchingMCQs || (!selectedCategory && examMode !== "hat") || dailyLimitReached}
                   className="w-full flex items-center justify-center gap-2.5 rounded-2xl py-4 text-base font-bold text-white shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    background: fetchingMCQs || !selectedCategory || dailyLimitReached
+                    background: fetchingMCQs || (!selectedCategory && examMode !== "hat") || dailyLimitReached
                       ? "linear-gradient(135deg, #6b7280, #9ca3af)"
-                      : "linear-gradient(135deg, #1d4ed8, #0284c7, #06b6d4)",
-                    boxShadow: !fetchingMCQs && selectedCategory && !dailyLimitReached
-                      ? "0 8px 28px rgba(37,99,235,0.4), 0 2px 8px rgba(6,182,212,0.2)"
+                      : examMode === "hat"
+                        ? "linear-gradient(135deg, #7c3aed, #a855f7, #6d28d9)"
+                        : "linear-gradient(135deg, #1d4ed8, #0284c7, #06b6d4)",
+                    boxShadow: !fetchingMCQs && (selectedCategory || examMode === "hat") && !dailyLimitReached
+                      ? examMode === "hat"
+                        ? "0 8px 28px rgba(124,58,237,0.4), 0 2px 8px rgba(168,85,247,0.2)"
+                        : "0 8px 28px rgba(37,99,235,0.4), 0 2px 8px rgba(6,182,212,0.2)"
                       : "none",
                   }}
                 >

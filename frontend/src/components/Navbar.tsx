@@ -1,15 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Sparkles, Moon, Sun, Shield, Gift } from "lucide-react";
+import { ChevronDown, Menu, X, Sparkles, Moon, Sun, Shield, Gift } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/services/api";
 
+const EXAMS_LINKS = [
+  { label: "USAT", path: "/usat" },
+  { label: "HAT", path: "/hat" },
+];
+
 const navLinks = [
   { label: "Home", path: "/", auth: "any" as const },
-  { label: "USAT", path: "/usat", auth: "required" as const },
+  { label: "Exams", path: "/_exams_", auth: "required" as const },  // handled as dropdown
   { label: "Practice", path: "/practice", auth: "required" as const },
   { label: "AI Tutor", path: "/ai-tutor", auth: "required" as const },
   { label: "Query Room", path: "/query-room", auth: "required" as const },
@@ -19,7 +24,20 @@ const navLinks = [
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [examsOpen, setExamsOpen] = useState(false);
+  const examsRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  // Close exams dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (examsRef.current && !examsRef.current.contains(e.target as Node)) {
+        setExamsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Pre-fire the primary API call for a page the moment the user hovers its
   // nav link. By the time they click and the component mounts, React Query
@@ -114,6 +132,51 @@ const Navbar = () => {
 
         <div className="hidden items-center gap-0.5 rounded-2xl border border-slate-200/60 bg-slate-50/80 px-1.5 py-1 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-900/80 md:flex">
           {navLinks.filter(l => l.auth === "any" || isAuthenticated).map((link) => {
+            if (link.label === "Exams") {
+              const examsActive = location.pathname.startsWith("/usat") || location.pathname.startsWith("/hat");
+              return (
+                <div key="exams" ref={examsRef} className="relative">
+                  <button
+                    onClick={() => setExamsOpen(o => !o)}
+                    onMouseEnter={() => setExamsOpen(true)}
+                    className={`flex items-center gap-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                      examsActive
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-300/40 dark:shadow-blue-950/60"
+                        : "text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-100"
+                    }`}
+                  >
+                    Exams
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${examsOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  <AnimatePresence>
+                    {examsOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        onMouseLeave={() => setExamsOpen(false)}
+                        className="absolute left-0 top-full z-50 mt-1 min-w-[120px] overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-lg dark:border-slate-700/60 dark:bg-slate-900"
+                      >
+                        {EXAMS_LINKS.map((exam) => (
+                          <button
+                            key={exam.path}
+                            onClick={() => { handleNav(exam.path); setExamsOpen(false); }}
+                            className={`block w-full px-4 py-2.5 text-left text-sm font-semibold transition-colors ${
+                              location.pathname.startsWith(exam.path)
+                                ? "bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-300"
+                                : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                            }`}
+                          >
+                            {exam.label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            }
             const isActive = location.pathname === link.path;
             return (
               <button
@@ -198,6 +261,26 @@ const Navbar = () => {
           >
             <div className="space-y-1 px-4 py-3">
               {navLinks.filter(l => l.auth === "any" || isAuthenticated).map((link) => {
+                if (link.label === "Exams") {
+                  return (
+                    <div key="exams-mobile">
+                      <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Exams</p>
+                      {EXAMS_LINKS.map((exam) => (
+                        <button
+                          key={exam.path}
+                          onClick={() => handleNav(exam.path)}
+                          className={`block w-full rounded-xl px-6 py-2.5 text-left text-sm font-semibold transition-all ${
+                            location.pathname.startsWith(exam.path)
+                              ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-950/50"
+                              : "text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-100"
+                          }`}
+                        >
+                          {exam.label}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                }
                 const isActive = location.pathname === link.path;
                 return (
                   <button

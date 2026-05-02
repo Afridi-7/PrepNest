@@ -53,6 +53,13 @@ SCIENCE_SUBJECTS: dict[str, list[tuple[str, int]]] = {
     "USAT-COM": [("Accounting", 10), ("Commerce", 10), ("Economics", 10)],
 }
 
+# HAT has no essays — 3 MCQ-only sections with 30/30/40 split
+HAT_SECTIONS: list[dict] = [
+    {"type": "mcq", "subject": "English / Verbal Reasoning", "count": 30, "label": "Section 1 — English / Verbal Reasoning"},
+    {"type": "mcq", "subject": "Analytical Reasoning",       "count": 30, "label": "Section 2 — Analytical Reasoning"},
+    {"type": "mcq", "subject": "Quantitative Reasoning",     "count": 40, "label": "Section 3 — Quantitative Reasoning"},
+]
+
 # Section definitions — same structure for every category.
 # "__SCIENCE__" is replaced at runtime with the category-specific subjects.
 MOCK_SECTIONS: list[dict] = [
@@ -308,7 +315,10 @@ async def build_mock_sections(
     used_ids: set[int] = set()
     served_ids = served_ids or set()
 
-    for sec in MOCK_SECTIONS:
+    # HAT uses its own section blueprint (no essays)
+    section_blueprint = HAT_SECTIONS if category == "HAT" else MOCK_SECTIONS
+
+    for sec in section_blueprint:
         ms = MockSection(label=sec["label"])
 
         if sec["type"] == "mcq":

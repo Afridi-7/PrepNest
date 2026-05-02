@@ -39,6 +39,7 @@ USAT_CATEGORIES: dict[str, dict[str, str]] = {
     "USAT-GS": {"title": "General Science", "description": "Mathematics, Statistics, Economics"},
     "USAT-A": {"title": "Arts & Humanities", "description": "Islamiat/Ethics, Pakistan Studies, General Knowledge"},
     "USAT-COM": {"title": "Commerce", "description": "Accounting, Commerce, Economics"},
+    "HAT": {"title": "HAT", "description": "English/Verbal Reasoning, Analytical Reasoning, Quantitative Reasoning"},
 }
 
 

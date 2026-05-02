@@ -13,11 +13,12 @@ from app.services.mock_test_service import (
     format_sections_for_response,
     generate_mock_test,
     SCIENCE_SUBJECTS,
+    HAT_SECTIONS,
 )
 
 router = APIRouter(prefix="/mock-tests", tags=["mock-tests"])
 
-_VALID_CATEGORIES = frozenset(SCIENCE_SUBJECTS.keys())
+_VALID_CATEGORIES = frozenset(list(SCIENCE_SUBJECTS.keys()) + ["HAT"])
 
 
 def _validate_category(category: str) -> str:

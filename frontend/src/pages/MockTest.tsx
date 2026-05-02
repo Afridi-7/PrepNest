@@ -323,9 +323,9 @@ const MockTestPage = () => {
                       <span className="text-sm font-bold text-indigo-800">{selectedCategory.code}</span>
                       <div className="h-4 w-px bg-indigo-200" />
                       {[
-                        { icon: Target, text: "75 MCQs + 2 Essays", color: "text-indigo-500" },
+                        { icon: Target, text: selectedCategory.code === "HAT" ? "100 MCQs" : "75 MCQs + 2 Essays", color: "text-indigo-500" },
                         { icon: Clock, text: "120 min", color: "text-violet-500" },
-                        { icon: Award, text: "AI-Evaluated", color: "text-amber-500" },
+                        { icon: Award, text: selectedCategory.code === "HAT" ? "Instant Score" : "AI-Evaluated", color: "text-amber-500" },
                       ].map(({ icon: Icon, text, color }) => (
                         <div key={text} className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
                           <Icon className={`h-4 w-4 ${color}`} />
@@ -340,14 +340,14 @@ const MockTestPage = () => {
                   {selectedCategory && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {[
-                          { icon: BookOpen, label: "Verbal Reasoning", count: "20 MCQs", from: "#6366f1", to: "#818cf8", bg: "#eef2ff", border: "#c7d2fe", text: "#3730a3" },
-                          { icon: BarChart3, label: "Quantitative Reasoning", count: "25 MCQs", from: "#0ea5e9", to: "#38bdf8", bg: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" },
-                          { icon: Target, label: "Subject Knowledge", count: "30 MCQs", from: "#10b981", to: "#34d399", bg: "#f0fdf4", border: "#a7f3d0", text: "#064e3b" },
-                          { icon: PenLine, label: "Argumentative Essay", count: "1 Essay", from: "#f59e0b", to: "#fbbf24", bg: "#fffbeb", border: "#fde68a", text: "#78350f" },
-                          { icon: MessageSquare, label: "Narrative Essay", count: "1 Essay", from: "#f43f5e", to: "#fb7185", bg: "#fff1f2", border: "#fecdd3", text: "#881337" },
-                        ].map(({ icon: Icon, label, count, from, to, bg, border, text }) => (
-                          <div key={label} className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all hover:shadow-md hover:-translate-y-0.5"
+                        {selectedCategory.code === "HAT" ? (
+                          <>
+                            {[
+                              { icon: BookOpen, label: "English / Verbal Reasoning", count: "30 MCQs", from: "#7c3aed", to: "#a78bfa", bg: "#f5f3ff", border: "#ddd6fe", text: "#4c1d95" },
+                              { icon: Target,   label: "Analytical Reasoning",       count: "30 MCQs", from: "#db2777", to: "#f472b6", bg: "#fdf2f8", border: "#fbcfe8", text: "#831843" },
+                              { icon: BarChart3, label: "Quantitative Reasoning",     count: "40 MCQs", from: "#0ea5e9", to: "#38bdf8", bg: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" },
+                            ].map(({ icon: Icon, label, count, from, to, bg, border, text }) => (
+                              <div key={label} className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all hover:shadow-md hover:-translate-y-0.5"
                             style={{ backgroundColor: bg, borderColor: border }}>
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
                               style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
@@ -359,10 +359,34 @@ const MockTestPage = () => {
                             </div>
                           </div>
                         ))}
+                          </>
+                        ) : (
+                          <>
+                            {[
+                              { icon: BookOpen,      label: "Verbal Reasoning",      count: "20 MCQs", from: "#6366f1", to: "#818cf8", bg: "#eef2ff", border: "#c7d2fe", text: "#3730a3" },
+                              { icon: BarChart3,     label: "Quantitative Reasoning", count: "25 MCQs", from: "#0ea5e9", to: "#38bdf8", bg: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" },
+                              { icon: Target,        label: "Subject Knowledge",       count: "30 MCQs", from: "#10b981", to: "#34d399", bg: "#f0fdf4", border: "#a7f3d0", text: "#064e3b" },
+                              { icon: PenLine,       label: "Argumentative Essay",    count: "1 Essay",  from: "#f59e0b", to: "#fbbf24", bg: "#fffbeb", border: "#fde68a", text: "#78350f" },
+                              { icon: MessageSquare, label: "Narrative Essay",         count: "1 Essay",  from: "#f43f5e", to: "#fb7185", bg: "#fff1f2", border: "#fecdd3", text: "#881337" },
+                            ].map(({ icon: Icon, label, count, from, to, bg, border, text }) => (
+                              <div key={label} className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all hover:shadow-md hover:-translate-y-0.5"
+                                style={{ backgroundColor: bg, borderColor: border }}>
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
+                                  style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
+                                  <Icon className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold" style={{ color: text }}>{label}</div>
+                                  <div className="text-xs font-medium text-slate-500">{count}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </div>
 
-                      {/* Detailed composition blocks */}
-                      {(() => {
+                      {/* Detailed composition blocks (USAT only) */}
+                      {selectedCategory.code !== "HAT" && (() => {
                         const SUBJECT_SPLITS: Record<string, Array<[string, number]>> = {
                           "USAT-E":   [["Physics", 10], ["Chemistry", 10], ["Mathematics", 10]],
                           "USAT-M":   [["Physics", 8], ["Chemistry", 8], ["Biology", 14]],

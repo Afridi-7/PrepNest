@@ -21,6 +21,8 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const USAT = lazy(() => import("./pages/USAT.tsx"));
 const USATSubjects = lazy(() => import("./pages/USATSubjects.tsx"));
 const USATSubjectChapters = lazy(() => import("./pages/USATSubjectChapters.tsx"));
+const HAT = lazy(() => import("./pages/HAT.tsx"));
+const HATSubjectChapters = lazy(() => import("./pages/HATSubjectChapters.tsx"));
 const Practice = lazy(() => import("./pages/Practice.tsx"));
 const AITutor = lazy(() => import("./pages/AITutor.tsx"));
 const Contact = lazy(() => import("./pages/Contact.tsx"));
@@ -95,6 +97,8 @@ const usePrefetchRoutes = () => {
       void import("./pages/USAT.tsx");
       void import("./pages/USATSubjects.tsx");
       void import("./pages/USATSubjectChapters.tsx");
+      void import("./pages/HAT.tsx");
+      void import("./pages/HATSubjectChapters.tsx");
       void import("./pages/QueryRoom.tsx");
       void import("./pages/Pricing.tsx");
       void import("./pages/Contact.tsx");
@@ -135,6 +139,8 @@ const App = () => {
             <Route path="/usat" element={<RequireAuth><USAT /></RequireAuth>} />
             <Route path="/usat/:category" element={<RequireAuth><USATSubjects /></RequireAuth>} />
             <Route path="/usat/:category/:subject" element={<RequireAuth><USATSubjectChapters /></RequireAuth>} />
+            <Route path="/hat" element={<RequireAuth><HAT /></RequireAuth>} />
+            <Route path="/hat/:subject" element={<RequireAuth><HATSubjectChapters /></RequireAuth>} />
             <Route path="/practice" element={<RequireAuth><Practice /></RequireAuth>} />
             <Route path="/mock-test" element={<RequireAuth><MockTest /></RequireAuth>} />
             <Route path="/ai-tutor" element={<RequireAuth><AITutor /></RequireAuth>} />

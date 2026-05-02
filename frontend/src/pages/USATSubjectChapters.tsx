@@ -297,8 +297,17 @@ const SectionCard = ({
 
 /* ====================================================================== */
 
-const USATSubjectChapters = () => {
-  const { category = "", subject = "" } = useParams();
+interface SubjectChaptersProps {
+  /** When provided, overrides the :category URL param (used by HAT which has no category segment). */
+  forcedCategory?: string;
+  /** Where the "Back to Subjects" link should go. Defaults to /usat/:category */
+  backPath?: string;
+}
+
+const USATSubjectChapters = ({ forcedCategory, backPath }: SubjectChaptersProps = {}) => {
+  const { category: urlCategory = "", subject = "" } = useParams();
+  const category = forcedCategory ?? urlCategory;
+  const resolvedBackPath = backPath ?? `/usat/${encodeURIComponent(category)}`;
   const [subjectInfo, setSubjectInfo] = useState<Subject | null>(null);
   const [chapters, setChapters] = useState<Topic[]>([]);
   const [subjectPapers, setSubjectPapers] = useState<PastPaper[]>([]);
@@ -599,7 +608,7 @@ const USATSubjectChapters = () => {
           {/* ── HERO ── */}
           <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}
             className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 p-8 shadow-xl shadow-blue-500/20">
-            <Link to={`/usat/${encodeURIComponent(category)}`}
+            <Link to={resolvedBackPath}
               className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/30">
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Subjects
             </Link>
