@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import SiteSettingsEditor from "@/components/admin/SiteSettingsEditor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient, Material, MCQ, Note, Resource, Subject, Topic, type UserAdminView } from "@/services/api";
+import { apiClient, Material, MCQ, MCQSearchResult, Note, Resource, Subject, Topic, type UserAdminView } from "@/services/api";
 
 type Tab = "content" | "mcqs" | "upload" | "users" | "tools" | "site";
 interface MCQStat { exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number; }
@@ -91,6 +91,15 @@ const AdminContent = () => {
   const [deletingChapterMCQs, setDeletingChapterMCQs] = useState<string | null>(null);
   const [dedupingChapterMCQs, setDedupingChapterMCQs] = useState<string | null>(null);
   const [deletingMCQ, setDeletingMCQ] = useState<number | null>(null);
+
+  // ── Flat search state ──────────────────────────────────────────────────────
+  const [mcqSearch, setMcqSearch] = useState("");
+  const [mcqSearchResults, setMcqSearchResults] = useState<MCQSearchResult[]>([]);
+  const [mcqSearchLoading, setMcqSearchLoading] = useState(false);
+  const [mcqSearchOffset, setMcqSearchOffset] = useState(0);
+  const [mcqSearchHasMore, setMcqSearchHasMore] = useState(false);
+  const MCQ_SEARCH_LIMIT = 200;
+  const mcqSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [allUsers, setAllUsers] = useState<UserAdminView[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -184,6 +193,25 @@ const AdminContent = () => {
       toast({ title: "Failed to load MCQ stats", description: msg, variant: "destructive" });
     } finally {
       setMcqStatsLoading(false);
+    }
+  }, [toast]);
+
+  const runMcqSearch = useCallback(async (q: string, examType: string, offset: number, append: boolean) => {
+    setMcqSearchLoading(true);
+    try {
+      const results = await apiClient.searchAdminMCQs({
+        q,
+        exam_type: examType === "all" ? undefined : examType,
+        limit: MCQ_SEARCH_LIMIT,
+        offset,
+      });
+      setMcqSearchResults((prev) => append ? [...prev, ...results] : results);
+      setMcqSearchHasMore(results.length === MCQ_SEARCH_LIMIT);
+      setMcqSearchOffset(offset + results.length);
+    } catch (error: unknown) {
+      toast({ title: "Search failed", description: error instanceof Error ? error.message : "Unknown", variant: "destructive" });
+    } finally {
+      setMcqSearchLoading(false);
     }
   }, [toast]);
 
@@ -1303,6 +1331,7 @@ const AdminContent = () => {
 
           {activeTab === "mcqs" && (
             <div className="space-y-4">
+              {/* ── Header row: stats + filters ── */}
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-gradient-to-br from-cyan-100 to-blue-100 px-4 py-2.5 text-center border border-cyan-200">
@@ -1319,7 +1348,13 @@ const AdminContent = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <select className="border rounded-lg px-3 py-2 text-sm bg-white" value={mcqFilterExamType} onChange={(e) => setMcqFilterExamType(e.target.value)}>
+                  <select className="border rounded-lg px-3 py-2 text-sm bg-white" value={mcqFilterExamType} onChange={(e) => {
+                    setMcqFilterExamType(e.target.value);
+                    if (mcqSearch.trim()) {
+                      setMcqSearchOffset(0);
+                      runMcqSearch(mcqSearch, e.target.value, 0, false);
+                    }
+                  }}>
                     <option value="all">All Exam Types</option>
                     {EXAM_TYPES.map((et) => (<option key={et} value={et}>{et}</option>))}
                   </select>
@@ -1329,6 +1364,148 @@ const AdminContent = () => {
                 </div>
               </div>
 
+              {/* ── Search bar ── */}
+              <div className="rounded-2xl border bg-white shadow-sm p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300 transition"
+                    placeholder="Search all MCQs by question, options, or explanation…"
+                    value={mcqSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMcqSearch(val);
+                      if (mcqSearchDebounceRef.current) clearTimeout(mcqSearchDebounceRef.current);
+                      mcqSearchDebounceRef.current = setTimeout(() => {
+                        setMcqSearchOffset(0);
+                        setMcqSearchResults([]);
+                        runMcqSearch(val, mcqFilterExamType, 0, false);
+                      }, 350);
+                    }}
+                  />
+                  {mcqSearch && (
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg leading-none"
+                      onClick={() => { setMcqSearch(""); setMcqSearchResults([]); setMcqSearchHasMore(false); setMcqSearchOffset(0); }}
+                    >×</button>
+                  )}
+                </div>
+                {!mcqSearch && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Type to search all MCQs, or browse by subject/chapter in the tree below. You can also click <strong>Load All</strong> to list every MCQ.
+                  </p>
+                )}
+                {!mcqSearch && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-xs"
+                    disabled={mcqSearchLoading}
+                    onClick={() => { setMcqSearch(" "); setMcqSearchOffset(0); runMcqSearch("", mcqFilterExamType, 0, false); }}
+                  >
+                    {mcqSearchLoading ? "Loading…" : "Load All MCQs"}
+                  </Button>
+                )}
+              </div>
+
+              {/* ── Flat search results ── */}
+              {(mcqSearch.trim() || mcqSearchResults.length > 0) && (
+                <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-50 to-slate-100 border-b">
+                    <span className="text-sm font-semibold text-slate-700">
+                      {mcqSearchLoading ? "Searching…" : `${mcqSearchResults.length}${mcqSearchHasMore ? "+" : ""} MCQs found`}
+                    </span>
+                    {mcqSearchResults.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        Showing {mcqSearchResults.length} result{mcqSearchResults.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  {mcqSearchLoading && mcqSearchResults.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">Searching…</div>
+                  ) : mcqSearchResults.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">No MCQs match your search.</div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 max-h-[70vh] overflow-auto">
+                      {mcqSearchResults.map((mcq) => (
+                        <div key={mcq.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="rounded-md bg-cyan-100 px-1.5 py-0.5 text-[10px] font-bold text-cyan-700">{mcq.exam_type}</span>
+                              <span className="text-xs text-slate-500 truncate">{mcq.subject_name}</span>
+                              <span className="text-slate-300 text-xs">›</span>
+                              <span className="text-xs text-slate-400 truncate">{mcq.chapter_title}</span>
+                            </div>
+                            <p className="text-sm text-slate-800">{mcq.question}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              <span className="font-semibold text-green-600">{mcq.correct_answer}</span>
+                              {" — "}
+                              {mcq.option_a} / {mcq.option_b} / {mcq.option_c} / {mcq.option_d}
+                            </p>
+                            {mcq.explanation && (
+                              <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{mcq.explanation}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDeleteMCQAcrossCategories(mcq.id, mcq.subject_name)}
+                              disabled={deletingMCQ === mcq.id}
+                              className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 h-7 w-7"
+                              title={`Delete from all "${mcq.subject_name}" subjects across categories`}
+                            >
+                              <Globe className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={async () => {
+                                if (!window.confirm("Delete this MCQ?")) return;
+                                setDeletingMCQ(mcq.id);
+                                try {
+                                  await apiClient.deleteMCQ(mcq.id);
+                                  setMcqSearchResults((prev) => prev.filter((m) => m.id !== mcq.id));
+                                  setMcqStats((prev) => prev.map((s) =>
+                                    s.chapter === mcq.chapter_title && s.subject === mcq.subject_name
+                                      ? { ...s, mcqs: Math.max(0, s.mcqs - 1) } : s
+                                  ));
+                                  toast({ description: "MCQ deleted" });
+                                } catch (err: unknown) {
+                                  toast({ title: "Delete failed", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" });
+                                } finally { setDeletingMCQ(null); }
+                              }}
+                              disabled={deletingMCQ === mcq.id}
+                              className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7"
+                              title="Delete this MCQ (this chapter only)"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {mcqSearchHasMore && (
+                        <div className="p-4 text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={mcqSearchLoading}
+                            onClick={() => runMcqSearch(mcqSearch.trim(), mcqFilterExamType, mcqSearchOffset, true)}
+                          >
+                            {mcqSearchLoading ? "Loading…" : `Load more (${MCQ_SEARCH_LIMIT} per page)`}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Tree view (subject > chapter > MCQ list) ── */}
               {mcqStatsLoading ? (
                 <div className="rounded-2xl border bg-white p-12 text-center text-muted-foreground shadow-sm">
                   Loading MCQ statistics...

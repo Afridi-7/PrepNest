@@ -554,6 +554,68 @@ async def delete_material(
     await db.commit()
 
 
+@router.get("/mcqs/search")
+async def search_mcqs(
+    q: str = Query("", description="Search text (question / options / explanation)"),
+    exam_type: str | None = Query(None),
+    subject: str | None = Query(None),
+    topic_id: int | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Full-text search across all MCQs with optional exam_type / subject / chapter filters.
+
+    Returns rows enriched with subject name, exam type, and chapter title so the
+    flat admin list can display context without extra round-trips.
+    """
+    from sqlalchemy import func as sa_func
+
+    stmt = (
+        select(
+            MCQ.id,
+            MCQ.question,
+            MCQ.option_a,
+            MCQ.option_b,
+            MCQ.option_c,
+            MCQ.option_d,
+            MCQ.correct_answer,
+            MCQ.explanation,
+            MCQ.topic_id,
+            MCQ.created_at,
+            Topic.title.label("chapter_title"),
+            Subject.name.label("subject_name"),
+            Subject.exam_type.label("exam_type"),
+            Subject.id.label("subject_id"),
+        )
+        .join(Topic, MCQ.topic_id == Topic.id)
+        .join(Subject, Topic.subject_id == Subject.id)
+    )
+
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        stmt = stmt.where(
+            MCQ.question.ilike(pattern)
+            | MCQ.option_a.ilike(pattern)
+            | MCQ.option_b.ilike(pattern)
+            | MCQ.option_c.ilike(pattern)
+            | MCQ.option_d.ilike(pattern)
+            | MCQ.explanation.ilike(pattern)
+        )
+    if exam_type:
+        stmt = stmt.where(Subject.exam_type.ilike(exam_type))
+    if subject:
+        stmt = stmt.where(Subject.name.ilike(f"%{subject}%"))
+    if topic_id is not None:
+        stmt = stmt.where(MCQ.topic_id == topic_id)
+
+    stmt = stmt.order_by(Subject.exam_type, Subject.name, Topic.title, MCQ.id).limit(limit).offset(offset)
+    result = await db.execute(stmt)
+    rows = result.mappings().all()
+    return [dict(r) for r in rows]
+
+
 @router.get("/mcqs", response_model=list[MCQRead])
 async def list_mcqs(
     topic_id: int,

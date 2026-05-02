@@ -216,6 +216,13 @@ export interface MCQ {
   subject_name?: string;
 }
 
+export interface MCQSearchResult extends MCQ {
+  chapter_title: string;
+  subject_name: string;
+  exam_type: string;
+  subject_id: number;
+}
+
 export interface Tip {
   id: number;
   title: string;
@@ -1466,11 +1473,42 @@ class ApiClient {
   }
 
   async getAdminMCQs(topicId: number): Promise<MCQ[]> {
-    return this.request<MCQ[]>(`/admin/mcqs?topic_id=${topicId}`);
+    // The endpoint is paginated (default limit=100). Fetch all pages so the
+    // admin view shows the complete list regardless of chapter size.
+    const PAGE = 500;
+    const all: MCQ[] = [];
+    let offset = 0;
+    while (true) {
+      const page = await this.request<MCQ[]>(
+        `/admin/mcqs?topic_id=${topicId}&limit=${PAGE}&offset=${offset}`
+      );
+      all.push(...page);
+      if (page.length < PAGE) break;
+      offset += PAGE;
+    }
+    return all;
   }
 
   async getMCQStats(): Promise<{ exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number }[]> {
     return this.request<{ exam_type: string; subject: string; chapter: string; topic_id: number; mcqs: number }[]>("/admin/mcq-stats");
+  }
+
+  async searchAdminMCQs(params: {
+    q?: string;
+    exam_type?: string;
+    subject?: string;
+    topic_id?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<MCQSearchResult[]> {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.exam_type) qs.set("exam_type", params.exam_type);
+    if (params.subject) qs.set("subject", params.subject);
+    if (params.topic_id != null) qs.set("topic_id", String(params.topic_id));
+    qs.set("limit", String(params.limit ?? 200));
+    qs.set("offset", String(params.offset ?? 0));
+    return this.request<MCQSearchResult[]>(`/admin/mcqs/search?${qs.toString()}`);
   }
 
   async deleteTopicMCQs(topicId: number): Promise<{ deleted: number }> {
