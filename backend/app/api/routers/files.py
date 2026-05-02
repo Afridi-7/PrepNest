@@ -146,7 +146,17 @@ async def proxy_storage_object(
         "apikey": settings.supabase_service_key,
     }
 
-    client = httpx.AsyncClient(timeout=60.0)
+    # Mimic a real browser request — some Supabase/Cloudflare CDN configs block
+    # requests that expose Python/httpx user-agent strings even when the
+    # Authorization and apikey headers are present.
+    headers["User-Agent"] = (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+    headers["Accept"] = "application/pdf,application/octet-stream,*/*"
+
+    client = httpx.AsyncClient(timeout=60.0, follow_redirects=True)
     try:
         upstream = await client.get(fetch_url, headers=headers)
     except Exception as exc:
@@ -160,6 +170,19 @@ async def proxy_storage_object(
         body = upstream.text[:200]
         await client.aclose()
         raise HTTPException(status_code=502, detail=f"Upstream storage returned {upstream.status_code}: {body}")
+
+    # Detect Cloudflare/WAF security-block pages that are returned with HTTP 200
+    # but have an HTML body (e.g. JS challenge or "This content is blocked" pages).
+    # Streaming HTML back would let the frontend silently create a blob URL from
+    # the HTML, causing "This content is blocked" to appear inside the PDF iframe.
+    upstream_ct = upstream.headers.get("content-type", "application/octet-stream").lower()
+    if "text/html" in upstream_ct:
+        preview = upstream.text[:300]
+        await client.aclose()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Storage returned an HTML page instead of a file (WAF/security block?). Preview: {preview[:150]}",
+        )
 
     content_type = upstream.headers.get("content-type", "application/octet-stream")
     content_length = upstream.headers.get("content-length")
