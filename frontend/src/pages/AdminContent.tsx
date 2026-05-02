@@ -530,13 +530,26 @@ const AdminContent = () => {
   const onCreatePastPaper = async (e: FormEvent) => {
     e.preventDefault();
     if (!pastPaperSubjectId) return;
+    // Routed to the NEW /admin/papers endpoint so uploads land in the
+    // `past_papers` table (the subject page reads from there). Year is
+    // baked into the title since the new schema has no dedicated year
+    // column. URL fallback uses the optional content textarea.
+    const baseTitle = pastPaperTitle.trim();
+    const yearStr = String(pastPaperYear);
+    const finalTitle = baseTitle
+      ? (baseTitle.includes(yearStr) ? baseTitle : `${baseTitle} ${yearStr}`)
+      : `Past Paper ${yearStr}`;
+    const externalUrl = pastPaperContent.trim();
+    if (!pastPaperFile && !externalUrl) {
+      toast({ title: "Missing file", description: "Provide a PDF file or a URL", variant: "destructive" });
+      return;
+    }
     try {
-      await apiClient.createPastPaper({
+      await apiClient.createPaper({
         subject_id: pastPaperSubjectId,
-        year: Number(pastPaperYear),
-        title: pastPaperTitle.trim() || undefined,
-        content: pastPaperContent.trim() || undefined,
+        title: finalTitle,
         file: pastPaperFile || undefined,
+        url: externalUrl || undefined,
       });
       setPastPaperTitle(""); setPastPaperContent(""); setPastPaperFile(null);
       toast({ description: "Past paper created" });
@@ -1039,8 +1052,9 @@ const AdminContent = () => {
 
                 <form onSubmit={onCreatePastPaper} className="rounded-2xl border bg-white p-5 space-y-3 shadow-sm">
                   <h2 className="font-semibold flex items-center gap-2 text-slate-700">
-                    <PlusCircle className="h-4 w-4 text-cyan-500" /> Past Paper (Legacy)
+                    <PlusCircle className="h-4 w-4 text-cyan-500" /> Past Paper (by Year)
                   </h2>
+                  <p className="text-xs text-muted-foreground">Quick form: pick a subject, year, and PDF. Saved to the same table as the form below.</p>
                   <select className="w-full border rounded-lg px-3 py-2 text-sm" value={pastPaperSubjectId} onChange={(e) => setPastPaperSubjectId(Number(e.target.value))} required>
                     <option value="">Select subject</option>
                     {sortedSubjects.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.exam_type})</option>))}
